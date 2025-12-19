@@ -93,3 +93,45 @@ void VNEngine::ShutDown() {
 
   SDL_Quit();
 }
+
+bool VNEngine::PollEvent(VNEvent &e) {
+  SDL_Event sdl;
+  if (!SDL_PollEvent(&sdl))
+    return false;
+
+  switch (sdl.type) {
+  case SDL_EVENT_QUIT:
+    e = {VNEvent::Quit, 0};
+    return true;
+  case SDL_EVENT_KEY_DOWN:
+    e = {VNEvent::KeyDown, sdl.key.key};
+    return true;
+  case SDL_EVENT_MOUSE_BUTTON_DOWN:
+    e = {VNEvent::MouseDown, 0};
+    return true;
+  default:
+    e = {VNEvent::Unknown, 0};
+    return true;
+  }
+}
+
+void VNEngine::Present() { SDL_RenderPresent(m_renderer); }
+
+void VNEngine::HandleEvent(const VNEvent &e) {
+  SDL_Event sdl{};
+  switch (e.type) {
+  case VNEvent::Quit:
+    sdl.type = SDL_EVENT_QUIT;
+    break;
+  case VNEvent::KeyDown:
+    sdl.type = SDL_EVENT_KEY_DOWN;
+    sdl.key.key = e.key;
+    break;
+  case VNEvent::MouseDown:
+    sdl.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    break;
+  default:
+    return;
+  }
+  HandleSDLEvent(sdl);
+}
