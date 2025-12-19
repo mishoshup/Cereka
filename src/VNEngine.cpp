@@ -135,3 +135,29 @@ void VNEngine::HandleEvent(const VNEvent &e) {
   }
   HandleSDLEvent(sdl);
 }
+
+// ----------  stubs – fill later  ----------
+void VNEngine::LoadScript(const std::string &) {}
+void VNEngine::Reset() {}
+void VNEngine::Update(float) {}
+void VNEngine::Draw() {}
+// bool VNEngine::IsFinished() const { return false; }
+
+void VNEngine::ShowBackground(const std::string &) {}
+void VNEngine::ShowCharacter(const std::string &, const std::string &) {}
+void VNEngine::HideCharacter(const std::string &) {}
+void VNEngine::Say(const std::string &, const std::string &,
+                   const std::string &) {}
+void VNEngine::Narrate(const std::string &) {}
+
+SDL_Texture *VNEngine::LoadTexture(const std::string &) { return nullptr; }
+SDL_Texture *VNEngine::CreateSolidTexture(int, int, Uint8, Uint8, Uint8,
+                                          Uint8) {
+  return nullptr;
+}
+SDL_Texture *VNEngine::RenderText(const std::string &, SDL_Color) {
+  return nullptr;
+}
+SDL_Renderer *VNEngine::CreateBestRenderer(SDL_Window *) { return nullptr; }
+
+void VNEngine::HandleSDLEvent(const SDL_Event &) {}
