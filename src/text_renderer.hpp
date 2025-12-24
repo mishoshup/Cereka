@@ -16,5 +16,6 @@ bool init_ttf();
  *
  * This must be called before attempting to use any TTF functions.
  */
-TTF_Font *OpenFont(const std::string &fontPath, int fontSize);
-} // namespace cereka::text_renderer
+TTF_Font *OpenFont(const std::string &fontPath,
+                   int fontSize);
+}  // namespace cereka::text_renderer

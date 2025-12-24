@@ -25,6 +25,9 @@ void init_video();
  */
 void deinit_video();
 
-void create_window(const char *title, bool fullscreen, int width, int height);
+void create_window(const char *title,
+                   bool fullscreen,
+                   int width,
+                   int height);
 
-} // namespace cereka::video
+}  // namespace cereka::video

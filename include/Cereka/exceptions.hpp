@@ -14,32 +14,37 @@ namespace cereka::engine {
  * error.
  */
 class Error : public std::exception {
-public:
-  std::string message;
+   public:
+    std::string message;
 
-  Error() : message() {}
+    Error() : message() {}
 
-  explicit Error(const std::string &msg) : message(msg) {}
+    explicit Error(const std::string &msg) : message(msg) {}
 
-  explicit Error(const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
+    explicit Error(const char *fmt,
+                   ...)
+    {
+        va_list args;
+        va_start(args, fmt);
 
-    int size = std::vsnprintf(nullptr, 0, fmt, args);
-    va_end(args);
+        int size = std::vsnprintf(nullptr, 0, fmt, args);
+        va_end(args);
 
-    std::vector<char> buf(size + 1);
+        std::vector<char> buf(size + 1);
 
-    va_start(args, fmt);
-    std::vsnprintf(buf.data(), buf.size(), fmt, args);
-    va_end(args);
+        va_start(args, fmt);
+        std::vsnprintf(buf.data(), buf.size(), fmt, args);
+        va_end(args);
 
-    message = std::string(buf.data());
-  }
+        message = std::string(buf.data());
+    }
 
-  ~Error() noexcept override {}
+    ~Error() noexcept override {}
 
-  const char *what() const noexcept override { return message.c_str(); }
+    const char *what() const noexcept override
+    {
+        return message.c_str();
+    }
 };
 
 /**
@@ -48,4 +53,4 @@ public:
  */
 using error = Error;
 
-} // namespace cereka::engine
+}  // namespace cereka::engine
