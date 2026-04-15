@@ -1,3 +1,5 @@
+#include "embedded_assets.h"
+
 #include "imgui.h"
 #include "backends/imgui_impl_sdl3.h"
 #include "backends/imgui_impl_sdlrenderer3.h"
@@ -36,152 +38,103 @@ fullscreen = false
 entry      = assets/scripts/main.crka
 )";
 
-// This script is the full feature tour — every supported command is demonstrated
-// with comments so the author knows exactly how to use each one.
+// Starter script — uses the bundled placeholder assets so the game runs
+// immediately out of the box. Every command is shown with comments.
 static const char *kMainScriptTemplate = R"(; ================================================================
-; main.crka — Cereka starter template
-; Every command the engine supports is shown here.
-; Lines starting with ; are comments and are ignored.
+; main.crka — Cereka starter script
+; Placeholder assets are already included so this runs right away.
+; Replace them with your own files and edit freely.
+; Lines starting with ; are comments — ignored by the engine.
 ; ================================================================
 
-
-; ----------------------------------------------------------------
-; LABEL  — marks a position you can jump to
-; Syntax: label <name>
-; ----------------------------------------------------------------
 label start
 
+; BGM — background music, loops forever.
+; Put your music files in assets/sounds/
+; Syntax: bgm <filename>
+bgm placeholder_bgm.wav
 
-; ----------------------------------------------------------------
-; BGM  — play background music (loops forever)
-; Syntax: bgm <filename>   file lives in assets/sounds/
-; ----------------------------------------------------------------
-; bgm theme.mp3
+; BG — show a background image. Only one active at a time.
+; Put your images in assets/bg/
+; Syntax: bg <filename>
+bg placeholder_bg.png
 
-
-; ----------------------------------------------------------------
-; BG  — show a background image
-; Syntax: bg <filename>    file lives in assets/bg/
-; Only one background can be active at a time.
-; ----------------------------------------------------------------
-; bg classroom.jpg
-
-
-; ----------------------------------------------------------------
-; NARRATE  — narrator text with no speaker name
-; Syntax: narrate "text"
+; NARRATE — narrator text, no speaker name shown.
 ; Click or press a key to advance.
-; ----------------------------------------------------------------
 narrate "Welcome to your visual novel!"
-narrate "This script walks you through every feature."
-narrate "Read the comments above each command to learn the syntax."
+narrate "This script runs with the included placeholder assets."
+narrate "Replace them with your own files when you are ready."
 
+; CHAR — show a character sprite. ID is your short reference tag.
+; Multiple characters can be on screen at once.
+; Put sprites in assets/characters/
+; Syntax: char <ID> <filename>
+char Alice placeholder_char.png
 
-; ----------------------------------------------------------------
-; CHAR  — show a character sprite on screen
-; Syntax: char <ID> <filename>    file lives in assets/characters/
-; ID is a short tag you use to reference this character later.
-; Multiple characters can be on screen at the same time.
-; ----------------------------------------------------------------
-; char Alice alice_normal.png
-; char Bob   bob_smile.png
-
-
-; ----------------------------------------------------------------
-; SAY  — dialogue line with a speaker name box
+; SAY — dialogue with a speaker name box. ID must match a loaded char.
 ; Syntax: say <ID> "text"
-; The ID must match a char you loaded above.
-; ----------------------------------------------------------------
-; say Alice "Hi! I am Alice. Nice to meet you."
-; say Bob   "Hey Alice. Ready to learn some Cereka scripting?"
+say Alice "Hi! I am a placeholder character. Replace me with your sprite."
 
+; SFX — one-shot sound effect, does NOT pause the script.
+; Put sounds in assets/sounds/
+; Syntax: sfx <filename>
+sfx placeholder_sfx.wav
 
-; ----------------------------------------------------------------
-; HIDE CHAR  — remove a character from the screen
-; Syntax: hide char <ID>
-; ----------------------------------------------------------------
-; hide char Bob
-
-
-; ----------------------------------------------------------------
-; SFX  — play a one-shot sound effect (fire and forget)
-; Syntax: sfx <filename>    file lives in assets/sounds/
-; Multiple SFX can overlap. Does NOT pause the script.
-; ----------------------------------------------------------------
-; sfx click.wav
-
-
-; ----------------------------------------------------------------
-; SET  — store a variable (all values are strings)
-; Syntax: set <variable_name> <value>
-; ----------------------------------------------------------------
+; SET — store a variable. All values are strings.
+; Syntax: set <variable> <value>
 set choice none
 
-
-; ----------------------------------------------------------------
-; MENU  — present a choice to the player
-; Indent button/bg lines inside the menu block.
-;
-;   bg      sets the background shown during the menu
-;   button  "Label" goto <label>   — jump to a label on click
-;   button  "Label" exit           — quit the game on click
-; ----------------------------------------------------------------
+; MENU — present choices to the player.
+;   Indent bg/button lines inside the block.
+;   button "Label" goto <label>  — jump on click
+;   button "Label" exit          — quit the game
 menu
-    ; bg menu_bg.jpg
-    button "Tell me more" goto more_info
-    button "Skip to end"  goto the_end
-    button "Quit"         exit
+    bg placeholder_bg.png
+    button "Learn more"  goto more_info
+    button "Skip to end" goto the_end
+    button "Quit"        exit
 
-
-; ----------------------------------------------------------------
-; JUMP  — unconditional jump to a label
-; Syntax: jump <label_name>
-; ----------------------------------------------------------------
+; JUMP — unconditional jump to a label.
+; Syntax: jump <label>
 jump the_end
 
 
 label more_info
 
-; ----------------------------------------------------------------
-; IF / ENDIF  — conditional block based on a variable
-; Operators: == (equal)   != (not equal)
-; ----------------------------------------------------------------
+; HIDE CHAR — remove a character sprite from screen.
+; Syntax: hide char <ID>
+hide char Alice
+
+; IF / ENDIF — conditional block. Operators: == and !=
+; Syntax: if <variable> == <value>
 set choice explored
 
 if choice == explored
-    narrate "You chose to explore. Good choice!"
+    narrate "You chose to explore!"
 endif
 
 if choice != skipped
-    narrate "You did not skip, so this line shows."
+    narrate "This line shows because choice != skipped."
 endif
 
-
-; ----------------------------------------------------------------
-; STOP_BGM  — stop the background music
+; STOP_BGM — stop the background music.
 ; Syntax: stop_bgm
-; ----------------------------------------------------------------
-; stop_bgm
+stop_bgm
 
-
-narrate "That covers every Cereka feature."
-narrate "Now delete this demo content and write your story!"
-
-jump the_end
+narrate "That is every Cereka command."
+narrate "Delete this demo content and start writing your story."
 
 
 label the_end
 
-narrate "Thanks for trying Cereka."
-narrate "Place backgrounds in  assets/bg/"
-narrate "Place sprites in      assets/characters/"
-narrate "Place audio in        assets/sounds/"
-narrate "Edit this script at   assets/scripts/main.crka"
+narrate "Folder layout:"
+narrate "  assets/bg/          backgrounds"
+narrate "  assets/characters/  sprites"
+narrate "  assets/sounds/      music and sfx"
+narrate "  assets/scripts/     your .crka scripts"
+narrate "  game.cfg            title, resolution, entry point"
 
-; ----------------------------------------------------------------
-; END  — stop execution and finish the game
-; Syntax: end
-; ----------------------------------------------------------------
+; END — mark the end of the script.
 end
 )";
 
@@ -354,6 +307,20 @@ static std::string findGameRunner()
 // Background actions
 // ============================================================================
 
+static bool writeAsset(const fs::path &path,
+                       const unsigned char *data, unsigned int len,
+                       const std::string &label)
+{
+    std::ofstream f(path, std::ios::binary);
+    if (!f) {
+        appendLog("[ERROR] Cannot write " + label + "\n");
+        return false;
+    }
+    f.write(reinterpret_cast<const char *>(data), len);
+    appendLog("  + " + label + "\n");
+    return true;
+}
+
 static void doCreateProject()
 {
     if (s_busy.exchange(true)) return;
@@ -373,22 +340,39 @@ static void doCreateProject()
                 s_busy = false;
                 return;
             }
-            appendLog("  + " + std::string(sub) + "\n");
+            appendLog("  + " + std::string(sub) + "/\n");
         }
 
+        // Text files
         {
             std::ofstream f(dir / "game.cfg");
             if (!f) { appendLog("[ERROR] Cannot write game.cfg\n"); s_busy = false; return; }
             f << kGameCfgTemplate;
             appendLog("  + game.cfg\n");
         }
-
         {
             std::ofstream f(dir / "assets" / "scripts" / "main.crka");
             if (!f) { appendLog("[ERROR] Cannot write main.crka\n"); s_busy = false; return; }
             f << kMainScriptTemplate;
             appendLog("  + assets/scripts/main.crka\n");
         }
+
+        // Placeholder binary assets
+        if (!writeAsset(dir / "assets" / "bg"         / "placeholder_bg.png",
+                        kBgPng,   kBgPng_len,   "assets/bg/placeholder_bg.png"))
+            { s_busy = false; return; }
+        if (!writeAsset(dir / "assets" / "characters" / "placeholder_char.png",
+                        kCharPng, kCharPng_len, "assets/characters/placeholder_char.png"))
+            { s_busy = false; return; }
+        if (!writeAsset(dir / "assets" / "sounds"     / "placeholder_sfx.wav",
+                        kSfxWav,  kSfxWav_len,  "assets/sounds/placeholder_sfx.wav"))
+            { s_busy = false; return; }
+        if (!writeAsset(dir / "assets" / "sounds"     / "placeholder_bgm.wav",
+                        kBgmWav,  kBgmWav_len,  "assets/sounds/placeholder_bgm.wav"))
+            { s_busy = false; return; }
+        if (!writeAsset(dir / "assets" / "fonts"      / "Montserrat-Medium.ttf",
+                        kMontserratTtf, kMontserratTtf_len, "assets/fonts/Montserrat-Medium.ttf"))
+            { s_busy = false; return; }
 
         appendLog("\n[OK] Project created. Click Launch to run.\n");
         s_reloadPending = true;
@@ -663,6 +647,10 @@ int main(int, char **)
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+    // Load Montserrat from embedded data — no file on disk needed
+    io.Fonts->AddFontFromMemoryTTF(
+        const_cast<unsigned char *>(kMontserratTtf), (int)kMontserratTtf_len, 16.f);
 
     ImGui::StyleColorsDark();
     ImGuiStyle &style = ImGui::GetStyle();

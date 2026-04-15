@@ -8,9 +8,12 @@
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_mixer/SDL_mixer.h>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <filesystem>
 #include <iostream>
 #include <sol/sol.hpp>
 #include <unordered_map>
+
+namespace fs = std::filesystem;
 
 using namespace cereka;
 
@@ -77,7 +80,15 @@ class CerekaEngine::Implementation {
         this->screenHeight = video::height;
 
         text_renderer::init_ttf();
-        this->font = text_renderer::OpenFont("assets/fonts/Montserrat-Medium.ttf", 36);
+        // Use first .ttf/.otf found in assets/fonts/ — no hardcoded filename
+        std::error_code ec;
+        for (auto &entry : fs::directory_iterator("assets/fonts", ec)) {
+            auto ext = entry.path().extension().string();
+            if (ext == ".ttf" || ext == ".otf") {
+                this->font = text_renderer::OpenFont(entry.path().string(), 36);
+                if (this->font) break;
+            }
+        }
 
         this->renderer = CreateBestRenderer(this->window);
         if (!this->renderer) {
@@ -598,11 +609,13 @@ class CerekaEngine::Implementation {
         HideCharacter(id);
         std::string path = "assets/characters/" + filename;
         SDL_Texture *tex = IMG_LoadTexture(this->renderer, path.c_str());
-        if (!tex)
+        if (!tex) {
             std::cerr << "[CEREKA] Failed to load character sprite: " << path
                       << " - " << SDL_GetError() << "\n";
-        else
+        } else {
+            SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
             this->characters[id] = tex;
+        }
     }
 
     void PlayBGM(const std::string &filename)
