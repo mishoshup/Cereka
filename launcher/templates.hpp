@@ -157,9 +157,8 @@ say Alice "My position can be left, center, or right."
 ; SFX — one-shot sound effect (does not pause the script).
 sfx placeholder_sfx.wav
 
-; SAVE_MENU — let the player save before a big choice.
-; Players can also press ESC at any time during dialogue.
-save_menu
+; Tip: use  save_menu  before a big choice to let the player save.
+; Players can also press ESC at any time to open the save menu.
 
 ; CALL — run another script as a subroutine and return here.
 call scene_two.crka
