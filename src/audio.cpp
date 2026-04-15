@@ -6,6 +6,7 @@ void Impl::PlayBGM(const std::string &filename)
 {
     if (!audioInitialized) return;
 
+    bgmPath = filename;
     if (bgmTrack) { MIX_StopTrack(bgmTrack, 0); MIX_DestroyTrack(bgmTrack); bgmTrack = nullptr; }
     if (bgmAudio) { MIX_DestroyAudio(bgmAudio); bgmAudio = nullptr; }
 
@@ -31,6 +32,7 @@ void Impl::PlayBGM(const std::string &filename)
 void Impl::StopBGM()
 {
     if (!audioInitialized) return;
+    bgmPath.clear();
     if (bgmTrack) { MIX_StopTrack(bgmTrack, 0); MIX_DestroyTrack(bgmTrack); bgmTrack = nullptr; }
     if (bgmAudio) { MIX_DestroyAudio(bgmAudio); bgmAudio = nullptr; }
 }

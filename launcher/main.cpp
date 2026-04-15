@@ -28,203 +28,10 @@
 namespace fs = std::filesystem;
 
 // ============================================================================
-// Embedded project templates
+// Embedded project templates (see launcher/templates.hpp)
 // ============================================================================
 
-static const char *kGameCfgTemplate = R"CRKA(# Cereka game configuration
-# -----------------------------------------------
-# title      : window title shown in the taskbar
-# width/height: resolution in pixels
-# fullscreen  : true or false
-# entry       : path to the first script to run
-# -----------------------------------------------
-title      = My Visual Novel
-width      = 1280
-height     = 720
-fullscreen = false
-entry      = assets/scripts/main.crka
-)CRKA";
-
-// Starter script — uses the bundled placeholder assets so the game runs
-// immediately out of the box. Every command is shown with comments.
-// ---------------------------------------------------------------------------
-// ui.crka — UI theme. Included by main.crka.
-// ---------------------------------------------------------------------------
-static const char *kUiScriptTemplate =
-    R"CRKA(; ================================================================
-; ui.crka — Cereka UI theme
-;
-; Included at the top of main.crka via:  include ui.crka
-; Change any value here to restyle the whole game with no recompile.
-;
-; Positions:  use % for screen-relative (75%) or raw pixels (540)
-; Colors:     r g b a  (0–255 each)
-; Images:     path relative to project root — omit to use solid color
-; ================================================================
-
-; ---- Dialogue text box (bottom area) ----
-ui textbox
-    color          0 0 0 160
-    y              75%
-    h              25%
-    text_margin_x  80
-    text_color     255 255 255 255
-;   image  assets/ui/textbox.png   ; uncomment to use a custom image
-
-; ---- Speaker name box ----
-ui namebox
-    color       30 30 100 255
-    x           50
-    y_offset    -65
-    w           260
-    h           52
-    text_color  255 220 120 255
-;   image  assets/ui/namebox.png
-
-; ---- Choice buttons ----
-ui button
-    color       20 80 120 255
-    w           560
-    h           72
-    text_color  255 255 255 255
-;   image        assets/ui/button.png
-;   hover_image  assets/ui/button_hover.png
-
-; ---- Font ----
-ui font
-    size  36
-)CRKA";
-
-// ---------------------------------------------------------------------------
-// scene_two.crka — called from main.crka to demo multi-file scripts.
-// ---------------------------------------------------------------------------
-static const char *kSceneTwoTemplate =
-    R"CRKA(; ================================================================
-; scene_two.crka — a separate scene file
-;
-; Called from main.crka with:   call scene_two.crka
-; The engine returns to main.crka automatically when this ends.
-;
-; Use 'call' for scenes that need to return (subroutines).
-; Use 'include' to inline a file at compile time (no return).
-; ================================================================
-
-char Bob right placeholder_char.png
-say Bob "I am Bob, loaded from scene_two.crka!"
-say Bob "When this scene ends, the engine returns to main.crka."
-hide char Bob
-)CRKA";
-
-// ---------------------------------------------------------------------------
-// main.crka — entry point and full command tutorial.
-// ---------------------------------------------------------------------------
-static const char *kMainScriptTemplate =
-    R"CRKA(; ================================================================
-; main.crka — Cereka entry point
-;
-; This file is a full tutorial. Every command is shown with comments.
-; Delete what you don't need and start writing your story.
-; ================================================================
-
-; INCLUDE — inline another script at compile time.
-; Use it to load your UI theme, shared labels, etc.
-; Syntax: include <filename>   (relative to this file's directory)
-include ui.crka
-
-label start
-
-; BGM — background music, loops forever until stop_bgm.
-; Syntax: bgm <filename>
-bgm placeholder_bgm.wav
-
-; BG — show a background image instantly.
-; Syntax: bg <filename>
-bg placeholder_bg.png
-
-; NARRATE — narrator text, no speaker name shown.
-; Click or press a key to advance.
-narrate "Welcome to Cereka!"
-narrate "Every command in the engine is shown in this script."
-
-; BG FADE — crossfade to a new background over <seconds>.
-; The script pauses until the transition completes.
-; Syntax: bg <filename> fade <seconds>
-bg placeholder_bg.png fade 1.0
-narrate "That background faded in."
-
-; CHAR — show a character sprite.
-; Position: left, center (default), or right.
-; Syntax: char <ID> [left|center|right] <filename>
-char Alice center placeholder_char.png
-
-; SAY — dialogue with a speaker name box.
-; Syntax: say <ID> "text"
-say Alice "Hi! I am loaded from assets/characters/"
-say Alice "My position can be left, center, or right."
-
-; SFX — one-shot sound effect. Does NOT pause the script.
-; Syntax: sfx <filename>
-sfx placeholder_sfx.wav
-
-; CALL — run another script file as a subroutine and return here.
-; Syntax: call <filename>
-call scene_two.crka
-
-narrate "Returned from scene_two.crka."
-
-; SET — store a string variable.
-; Syntax: set <variable> <value>
-set choice none
-
-; MENU — present choices. Indent bg/button lines inside.
-;   button "Label" goto <label>  — jump to label on click
-;   button "Label" exit          — quit the game
-menu
-    bg placeholder_bg.png fade 0.5
-    button "Explore"   goto explore
-    button "Skip"      goto the_end
-    button "Quit"      exit
-
-label explore
-
-; HIDE CHAR — remove a character sprite.
-; Syntax: hide char <ID>
-hide char Alice
-
-; IF / ENDIF — conditional block. Operators: == and !=
-set choice explored
-
-if choice == explored
-    narrate "You chose to explore!"
-endif
-
-if choice != skipped
-    narrate "This shows because choice != skipped."
-endif
-
-; JUMP — unconditional jump to a label.
-; Syntax: jump <label>
-jump the_end
-
-
-label the_end
-
-; STOP_BGM — stop background music.
-stop_bgm
-
-narrate "That covers every Cereka command."
-narrate "Project layout:"
-narrate "  assets/scripts/     .crka script files"
-narrate "  assets/bg/          backgrounds"
-narrate "  assets/characters/  sprites"
-narrate "  assets/sounds/      music and sfx"
-narrate "  assets/fonts/       .ttf / .otf fonts"
-narrate "  game.cfg            title, resolution, entry point"
-narrate "  ui.crka             UI theme (colors, sizes, images)"
-
-; END — marks the end of the script.
-end
-)CRKA";
+#include "templates.hpp"
 
 // ============================================================================
 // State
@@ -763,14 +570,42 @@ static void drawHome(ImGuiStyle &style)
         ImGui::EndChild();
 
         ImGui::Spacing();
+        ImGui::Separator();
+
+        // New folder row
+        static char s_newFolderName[256] = "";
+        static std::string s_newFolderError;
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 110);
+        ImGui::InputTextWithHint("##newfolder", "New folder name...", s_newFolderName, sizeof(s_newFolderName));
+        ImGui::SameLine();
+        if (ImGui::Button("Create", ImVec2(100, 0)) && s_newFolderName[0] != '\0') {
+            fs::path newDir = s_browserPath / s_newFolderName;
+            std::error_code ec;
+            fs::create_directories(newDir, ec);
+            if (ec) {
+                s_newFolderError = "Failed: " + ec.message();
+            } else {
+                s_newFolderError.clear();
+                s_newFolderName[0] = '\0';
+                refreshBrowser(s_browserPath);
+            }
+        }
+        if (!s_newFolderError.empty())
+            ImGui::TextColored(ImVec4(1.f, 0.4f, 0.4f, 1.f), "%s", s_newFolderError.c_str());
+
+        ImGui::Spacing();
         if (ImGui::Button("Select This Folder", ImVec2(160, 0))) {
             strncpy(s_dirInput, s_browserPath.string().c_str(), sizeof(s_dirInput) - 1);
             s_openBrowser = false;
+            s_newFolderName[0] = '\0';
+            s_newFolderError.clear();
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
         if (ImGui::Button("Cancel", ImVec2(80, 0))) {
             s_openBrowser = false;
+            s_newFolderName[0] = '\0';
+            s_newFolderError.clear();
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();

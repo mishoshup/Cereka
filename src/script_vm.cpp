@@ -86,6 +86,36 @@ void Impl::Update(float dt)
 
 void Impl::HandleEvent(const CerekaEvent &e)
 {
+    // Save/Load overlay — intercept all input while overlay is open
+    if (state == CerekaState::SaveMenu || state == CerekaState::LoadMenu) {
+        bool isSaving = (state == CerekaState::SaveMenu);
+        if (e.type == CerekaEvent::KeyDown && e.key == SDLK_ESCAPE) {
+            state = stateBeforeSaveMenu;
+            return;
+        }
+        if (e.type == CerekaEvent::MouseDown) {
+            int slot = HitTestSaveSlot((int)e.mouseX, (int)e.mouseY);
+            if (slot >= 1 && slot <= 10) {
+                if (isSaving) {
+                    SaveGame(slot);
+                    state = stateBeforeSaveMenu;
+                } else {
+                    LoadGame(slot); // restores state from file
+                }
+            }
+        }
+        return;
+    }
+
+    // Escape during normal play opens save menu
+    if (e.type == CerekaEvent::KeyDown && e.key == SDLK_ESCAPE) {
+        if (state == CerekaState::WaitingForInput || state == CerekaState::Running) {
+            stateBeforeSaveMenu = state;
+            state = CerekaState::SaveMenu;
+            return;
+        }
+    }
+
     if (state == CerekaState::WaitingForInput &&
         (e.type == CerekaEvent::MouseDown || e.type == CerekaEvent::KeyDown))
     {
@@ -245,6 +275,35 @@ void Impl::TickScript()
                 ApplyUiSet(ins.a, ins.b);
                 pc++;
                 continue;
+
+            case scenario::Op::SAVE_MENU:
+                stateBeforeSaveMenu = state;
+                state = CerekaState::SaveMenu;
+                pc++;
+                return;
+
+            case scenario::Op::LOAD_MENU:
+                stateBeforeSaveMenu = state;
+                state = CerekaState::LoadMenu;
+                pc++;
+                return;
+
+            case scenario::Op::SAVE: {
+                int slot = ins.a.empty() ? 0 : std::stoi(ins.a);
+                if (slot >= 1 && slot <= 10) {
+                    stateBeforeSaveMenu = state;
+                    SaveGame(slot);
+                }
+                pc++;
+                continue;
+            }
+
+            case scenario::Op::LOAD: {
+                int slot = ins.a.empty() ? 0 : std::stoi(ins.a);
+                if (slot >= 1 && slot <= 10)
+                    LoadGame(slot); // restores pc and state from file
+                return;
+            }
 
             case scenario::Op::END:
                 state = CerekaState::Finished;

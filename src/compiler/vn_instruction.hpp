@@ -11,6 +11,7 @@ enum class Op {
     FADE,
     INCLUDE, CALL, RETURN,
     UI_SET,
+    SAVE, LOAD, SAVE_MENU, LOAD_MENU,
 };
 
 struct ChoiceOption {

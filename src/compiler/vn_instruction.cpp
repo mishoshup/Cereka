@@ -87,6 +87,10 @@ static std::vector<Instruction> RunLuaCompiler(const std::string &scriptText)
         else if (op == "INCLUDE")   ins.op = Op::INCLUDE;
         else if (op == "CALL")      ins.op = Op::CALL;
         else if (op == "UI_SET")    ins.op = Op::UI_SET;
+        else if (op == "SAVE")      ins.op = Op::SAVE;
+        else if (op == "LOAD")      ins.op = Op::LOAD;
+        else if (op == "SAVE_MENU") ins.op = Op::SAVE_MENU;
+        else if (op == "LOAD_MENU") ins.op = Op::LOAD_MENU;
         else {
             std::cerr << "[CEREKA] Unknown op: " << op << "\n";
             continue;

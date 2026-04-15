@@ -169,6 +169,16 @@ function compile(script_text)
             table.insert(instructions, { op = "PLAY_SFX", a = file })
         elseif l == "end" then
             table.insert(instructions, { op = "END" })
+        elseif l == "save_menu" then
+            table.insert(instructions, { op = "SAVE_MENU" })
+        elseif l == "load_menu" then
+            table.insert(instructions, { op = "LOAD_MENU" })
+        elseif l:match("^save%s+(%d+)") then
+            local slot = l:match("^save%s+(%d+)")
+            table.insert(instructions, { op = "SAVE", a = slot })
+        elseif l:match("^load%s+(%d+)") then
+            local slot = l:match("^load%s+(%d+)")
+            table.insert(instructions, { op = "LOAD", a = slot })
         else
             print("[COMPILER] Unknown top-level: " .. l)
         end

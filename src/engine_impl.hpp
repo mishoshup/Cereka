@@ -37,18 +37,21 @@ class CerekaImpl {
 
     // --- Scene state ---
     SDL_Texture *background = nullptr;
+    std::string  bgPath;    // filename passed to ShowBackground (for save/load)
 
     struct CharacterEntry {
         SDL_Texture *tex;
         float        xNorm; // 0.0–1.0 horizontal centre
     };
     std::unordered_map<std::string, CharacterEntry> characters;
+    std::unordered_map<std::string, std::string>    charPaths; // id → filename (for save/load)
 
     // --- Audio ---
     bool        audioInitialized = false;
     MIX_Mixer  *mixer    = nullptr;
     MIX_Audio  *bgmAudio = nullptr;
     MIX_Track  *bgmTrack = nullptr;
+    std::string bgmPath; // filename passed to PlayBGM (for save/load)
     std::unordered_map<std::string, MIX_Audio *> sfxCache;
 
     // --- Script VM ---
@@ -88,7 +91,8 @@ class CerekaImpl {
     size_t menuEndPC = 0;
 
     // --- State machine ---
-    CerekaState state = CerekaState::Running;
+    CerekaState state                = CerekaState::Running;
+    CerekaState stateBeforeSaveMenu  = CerekaState::Running; // restored when overlay closes
 
     // --- UI theme ---
     UiConfig uiCfg;
@@ -130,6 +134,13 @@ class CerekaImpl {
     void PlayBGM(const std::string &filename);
     void StopBGM();
     void PlaySFX(const std::string &filename);
+
+    // save.cpp
+    bool        SaveGame(int slot);
+    bool        LoadGame(int slot);
+    std::string GetSlotTimestamp(int slot);
+    void        DrawSaveLoadOverlay(bool isSaving);
+    int         HitTestSaveSlot(int mx, int my);
 
     // ui_config.cpp
     void ApplyUiSet(const std::string &key, const std::string &val);

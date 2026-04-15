@@ -145,6 +145,7 @@ SDL_Texture *Impl::RenderText(const std::string &text, SDL_Color color)
 
 void Impl::ShowBackground(const std::string &filename)
 {
+    bgPath = filename;
     if (background) SDL_DestroyTexture(background);
     background = LoadTexture(filename);
 }
@@ -161,10 +162,12 @@ void Impl::ShowCharacter(const std::string &id,
                          const std::string &pos)
 {
     HideCharacter(id);
+    charPaths[id] = filename;
     std::string path = "assets/characters/" + filename;
     SDL_Texture *tex = IMG_LoadTexture(renderer, path.c_str());
     if (!tex) {
         std::cerr << "[CEREKA] Failed to load character: " << path << " — " << SDL_GetError() << "\n";
+        charPaths.erase(id);
         return;
     }
     SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
@@ -173,6 +176,7 @@ void Impl::ShowCharacter(const std::string &id,
 
 void Impl::HideCharacter(const std::string &id)
 {
+    charPaths.erase(id);
     auto it = characters.find(id);
     if (it != characters.end()) {
         SDL_DestroyTexture(it->second.tex);
@@ -293,3 +297,9 @@ bool cereka::CerekaEngine::IsGameFinished() const
 
 bool cereka::CerekaEngine::IsFinished() const
 { return pImplementation->scriptFinished; }
+
+bool cereka::CerekaEngine::SaveGame(int slot)
+{ return pImplementation->SaveGame(slot); }
+
+bool cereka::CerekaEngine::LoadGame(int slot)
+{ return pImplementation->LoadGame(slot); }

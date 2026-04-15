@@ -14,7 +14,7 @@ struct CerekaEvent {
     float mouseY = 0.f;
 };
 
-enum class CerekaState { Running, WaitingForInput, InMenu, Fading, Finished };
+enum class CerekaState { Running, WaitingForInput, InMenu, Fading, Finished, SaveMenu, LoadMenu };
 
 // Forward-declared here; fully defined in src/engine_impl.hpp (private)
 class CerekaImpl;
@@ -49,6 +49,9 @@ class CerekaEngine {
 
     bool IsGameFinished() const;
     bool IsFinished()     const;
+
+    bool SaveGame(int slot);
+    bool LoadGame(int slot);
 
    private:
     CerekaImpl *pImplementation;

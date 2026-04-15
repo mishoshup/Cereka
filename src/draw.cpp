@@ -69,6 +69,15 @@ void Impl::Draw()
         }
     }
 
+    // --- Save/Load overlay (drawn on top of everything, before dialogue box) ---
+    if (state == CerekaState::SaveMenu)
+        DrawSaveLoadOverlay(true);
+    else if (state == CerekaState::LoadMenu)
+        DrawSaveLoadOverlay(false);
+
+    if (state == CerekaState::SaveMenu || state == CerekaState::LoadMenu)
+        return;
+
     // --- Dialogue box ---
     if (!currentText.empty()) {
         float tbY = uiCfg.textbox.y.resolve((float)screenHeight);
