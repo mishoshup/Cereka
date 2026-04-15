@@ -1,8 +1,8 @@
 #include "embedded_assets.h"
 
-#include "imgui.h"
 #include "backends/imgui_impl_sdl3.h"
 #include "backends/imgui_impl_sdlrenderer3.h"
+#include "imgui.h"
 
 #include <SDL3/SDL.h>
 
@@ -15,7 +15,14 @@
 #include <mutex>
 #include <string>
 #include <thread>
-#include <unistd.h>
+#ifdef _WIN32
+#    include <windows.h>
+#else
+#    include <limits.h>
+#    include <signal.h>
+#    include <sys/wait.h>
+#    include <unistd.h>
+#endif
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -43,7 +50,8 @@ entry      = assets/scripts/main.crka
 // ---------------------------------------------------------------------------
 // ui.crka — UI theme. Included by main.crka.
 // ---------------------------------------------------------------------------
-static const char *kUiScriptTemplate = R"CRKA(; ================================================================
+static const char *kUiScriptTemplate =
+    R"CRKA(; ================================================================
 ; ui.crka — Cereka UI theme
 ;
 ; Included at the top of main.crka via:  include ui.crka
@@ -90,7 +98,8 @@ ui font
 // ---------------------------------------------------------------------------
 // scene_two.crka — called from main.crka to demo multi-file scripts.
 // ---------------------------------------------------------------------------
-static const char *kSceneTwoTemplate = R"CRKA(; ================================================================
+static const char *kSceneTwoTemplate =
+    R"CRKA(; ================================================================
 ; scene_two.crka — a separate scene file
 ;
 ; Called from main.crka with:   call scene_two.crka
@@ -109,7 +118,8 @@ hide char Bob
 // ---------------------------------------------------------------------------
 // main.crka — entry point and full command tutorial.
 // ---------------------------------------------------------------------------
-static const char *kMainScriptTemplate = R"CRKA(; ================================================================
+static const char *kMainScriptTemplate =
+    R"CRKA(; ================================================================
 ; main.crka — Cereka entry point
 ;
 ; This file is a full tutorial. Every command is shown with comments.
@@ -222,31 +232,31 @@ end
 
 enum class Screen { Home, Project };
 
-static Screen       s_screen     = Screen::Home;
-static fs::path     s_selectedDir;
-static bool         s_hasGameCfg = false;
-static std::string  s_gameTitle;
+static Screen s_screen = Screen::Home;
+static fs::path s_selectedDir;
+static bool s_hasGameCfg = false;
+static std::string s_gameTitle;
 
 // Directory text input
-static char         s_dirInput[2048] = "";
+static char s_dirInput[2048] = "";
 
 // Directory browser popup
-static bool                     s_openBrowser = false;
-static fs::path                 s_browserPath;
+static bool s_openBrowser = false;
+static fs::path s_browserPath;
 static std::vector<std::string> s_browserDirs;
 
 // Log / busy
-static std::string           s_log;
-static std::mutex            s_logMutex;
-static std::atomic<bool>     s_busy{false};
-static bool                  s_scrollToBottom = false;
+static std::string s_log;
+static std::mutex s_logMutex;
+static std::atomic<bool> s_busy{false};
+static bool s_scrollToBottom = false;
 
 // Signal from background thread to reload project on main thread
-static std::atomic<bool>     s_reloadPending{false};
+static std::atomic<bool> s_reloadPending{false};
 
 // Recent projects
 static std::vector<std::string> s_recents;
-static fs::path                 s_recentsFile;
+static fs::path s_recentsFile;
 
 // ============================================================================
 // Log helpers
@@ -272,7 +282,8 @@ static void clearLog()
 static void saveRecents()
 {
     std::ofstream f(s_recentsFile);
-    for (auto &p : s_recents) f << p << "\n";
+    for (auto &p : s_recents)
+        f << p << "\n";
 }
 
 static void loadRecents()
@@ -290,9 +301,11 @@ static void loadRecents()
 static void addRecent(const std::string &path)
 {
     auto it = std::find(s_recents.begin(), s_recents.end(), path);
-    if (it != s_recents.end()) s_recents.erase(it);
+    if (it != s_recents.end())
+        s_recents.erase(it);
     s_recents.insert(s_recents.begin(), path);
-    if (s_recents.size() > 8) s_recents.resize(8);
+    if (s_recents.size() > 8)
+        s_recents.resize(8);
     saveRecents();
 }
 
@@ -306,7 +319,8 @@ static void refreshBrowser(const fs::path &p)
     s_browserDirs.clear();
     std::error_code ec;
     for (auto &e : fs::directory_iterator(p, ec)) {
-        if (!e.is_directory(ec)) continue;
+        if (!e.is_directory(ec))
+            continue;
         std::string name = e.path().filename().string();
         if (!name.empty() && name[0] != '.')
             s_browserDirs.push_back(name);
@@ -372,13 +386,27 @@ static std::vector<std::string> getScripts()
 
 static std::string findGameRunner()
 {
+#ifdef _WIN32
+    char path[MAX_PATH] = {};
+    GetModuleFileNameA(NULL, path, MAX_PATH);
+
+    fs::path exeDir = fs::path(path).parent_path();
+    fs::path candidate = exeDir / "CerekaGame.exe";
+
+    return fs::exists(candidate) ? candidate.string() : "CerekaGame.exe";
+
+#else
     char exePath[2048] = {};
     ssize_t len = readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
+
     if (len > 0) {
-        fs::path candidate = fs::path(exePath).parent_path() / "CerekaGame";
-        if (fs::exists(candidate)) return candidate.string();
+        fs::path exeDir = fs::path(std::string(exePath, len)).parent_path();
+        fs::path candidate = exeDir / "CerekaGame";
+        return fs::exists(candidate) ? candidate.string() : "CerekaGame";
     }
-    return "CerekaGame"; // fallback: search PATH
+
+    return "CerekaGame";
+#endif
 }
 
 // ============================================================================
@@ -386,7 +414,8 @@ static std::string findGameRunner()
 // ============================================================================
 
 static bool writeAsset(const fs::path &path,
-                       const unsigned char *data, unsigned int len,
+                       const unsigned char *data,
+                       unsigned int len,
                        const std::string &label)
 {
     std::ofstream f(path, std::ios::binary);
@@ -401,16 +430,21 @@ static bool writeAsset(const fs::path &path,
 
 static void doCreateProject()
 {
-    if (s_busy.exchange(true)) return;
+    if (s_busy.exchange(true))
+        return;
     clearLog();
 
     std::thread([dir = s_selectedDir]() {
         appendLog("Scaffolding project in: " + dir.string() + "\n\n");
 
         std::error_code ec;
-        for (const char *sub : {"assets/scripts", "assets/bg",
-                                "assets/characters", "assets/fonts",
-                                "assets/sounds", "assets/ui"}) {
+        for (const char *sub : {"assets/scripts",
+                                "assets/bg",
+                                "assets/characters",
+                                "assets/fonts",
+                                "assets/sounds",
+                                "assets/ui"})
+        {
             fs::path p = dir / sub;
             fs::create_directories(p, ec);
             if (ec) {
@@ -424,45 +458,86 @@ static void doCreateProject()
         // Text files
         {
             std::ofstream f(dir / "game.cfg");
-            if (!f) { appendLog("[ERROR] Cannot write game.cfg\n"); s_busy = false; return; }
+            if (!f) {
+                appendLog("[ERROR] Cannot write game.cfg\n");
+                s_busy = false;
+                return;
+            }
             f << kGameCfgTemplate;
             appendLog("  + game.cfg\n");
         }
         {
             std::ofstream f(dir / "assets" / "scripts" / "ui.crka");
-            if (!f) { appendLog("[ERROR] Cannot write ui.crka\n"); s_busy = false; return; }
+            if (!f) {
+                appendLog("[ERROR] Cannot write ui.crka\n");
+                s_busy = false;
+                return;
+            }
             f << kUiScriptTemplate;
             appendLog("  + assets/scripts/ui.crka\n");
         }
         {
             std::ofstream f(dir / "assets" / "scripts" / "scene_two.crka");
-            if (!f) { appendLog("[ERROR] Cannot write scene_two.crka\n"); s_busy = false; return; }
+            if (!f) {
+                appendLog("[ERROR] Cannot write scene_two.crka\n");
+                s_busy = false;
+                return;
+            }
             f << kSceneTwoTemplate;
             appendLog("  + assets/scripts/scene_two.crka\n");
         }
         {
             std::ofstream f(dir / "assets" / "scripts" / "main.crka");
-            if (!f) { appendLog("[ERROR] Cannot write main.crka\n"); s_busy = false; return; }
+            if (!f) {
+                appendLog("[ERROR] Cannot write main.crka\n");
+                s_busy = false;
+                return;
+            }
             f << kMainScriptTemplate;
             appendLog("  + assets/scripts/main.crka\n");
         }
 
         // Placeholder binary assets
-        if (!writeAsset(dir / "assets" / "bg"         / "placeholder_bg.png",
-                        kBgPng,   kBgPng_len,   "assets/bg/placeholder_bg.png"))
-            { s_busy = false; return; }
+        if (!writeAsset(dir / "assets" / "bg" / "placeholder_bg.png",
+                        kBgPng,
+                        kBgPng_len,
+                        "assets/bg/placeholder_bg.png"))
+        {
+            s_busy = false;
+            return;
+        }
         if (!writeAsset(dir / "assets" / "characters" / "placeholder_char.png",
-                        kCharPng, kCharPng_len, "assets/characters/placeholder_char.png"))
-            { s_busy = false; return; }
-        if (!writeAsset(dir / "assets" / "sounds"     / "placeholder_sfx.wav",
-                        kSfxWav,  kSfxWav_len,  "assets/sounds/placeholder_sfx.wav"))
-            { s_busy = false; return; }
-        if (!writeAsset(dir / "assets" / "sounds"     / "placeholder_bgm.wav",
-                        kBgmWav,  kBgmWav_len,  "assets/sounds/placeholder_bgm.wav"))
-            { s_busy = false; return; }
-        if (!writeAsset(dir / "assets" / "fonts"      / "Montserrat-Medium.ttf",
-                        kMontserratTtf, kMontserratTtf_len, "assets/fonts/Montserrat-Medium.ttf"))
-            { s_busy = false; return; }
+                        kCharPng,
+                        kCharPng_len,
+                        "assets/characters/placeholder_char.png"))
+        {
+            s_busy = false;
+            return;
+        }
+        if (!writeAsset(dir / "assets" / "sounds" / "placeholder_sfx.wav",
+                        kSfxWav,
+                        kSfxWav_len,
+                        "assets/sounds/placeholder_sfx.wav"))
+        {
+            s_busy = false;
+            return;
+        }
+        if (!writeAsset(dir / "assets" / "sounds" / "placeholder_bgm.wav",
+                        kBgmWav,
+                        kBgmWav_len,
+                        "assets/sounds/placeholder_bgm.wav"))
+        {
+            s_busy = false;
+            return;
+        }
+        if (!writeAsset(dir / "assets" / "fonts" / "Montserrat-Medium.ttf",
+                        kMontserratTtf,
+                        kMontserratTtf_len,
+                        "assets/fonts/Montserrat-Medium.ttf"))
+        {
+            s_busy = false;
+            return;
+        }
 
         appendLog("\n[OK] Project created. Click Launch to run.\n");
         s_reloadPending = true;
@@ -472,24 +547,89 @@ static void doCreateProject()
 
 static void doLaunch()
 {
-    if (s_busy.exchange(true)) return;
+    if (s_busy.exchange(true))
+        return;
+
     clearLog();
 
     std::thread([dir = s_selectedDir]() {
         std::string runner = findGameRunner();
-        std::string cmd = "\"" + runner + "\" \"" + dir.string() + "\" 2>&1";
-        appendLog("$ " + cmd + "\n\n");
+        std::string dirStr = dir.string();
 
-        FILE *pipe = popen(cmd.c_str(), "r");
-        if (!pipe) {
-            appendLog("[ERROR] Failed to start CerekaGame. Is it in the same directory?\n");
+#ifdef _WIN32
+        std::string cmdLine = "\"" + runner + "\" \"" + dirStr + "\"";
+        appendLog("$ " + cmdLine + "\n\n");
+
+        STARTUPINFOA si{};
+        PROCESS_INFORMATION pi{};
+        si.cb = sizeof(si);
+
+        if (!CreateProcessA(
+                NULL,
+                cmdLine.data(),
+                NULL, NULL,
+                FALSE,
+                0,
+                NULL,
+                dirStr.c_str(),     // working directory = project dir
+                &si, &pi))
+        {
+            DWORD err = GetLastError();
+            char msg[256] = {};
+            FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                           NULL, err, 0, msg, sizeof(msg), NULL);
+            appendLog("[ERROR] CreateProcess failed (" + std::to_string(err) + "): " +
+                      std::string(msg));
             s_busy = false;
             return;
         }
-        char buf[512];
-        while (fgets(buf, sizeof(buf), pipe)) appendLog(buf);
-        int ret = pclose(pipe);
-        appendLog(ret == 0 ? "\n[OK] Game exited cleanly.\n" : "\n[FAILED] Game exited with errors.\n");
+
+        CloseHandle(pi.hThread);
+
+        // Wait up to 1 s — if the process dies that fast it crashed on startup
+        if (WaitForSingleObject(pi.hProcess, 1000) == WAIT_OBJECT_0) {
+            DWORD exitCode = 0;
+            GetExitCodeProcess(pi.hProcess, &exitCode);
+            appendLog("[ERROR] Game exited immediately (exit code " +
+                      std::to_string(exitCode) +
+                      "). Check for missing DLLs next to the executable.\n");
+        } else {
+            appendLog("[OK] Game running (PID " + std::to_string(pi.dwProcessId) + ")\n");
+        }
+
+        CloseHandle(pi.hProcess);
+
+#else
+        // Linux / macOS: fork + exec so the launcher isn't blocked
+        appendLog("$ \"" + runner + "\" \"" + dirStr + "\"\n\n");
+
+        pid_t pid = fork();
+        if (pid < 0) {
+            appendLog("[ERROR] fork() failed\n");
+            s_busy = false;
+            return;
+        }
+
+        if (pid == 0) {
+            // child
+            if (chdir(dirStr.c_str()) != 0) { /* best-effort */ }
+            execlp(runner.c_str(), runner.c_str(), dirStr.c_str(), (char *)nullptr);
+            _exit(127);     // exec failed
+        }
+
+        // parent — wait up to 1 s to detect an immediate crash
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        int status = 0;
+        pid_t r = waitpid(pid, &status, WNOHANG);
+        if (r == pid) {
+            int code = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+            appendLog("[ERROR] Game exited immediately (exit code " +
+                      std::to_string(code) + ").\n");
+        } else {
+            appendLog("[OK] Game running (PID " + std::to_string(pid) + ")\n");
+        }
+#endif
+
         s_busy = false;
     }).detach();
 }
@@ -498,25 +638,25 @@ static void doLaunch()
 // Draw log panel (shared between screens)
 // ============================================================================
 
-static void drawLogPanel(float w, float h)
+static void drawLogPanel(float w,
+                         float h)
 {
     ImGui::BeginChild("##log", ImVec2(w, h), true);
     ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.f), "Output");
     ImGui::Separator();
 
-    ImGui::BeginChild("##logtext", ImVec2(0, 0), false,
-                      ImGuiWindowFlags_HorizontalScrollbar);
+    ImGui::BeginChild("##logtext", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
     {
         std::lock_guard<std::mutex> lock(s_logMutex);
         const char *p = s_log.c_str();
         while (*p) {
             const char *nl = strchr(p, '\n');
-            size_t len     = nl ? (size_t)(nl - p) : strlen(p);
+            size_t len = nl ? (size_t)(nl - p) : strlen(p);
             std::string line(p, len);
             bool isErr = line.find("error:") != std::string::npos ||
                          line.find("[ERROR]") != std::string::npos ||
                          line.find("[FAILED]") != std::string::npos;
-            bool isOk  = line.find("[OK]") != std::string::npos;
+            bool isOk = line.find("[OK]") != std::string::npos;
             if (isErr)
                 ImGui::TextColored(ImVec4(1.f, 0.4f, 0.4f, 1.f), "%s", line.c_str());
             else if (isOk)
@@ -524,7 +664,8 @@ static void drawLogPanel(float w, float h)
             else
                 ImGui::TextUnformatted(line.c_str());
             p += len + (nl ? 1 : 0);
-            if (!nl) break;
+            if (!nl)
+                break;
         }
     }
     if (s_scrollToBottom) {
@@ -596,8 +737,8 @@ static void drawHome(ImGuiStyle &style)
 
     // Directory browser popup
     ImGui::SetNextWindowSize(ImVec2(520, 420), ImGuiCond_Always);
-    if (ImGui::BeginPopupModal("##dirbrowser", nullptr,
-                               ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize))
+    if (ImGui::BeginPopupModal(
+            "##dirbrowser", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize))
     {
         ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.f, 1.f), "Select Directory");
         ImGui::Separator();
@@ -612,7 +753,8 @@ static void drawHome(ImGuiStyle &style)
         ImGui::BeginChild("##dirs", ImVec2(0, 310), true);
         if (s_browserDirs.empty()) {
             ImGui::TextDisabled("(no subdirectories)");
-        } else {
+        }
+        else {
             for (auto &d : s_browserDirs) {
                 if (ImGui::Selectable(("> " + d).c_str()))
                     refreshBrowser(s_browserPath / d);
@@ -644,9 +786,8 @@ static void drawProject(ImGuiStyle &style)
     bool busy = s_busy.load();
 
     // Header
-    std::string title = (s_hasGameCfg && !s_gameTitle.empty())
-                            ? s_gameTitle
-                            : s_selectedDir.filename().string();
+    std::string title = (s_hasGameCfg && !s_gameTitle.empty()) ? s_gameTitle :
+                                                                 s_selectedDir.filename().string();
     ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.f), "CEREKA LAUNCHER");
     ImGui::SameLine(0, 12);
     ImGui::TextUnformatted(title.c_str());
@@ -655,7 +796,8 @@ static void drawProject(ImGuiStyle &style)
     ImGui::Separator();
     ImGui::Spacing();
 
-    if (busy) ImGui::BeginDisabled();
+    if (busy)
+        ImGui::BeginDisabled();
 
     if (!s_hasGameCfg) {
         ImGui::TextColored(ImVec4(1.f, 0.85f, 0.3f, 1.f),
@@ -663,7 +805,8 @@ static void drawProject(ImGuiStyle &style)
         ImGui::Spacing();
         if (ImGui::Button("  Create Game  ", ImVec2(130, 0)))
             doCreateProject();
-    } else {
+    }
+    else {
         if (ImGui::Button("  Launch Game  ", ImVec2(130, 0)))
             doLaunch();
     }
@@ -675,17 +818,21 @@ static void drawProject(ImGuiStyle &style)
         ImGui::SameLine();
     }
 
-    if (!busy && ImGui::SmallButton("Clear log")) clearLog();
+    if (!busy && ImGui::SmallButton("Clear log"))
+        clearLog();
 
     ImGui::SameLine();
     if (ImGui::SmallButton("< Back")) {
-        if (!busy) { s_screen = Screen::Home; clearLog(); }
+        if (!busy) {
+            s_screen = Screen::Home;
+            clearLog();
+        }
     }
 
     ImGui::Separator();
 
     // Two-column layout
-    float leftW  = 200.f;
+    float leftW = 200.f;
     float rightW = ImGui::GetContentRegionAvail().x - leftW - style.ItemSpacing.x;
     float panelH = ImGui::GetContentRegionAvail().y;
 
@@ -696,7 +843,8 @@ static void drawProject(ImGuiStyle &style)
     auto scripts = getScripts();
     if (scripts.empty()) {
         ImGui::TextDisabled("(none found)");
-    } else {
+    }
+    else {
         for (auto &s : scripts) {
             ImGui::Bullet();
             ImGui::SameLine();
@@ -715,7 +863,8 @@ static void drawProject(ImGuiStyle &style)
 // Main
 // ============================================================================
 
-int main(int, char **)
+int main(int,
+         char **)
 {
     loadRecents();
 
@@ -725,12 +874,17 @@ int main(int, char **)
     }
 
     SDL_Window *window = SDL_CreateWindow(
-        "Cereka Launcher", 900, 600,
-        SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
-    if (!window) { SDL_Log("SDL_CreateWindow: %s", SDL_GetError()); return 1; }
+        "Cereka Launcher", 900, 600, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+    if (!window) {
+        SDL_Log("SDL_CreateWindow: %s", SDL_GetError());
+        return 1;
+    }
 
     SDL_Renderer *renderer = SDL_CreateRenderer(window, nullptr);
-    if (!renderer) { SDL_Log("SDL_CreateRenderer: %s", SDL_GetError()); return 1; }
+    if (!renderer) {
+        SDL_Log("SDL_CreateRenderer: %s", SDL_GetError());
+        return 1;
+    }
     SDL_SetRenderVSync(renderer, 1);
 
     IMGUI_CHECKVERSION();
@@ -744,16 +898,16 @@ int main(int, char **)
 
     ImGui::StyleColorsDark();
     ImGuiStyle &style = ImGui::GetStyle();
-    style.WindowRounding  = 6.f;
-    style.FrameRounding   = 4.f;
-    style.ItemSpacing     = ImVec2(8, 6);
-    style.Colors[ImGuiCol_TitleBg]        = ImVec4(0.08f, 0.08f, 0.10f, 1.f);
-    style.Colors[ImGuiCol_TitleBgActive]  = ImVec4(0.12f, 0.12f, 0.18f, 1.f);
-    style.Colors[ImGuiCol_Button]         = ImVec4(0.20f, 0.22f, 0.30f, 1.f);
-    style.Colors[ImGuiCol_ButtonHovered]  = ImVec4(0.30f, 0.33f, 0.45f, 1.f);
-    style.Colors[ImGuiCol_Header]         = ImVec4(0.20f, 0.22f, 0.30f, 1.f);
-    style.Colors[ImGuiCol_HeaderHovered]  = ImVec4(0.30f, 0.33f, 0.45f, 1.f);
-    style.Colors[ImGuiCol_PopupBg]        = ImVec4(0.10f, 0.10f, 0.14f, 1.f);
+    style.WindowRounding = 6.f;
+    style.FrameRounding = 4.f;
+    style.ItemSpacing = ImVec2(8, 6);
+    style.Colors[ImGuiCol_TitleBg] = ImVec4(0.08f, 0.08f, 0.10f, 1.f);
+    style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.12f, 0.12f, 0.18f, 1.f);
+    style.Colors[ImGuiCol_Button] = ImVec4(0.20f, 0.22f, 0.30f, 1.f);
+    style.Colors[ImGuiCol_ButtonHovered] = ImVec4(0.30f, 0.33f, 0.45f, 1.f);
+    style.Colors[ImGuiCol_Header] = ImVec4(0.20f, 0.22f, 0.30f, 1.f);
+    style.Colors[ImGuiCol_HeaderHovered] = ImVec4(0.30f, 0.33f, 0.45f, 1.f);
+    style.Colors[ImGuiCol_PopupBg] = ImVec4(0.10f, 0.10f, 0.14f, 1.f);
 
     ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
     ImGui_ImplSDLRenderer3_Init(renderer);
@@ -763,7 +917,8 @@ int main(int, char **)
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             ImGui_ImplSDL3_ProcessEvent(&e);
-            if (e.type == SDL_EVENT_QUIT) running = false;
+            if (e.type == SDL_EVENT_QUIT)
+                running = false;
         }
 
         // Pick up reload signal from background create thread
@@ -778,14 +933,19 @@ int main(int, char **)
         SDL_GetWindowSize(window, &winW, &winH);
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2((float)winW, (float)winH));
-        ImGui::Begin("##root", nullptr,
-                     ImGuiWindowFlags_NoTitleBar   | ImGuiWindowFlags_NoResize |
-                     ImGuiWindowFlags_NoMove       | ImGuiWindowFlags_NoScrollbar |
-                     ImGuiWindowFlags_NoBringToFrontOnFocus);
+        ImGui::Begin("##root",
+                     nullptr,
+                     ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
+                         ImGuiWindowFlags_NoBringToFrontOnFocus);
 
         switch (s_screen) {
-            case Screen::Home:    drawHome(style);    break;
-            case Screen::Project: drawProject(style); break;
+            case Screen::Home:
+                drawHome(style);
+                break;
+            case Screen::Project:
+                drawProject(style);
+                break;
         }
 
         ImGui::End();
