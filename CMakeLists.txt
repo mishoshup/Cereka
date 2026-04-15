@@ -12,4 +12,5 @@ include_directories(BEFORE /usr/include/lua5.4)
 
 add_subdirectory(vendor)
 add_subdirectory(src)
+add_subdirectory(launcher)
 
