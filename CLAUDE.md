@@ -2,14 +2,16 @@
 
 Goal: a Ren'Py rival where game authors write only `.crka` scripts — no C++ needed.
 
-## Build (MSYS2 UCRT64)
+## Build (zero system dependencies beyond a C++ compiler)
 ```bash
-cd build
+git clone --recursive <repo>
+cd cereka && mkdir build && cd build
 cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
 ninja -j12
 ```
 Produces in `build/`: `CerekaLauncher.exe`, `CerekaGame.exe`, all vendor DLLs.  
-Linux: same commands, no DLLs needed.
+Linux: same commands, no DLLs needed.  
+Everything (SDL3, SDL3_image, SDL3_ttf, SDL3_mixer, Lua 5.4.7, sol2, imgui) is vendored.
 
 ## Architecture
 

@@ -21,7 +21,6 @@ target_include_directories(Cereka
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_BINARY_DIR}
-        ${LUA_INCLUDE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
 )
 
