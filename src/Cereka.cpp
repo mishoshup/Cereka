@@ -538,13 +538,6 @@ class CerekaEngine::Implementation {
                 labelMap[program[i].a] = i;
         }
 
-        // auto-start at first menu
-        for (size_t i = 0; i < program.size(); ++i) {
-            if (program[i].op == scenario::Op::MENU) {
-                pc = i;
-                break;
-            }
-        }
     }
 
     void AdvanceScriptOnce()
