@@ -5,7 +5,7 @@
 
 namespace cereka::scenario {
 
-enum class Op { BG, CHAR, SAY, NARRATE, LABEL, JUMP, MENU, BUTTON, END };
+enum class Op { BG, CHAR, HIDE_CHAR, SAY, NARRATE, LABEL, JUMP, MENU, BUTTON, END, PLAY_BGM, STOP_BGM, PLAY_SFX, SET_VAR, IF_EQ, IF_NEQ, ENDIF };
 
 struct ChoiceOption {
     std::string text;

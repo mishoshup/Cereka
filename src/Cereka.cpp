@@ -6,6 +6,7 @@
 
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
+#include <SDL3_mixer/SDL_mixer.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <iostream>
 #include <sol/sol.hpp>
@@ -27,6 +28,18 @@ class CerekaEngine::Implementation {
     SDL_Texture *nameBox = nullptr;
     SDL_Texture *buttonTexture = nullptr;
     std::unordered_map<std::string, SDL_Texture *> characters;
+
+    bool audioInitialized = false;
+    MIX_Mixer *mixer = nullptr;
+    MIX_Audio *bgmAudio = nullptr;
+    MIX_Track *bgmTrack = nullptr;
+    std::unordered_map<std::string, MIX_Audio *> sfxCache;
+
+    std::unordered_map<std::string, std::string> variables;
+
+    // Skip mode for if/endif blocks
+    bool skipMode = false;
+    int  skipDepth = 0;
 
     sol::state lua;
     sol::coroutine script;
@@ -82,6 +95,19 @@ class CerekaEngine::Implementation {
                                 SDL_GetError());
         }
 
+        // Audio init (SDL_mixer3 API)
+        if (!MIX_Init()) {
+            std::cerr << "[CEREKA] MIX_Init failed: " << SDL_GetError() << "\n";
+        } else {
+            this->mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
+            if (!this->mixer) {
+                std::cerr << "[CEREKA] MIX_CreateMixerDevice failed: " << SDL_GetError() << "\n";
+                MIX_Quit();
+            } else {
+                this->audioInitialized = true;
+            }
+        }
+
         return true;
     }
 
@@ -116,6 +142,26 @@ class CerekaEngine::Implementation {
         if (this->window) {
             SDL_DestroyWindow(this->window);
             this->window = nullptr;
+        }
+
+        if (this->audioInitialized) {
+            if (this->bgmTrack) {
+                MIX_StopTrack(this->bgmTrack, 0);
+                MIX_DestroyTrack(this->bgmTrack);
+                this->bgmTrack = nullptr;
+            }
+            if (this->bgmAudio) {
+                MIX_DestroyAudio(this->bgmAudio);
+                this->bgmAudio = nullptr;
+            }
+            for (auto &[name, audio] : this->sfxCache) {
+                MIX_DestroyAudio(audio);
+            }
+            this->sfxCache.clear();
+            MIX_DestroyMixer(this->mixer);
+            this->mixer = nullptr;
+            MIX_Quit();
+            this->audioInitialized = false;
         }
 
         TTF_Quit();
@@ -190,6 +236,19 @@ class CerekaEngine::Implementation {
         while (pc < program.size()) {
             const auto &ins = program[pc];
 
+            // --- Skip mode: inside a false if-block ---
+            if (skipMode) {
+                if (ins.op == scenario::Op::IF_EQ || ins.op == scenario::Op::IF_NEQ) {
+                    skipDepth++;
+                } else if (ins.op == scenario::Op::ENDIF) {
+                    skipDepth--;
+                    if (skipDepth == 0)
+                        skipMode = false;
+                }
+                pc++;
+                continue;
+            }
+
             switch (ins.op) {
 
                 case scenario::Op::BG:
@@ -199,6 +258,11 @@ class CerekaEngine::Implementation {
 
                 case scenario::Op::CHAR:
                     ShowCharacter(ins.a, ins.b);
+                    pc++;
+                    continue;
+
+                case scenario::Op::HIDE_CHAR:
+                    HideCharacter(ins.a);
                     pc++;
                     continue;
 
@@ -222,6 +286,46 @@ class CerekaEngine::Implementation {
 
                 case scenario::Op::JUMP:
                     pc = labelMap[ins.a];
+                    continue;
+
+                case scenario::Op::SET_VAR:
+                    variables[ins.a] = ins.b;
+                    pc++;
+                    continue;
+
+                case scenario::Op::IF_EQ: {
+                    auto it = variables.find(ins.a);
+                    std::string val = (it != variables.end()) ? it->second : "";
+                    if (val != ins.b) { skipMode = true; skipDepth = 1; }
+                    pc++;
+                    continue;
+                }
+
+                case scenario::Op::IF_NEQ: {
+                    auto it = variables.find(ins.a);
+                    std::string val = (it != variables.end()) ? it->second : "";
+                    if (val == ins.b) { skipMode = true; skipDepth = 1; }
+                    pc++;
+                    continue;
+                }
+
+                case scenario::Op::ENDIF:
+                    pc++;
+                    continue;
+
+                case scenario::Op::PLAY_BGM:
+                    PlayBGM(ins.a);
+                    pc++;
+                    continue;
+
+                case scenario::Op::STOP_BGM:
+                    StopBGM();
+                    pc++;
+                    continue;
+
+                case scenario::Op::PLAY_SFX:
+                    PlaySFX(ins.a);
+                    pc++;
                     continue;
 
                 case scenario::Op::END:
@@ -269,9 +373,6 @@ class CerekaEngine::Implementation {
 
         inMenu = true;
         this->menuEndPC = scan;
-
-        std::cout << "[MENU] Loaded background and " << buttonTexts.size() << " buttons!"
-                  << std::endl;
     }
 
     void Update(float dt)
@@ -296,7 +397,6 @@ class CerekaEngine::Implementation {
         SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
         SDL_RenderClear(renderer);
 
-        printf("Draw: inMenu=%d  buttons=%zu\n", inMenu, buttonTexts.size());
         if (background) {
             SDL_RenderTexture(renderer, background, nullptr, nullptr);
         }
@@ -313,7 +413,7 @@ class CerekaEngine::Implementation {
             SDL_RenderTexture(renderer, tex, nullptr, &dst);
             xPos += spacing;
         }
-        printf("Draw: inMenu=%d  buttons=%zu\n", inMenu, buttonTexts.size());
+
         // Menu buttons
         if (inMenu) {
             float y = screenHeight * 0.4f;
@@ -333,7 +433,7 @@ class CerekaEngine::Implementation {
                 y += h + spacing;
             }
         }
-        printf("Draw: inMenu=%d  buttons=%zu\n", inMenu, buttonTexts.size());
+
         // Dialogue box
         if (!currentText.empty()) {
             if (textBox) {
@@ -416,6 +516,9 @@ class CerekaEngine::Implementation {
         program = compiled;
         pc = 0;
         scriptFinished = false;
+        variables.clear();
+        skipMode = false;
+        skipDepth = 0;
 
         // build label map
         labelMap.clear();
@@ -439,7 +542,6 @@ class CerekaEngine::Implementation {
             return;
 
         const scenario::Instruction &ins = program[pc];
-        printf("Advance pc=%zu op=%d  a='%s'\n", pc, static_cast<int>(ins.op), ins.a.c_str());
 
         switch (ins.op) {
             case scenario::Op::BG:
@@ -462,7 +564,6 @@ class CerekaEngine::Implementation {
                 buttonTexts.push_back(ins.a);
                 buttonTargets.push_back(ins.b);
                 buttonExits.push_back(ins.exit_button);
-                printf("BUTTON pushed  txt=%s  btn.size=%zu\n", ins.a.c_str(), buttonTexts.size());
                 pc++;
                 break;
                 break;
@@ -492,14 +593,83 @@ class CerekaEngine::Implementation {
         this->background = LoadTexture(f);
     }
 
-    void ShowCharacter(const std::string &id,
-                       const std::string &)
+    void ShowCharacter(const std::string &id, const std::string &filename)
     {
         HideCharacter(id);
-        std::string path = "assets/characters/" + id + "_normal.jpg";
+        std::string path = "assets/characters/" + filename;
         SDL_Texture *tex = IMG_LoadTexture(this->renderer, path.c_str());
-        if (tex)
+        if (!tex)
+            std::cerr << "[CEREKA] Failed to load character sprite: " << path
+                      << " - " << SDL_GetError() << "\n";
+        else
             this->characters[id] = tex;
+    }
+
+    void PlayBGM(const std::string &filename)
+    {
+        if (!audioInitialized) return;
+
+        // Stop and destroy previous BGM
+        if (bgmTrack) {
+            MIX_StopTrack(bgmTrack, 0);
+            MIX_DestroyTrack(bgmTrack);
+            bgmTrack = nullptr;
+        }
+        if (bgmAudio) {
+            MIX_DestroyAudio(bgmAudio);
+            bgmAudio = nullptr;
+        }
+
+        std::string path = "assets/sounds/" + filename;
+        bgmAudio = MIX_LoadAudio(mixer, path.c_str(), false);  // stream, don't predecode
+        if (!bgmAudio) {
+            std::cerr << "[CEREKA] Failed to load BGM: " << path << " - " << SDL_GetError() << "\n";
+            return;
+        }
+
+        bgmTrack = MIX_CreateTrack(mixer);
+        if (!bgmTrack) {
+            std::cerr << "[CEREKA] Failed to create BGM track: " << SDL_GetError() << "\n";
+            MIX_DestroyAudio(bgmAudio);
+            bgmAudio = nullptr;
+            return;
+        }
+
+        MIX_SetTrackAudio(bgmTrack, bgmAudio);
+        MIX_SetTrackLoops(bgmTrack, -1);  // loop forever
+        MIX_PlayTrack(bgmTrack, 0);
+    }
+
+    void StopBGM()
+    {
+        if (!audioInitialized) return;
+        if (bgmTrack) {
+            MIX_StopTrack(bgmTrack, 0);
+            MIX_DestroyTrack(bgmTrack);
+            bgmTrack = nullptr;
+        }
+        if (bgmAudio) {
+            MIX_DestroyAudio(bgmAudio);
+            bgmAudio = nullptr;
+        }
+    }
+
+    void PlaySFX(const std::string &filename)
+    {
+        if (!audioInitialized) return;
+
+        auto it = sfxCache.find(filename);
+        if (it == sfxCache.end()) {
+            std::string path = "assets/sounds/" + filename;
+            MIX_Audio *audio = MIX_LoadAudio(mixer, path.c_str(), true);  // predecode SFX
+            if (!audio) {
+                std::cerr << "[CEREKA] Failed to load SFX: " << path << " - " << SDL_GetError() << "\n";
+                return;
+            }
+            sfxCache[filename] = audio;
+            it = sfxCache.find(filename);
+        }
+        MIX_PlayAudio(mixer, it->second);  // fire and forget
     }
 
     void HideCharacter(const std::string &id)
@@ -565,21 +735,17 @@ class CerekaEngine::Implementation {
         buttonTexts.clear();
         buttonTargets.clear();
         buttonExits.clear();
-        std::cout << "[MENU] Exited menu, buttons cleared." << std::endl;
     }
     void LoadScript(const std::string &filename)
     {
-        std::cout << "[DEBUG] Loading script: " << filename << std::endl;
         sol::load_result chunk = lua.load_file(filename);
         if (!chunk.valid()) {
             sol::error err = chunk;
-            std::cerr << "[ERROR] Lua load error in " << filename << ": " << err.what() << "\n";
+            std::cerr << "[CEREKA] Lua load error in " << filename << ": " << err.what() << "\n";
             return;
         }
         script = sol::coroutine(chunk);
         scriptFinished = false;
-        std::cout << "[DEBUG] Script loaded successfully, starting execution..." << std::endl;
-        std::cout << "[DEBUG] Initial run complete. Status: " << (int)script.status();
     }
 
     void Reset()
