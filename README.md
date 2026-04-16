@@ -4,95 +4,132 @@ A visual novel engine built in C++ with SDL3. Game projects are purely script-ba
 
 ---
 
-## Prerequisites
+## Download
 
-**Linux**
-```
-g++ (C++23)   cmake (3.24+)   lua5.4   git
-```
+Pre-built binaries are on the [Releases](https://github.com/mishoshup/cereka/releases) page.
 
-On Arch: `sudo pacman -S base-devel cmake lua54`  
-On Ubuntu/Debian: `sudo apt install build-essential cmake liblua5.4-dev`
+| Archive | Platform |
+|---|---|
+| `cereka-vX.X.X-linux.tar.gz` | Linux — launcher + both runtimes |
+| `cereka-vX.X.X-windows.zip` | Windows — launcher + Windows runtime |
 
-**Windows** — coming soon.
+The Linux archive includes both the Linux and Windows game runners, so you can package your game for both platforms from a single Linux machine.
 
 ---
 
-## Getting the engine
+## Getting started (pre-built)
+
+**Linux**
+```bash
+tar xzf cereka-*-linux.tar.gz
+cd cereka-linux
+./CerekaLauncher
+```
+
+**Windows** — unzip `cereka-*-windows.zip`, run `CerekaLauncher.exe`.
+
+---
+
+## Building from source
+
+### Prerequisites
+
+Everything is vendored — the only requirements are a C++ compiler, CMake, and Ninja.
+
+**Linux**
+```
+g++ or clang++ (C++17+)   cmake (3.24+)   ninja   git
+```
+On Arch: `sudo pacman -S base-devel cmake ninja`  
+On Ubuntu/Debian: `sudo apt install build-essential cmake ninja-build`
+
+**Windows (native)** — install [MSYS2](https://www.msys2.org/), then from an UCRT64 shell:
+```
+pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja
+```
+
+### Build
 
 ```bash
 git clone --recursive https://github.com/mishoshup/cereka.git
 cd cereka
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build
 ```
 
-The `--recursive` flag is required — it pulls SDL3, SDL_mixer, SDL_ttf, ImGui and other vendored dependencies.
-
----
-
-## Building
-
-```bash
-mkdir build && cd build
-cmake ..
-make -j$(nproc)
-```
-
-This produces two binaries in `build/`:
-| Binary | Purpose |
+Produces in `build/`:
+| Output | Location |
 |---|---|
-| `CerekaGame` | Runs a game project |
-| `CerekaLauncher` | GUI launcher / dev tool |
+| `CerekaLauncher` | `build/` |
+| `CerekaGame` | `build/runtimes/linux/` |
+| Windows DLLs | `build/runtimes/windows/` (if cross-compiling) |
+
+### Cross-compile Windows from Linux
+
+Requires [llvm-mingw](https://github.com/mstorsjo/llvm-mingw) with UCRT64 support.
+
+```bash
+cmake -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/ucrt64.cmake
+cmake --build build-win
+
+# Copy Windows runtime alongside the Linux launcher
+cp -r build-win/runtimes/windows build/runtimes/
+```
+
+### Release archives
+
+```bash
+./release.sh v0.0.2
+```
+
+Builds both platforms, creates `cereka-v0.0.2-linux.tar.gz` and `cereka-v0.0.2-windows.zip`, then optionally publishes to GitHub via `gh`.
 
 ---
 
-## Running the launcher
+## The launcher
 
-Point it at any game project directory:
+Run `CerekaLauncher` (or `CerekaLauncher.exe` on Windows). No arguments needed.
 
-```bash
-./build/CerekaLauncher /path/to/your/game
-```
+- **Open** an existing game folder or pick from recent projects
+- **Create Game** — scaffolds a complete starter project with a tutorial script
+- **Edit title** — click the title field in the project header and type a new name; saves to `game.cfg` automatically
+- **Rename folder** — rename the project directory on disk from inside the launcher
+- **Launch Game** — runs your game
+- **Package** — produces a distributable archive. Click the `▼` arrow to choose a target platform:
+  - *All platforms* — one archive per available runtime
+  - *Linux only* — `.tar.gz` with `launch.sh`
+  - *Windows only* — `.zip` with `launch.bat`
 
-Or run it from inside the game directory:
+The packaged archive contains the game runner, all required DLLs (Windows), your project files (saves/ excluded), and a launch script. Share it and players need nothing else installed.
 
-```bash
-cd /path/to/your/game
-/path/to/cereka/build/CerekaLauncher
-```
-
-The launcher is a GUI project manager. Use it to create new game projects, open existing ones, and launch your game without touching the terminal.
-
-**Create Game** scaffolds a complete starter project on disk:
-
+**Scaffolded project layout:**
 ```
 assets/scripts/main.crka       — full tutorial script (every command with comments)
-assets/scripts/ui.crka         — starter UI theme (ready to customise)
-assets/scripts/scene_two.crka  — example called scene
+assets/scripts/ui.crka         — starter UI theme
+assets/scripts/scene_two.crka  — example subroutine scene
 assets/bg/placeholder_bg.png
 assets/characters/placeholder_char.png
 assets/sounds/placeholder_{bgm,sfx}.wav
 assets/fonts/Montserrat-Medium.ttf
-assets/ui/                     — empty, ready for custom UI sprites
 game.cfg
 ```
 
 ---
 
-## Creating a game project
-
-A game project is just a folder with a `game.cfg` and an `assets/` directory. No C++ needed.
+## Project layout
 
 ```
 my-game/
   game.cfg
   assets/
-    scripts/
-      main.crka
-    bg/
-    characters/
-    fonts/
-    sounds/
-    ui/
+    scripts/    — .crka script files
+    bg/         — background images
+    characters/ — character sprites
+    sounds/     — bgm + sfx
+    fonts/      — .ttf / .otf
+    ui/         — optional UI images (textbox, buttons…)
+  saves/        — auto-created at runtime
 ```
 
 **game.cfg**
@@ -104,9 +141,9 @@ fullscreen = false
 entry      = assets/scripts/main.crka
 ```
 
-Run it directly without the launcher:
+Run without the launcher:
 ```bash
-./build/CerekaGame /path/to/my-game
+./build/runtimes/linux/CerekaGame /path/to/my-game
 ```
 
 ---
@@ -120,9 +157,9 @@ Run it directly without the launcher:
 bg filename.jpg
 bg filename.jpg fade 0.5        ; dissolve over N seconds
 
-char id left sprite.png         ; position: left | center | right
+char id left   sprite.png       ; position: left | center | right
 char id center sprite.png
-char id right sprite.png
+char id right  sprite.png
 hide char id
 
 ; ---------- dialogue ----------
@@ -134,19 +171,18 @@ label scene_name
 jump scene_name
 end
 
-include other.crka              ; compile-time inline (strips its `end`)
-call scene.crka                 ; runtime subroutine (returns on `end`)
+include other.crka              ; compile-time inline
+call scene.crka                 ; runtime subroutine (returns on end)
 
 ; ---------- menus ----------
 menu
-    bg background.jpg           ; optional background swap
+    bg background.jpg           ; optional background swap inside menu
     button "Option A" goto label_a
     button "Option B" goto label_b
     button "Exit"     exit
 
 ; ---------- variables ----------
 set flag_name value
-set counter 0
 
 ; ---------- conditionals ----------
 if flag_name == value
@@ -158,9 +194,15 @@ if flag_name != value
 endif
 
 ; ---------- audio ----------
-bgm music.mp3
+bgm music.ogg
 sfx sound.wav
 stop_bgm
+
+; ---------- save / load ----------
+save_menu                       ; show 10-slot save overlay (ESC cancels)
+load_menu                       ; show 10-slot load overlay
+save 1                          ; silent save to slot N (1-10)
+load 1                          ; silent load from slot N
 
 ; ---------- UI theming ----------
 ui textbox
@@ -175,7 +217,6 @@ ui namebox
     color 30 30 100 255
     x 50   y_offset -65   w 260   h 52
     text_color 255 220 120 255
-    image assets/ui/namebox.png
 
 ui button
     color 20 80 120 255
@@ -188,25 +229,27 @@ ui font
     size 36
 ```
 
-All UI properties have defaults — only override what you need. Put `include ui.crka` at the top of your entry script to apply a theme before any scene runs.
+All UI properties have defaults — only override what you need. Put `include ui.crka` at the top of your entry script.
 
 ### Multi-file scripts
 
-- `include <file>` — compile-time inline. The target file's instructions are pasted in place; its `end` is stripped. Good for UI themes and shared label banks.
-- `call <file>` — runtime subroutine. Pushes a return address, jumps to the file, and resumes on `end`. Good for self-contained scenes and reusable sequences.
-- Paths are relative to the including file's directory.
-- Max include/call depth: 32 (prevents infinite loops).
+| Command | When | Use for |
+|---|---|---|
+| `include file.crka` | Compile time | UI themes, shared label banks |
+| `call file.crka` | Runtime | Self-contained scenes, returns on `end` |
+
+Paths are relative to the including file. Max depth: 32.
 
 ---
 
-## Project structure
+## Engine source layout
 
 ```
 cereka/
-  src/         Cereka engine library (C++)
-  runner/      CerekaGame — generic runner that reads game.cfg
-  launcher/    CerekaLauncher — ImGui GUI dev tool
-  scripts/     compiler.lua — .crka script compiler (embedded at build time)
-  vendor/      SDL3, SDL_ttf, SDL_mixer, SDL_image, sol2, ImGui
-  include/     Public API headers
+  src/         — Cereka engine library (C++)
+  runner/      — CerekaGame executable
+  launcher/    — CerekaLauncher (ImGui project manager)
+  scripts/     — compiler.lua (.crka → bytecode, embedded at build time)
+  vendor/      — SDL3, SDL3_ttf, SDL3_mixer, SDL3_image, sol2, ImGui, Lua 5.4
+  include/     — public API headers
 ```
