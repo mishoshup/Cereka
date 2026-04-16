@@ -5,13 +5,37 @@
 namespace cereka::scenario {
 
 enum class Op {
-    BG, CHAR, HIDE_CHAR, SAY, NARRATE, LABEL, JUMP, MENU, BUTTON, END,
-    PLAY_BGM, STOP_BGM, PLAY_SFX,
-    SET_VAR, IF_EQ, IF_NEQ, ENDIF,
+    BG,
+    CHAR,
+    HIDE_CHAR,
+    SAY,
+    NARRATE,
+    LABEL,
+    JUMP,
+    MENU,
+    BUTTON,
+    END,
+    PLAY_BGM,
+    STOP_BGM,
+    PLAY_SFX,
+    SET_VAR,
+    SET_VAR_NUM,
+    IF_EQ,
+    IF_NEQ,
+    IF_GT,
+    IF_LT,
+    IF_GE,
+    IF_LE,
+    ENDIF,
     FADE,
-    INCLUDE, CALL, RETURN,
+    INCLUDE,
+    CALL,
+    RETURN,
     UI_SET,
-    SAVE, LOAD, SAVE_MENU, LOAD_MENU,
+    SAVE,
+    LOAD,
+    SAVE_MENU,
+    LOAD_MENU,
 };
 
 struct ChoiceOption {
@@ -21,9 +45,9 @@ struct ChoiceOption {
 
 struct Instruction {
     Op op;
-    std::string a;             // speaker / label / target / id
-    std::string b;             // text / filename / value / duration
-    std::string c;             // aux field (char position: left|center|right)
+    std::string a;  // speaker / label / target / id
+    std::string b;  // text / filename / value / duration
+    std::string c;  // aux field (char position: left|center|right)
     bool exit_button = false;
     std::vector<ChoiceOption> choices;
 };

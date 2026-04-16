@@ -8,12 +8,13 @@
 
 void Impl::LoadCompiledScript(const std::vector<scenario::Instruction> &compiled)
 {
-    program        = compiled;
-    pc             = 0;
+    program = compiled;
+    pc = 0;
     scriptFinished = false;
     variables.clear();
+    numVariables.clear();
     callStack.clear();
-    skipMode  = false;
+    skipMode = false;
     skipDepth = 0;
 
     labelMap.clear();
@@ -30,18 +31,21 @@ void Impl::LoadScript(const std::string &filename)
         std::cerr << "[CEREKA] Lua load error in " << filename << ": " << err.what() << "\n";
         return;
     }
-    script        = sol::coroutine(chunk);
+    script = sol::coroutine(chunk);
     scriptFinished = false;
 }
 
 void Impl::Reset()
 {
     currentText.clear();
-    displayedChars  = 0;
+    displayedChars = 0;
     typewriterTimer = 0.0f;
     currentSpeaker.clear();
     currentName.clear();
-    if (background) { SDL_DestroyTexture(background); background = nullptr; }
+    if (background) {
+        SDL_DestroyTexture(background);
+        background = nullptr;
+    }
     characters.clear();
 }
 
@@ -67,15 +71,19 @@ void Impl::Update(float dt)
     if (state == CerekaState::Fading) {
         fadeTimer += dt;
         if (fadePhase == FadePhase::Out && fadeTimer >= fadePhaseDuration) {
-            if (background) { SDL_DestroyTexture(background); background = nullptr; }
+            if (background) {
+                SDL_DestroyTexture(background);
+                background = nullptr;
+            }
             background = pendingBg;
-            pendingBg  = nullptr;
-            fadePhase  = FadePhase::In;
-            fadeTimer  = 0.0f;
-        } else if (fadePhase == FadePhase::In && fadeTimer >= fadePhaseDuration) {
+            pendingBg = nullptr;
+            fadePhase = FadePhase::In;
+            fadeTimer = 0.0f;
+        }
+        else if (fadePhase == FadePhase::In && fadeTimer >= fadePhaseDuration) {
             fadePhase = FadePhase::None;
             fadeTimer = 0.0f;
-            state     = CerekaState::Running;
+            state = CerekaState::Running;
         }
     }
 }
@@ -99,8 +107,9 @@ void Impl::HandleEvent(const CerekaEvent &e)
                 if (isSaving) {
                     SaveGame(slot);
                     state = stateBeforeSaveMenu;
-                } else {
-                    LoadGame(slot); // restores state from file
+                }
+                else {
+                    LoadGame(slot);  // restores state from file
                 }
             }
         }
@@ -125,7 +134,8 @@ void Impl::HandleEvent(const CerekaEvent &e)
 
     if (state == CerekaState::InMenu && e.type == CerekaEvent::MouseDown) {
         int idx = HitTestButton(e.mouseX, e.mouseY);
-        if (idx < 0) return;
+        if (idx < 0)
+            return;
 
         if (buttonExits[idx]) {
             ExitMenu();
@@ -153,11 +163,14 @@ void Impl::TickScript()
 
         // Skip mode: inside a false if-block
         if (skipMode) {
-            if (ins.op == scenario::Op::IF_EQ || ins.op == scenario::Op::IF_NEQ)
+            if (ins.op == scenario::Op::IF_EQ || ins.op == scenario::Op::IF_NEQ ||
+                ins.op == scenario::Op::IF_GT || ins.op == scenario::Op::IF_LT ||
+                ins.op == scenario::Op::IF_GE || ins.op == scenario::Op::IF_LE)
                 skipDepth++;
             else if (ins.op == scenario::Op::ENDIF) {
                 skipDepth--;
-                if (skipDepth == 0) skipMode = false;
+                if (skipDepth == 0)
+                    skipMode = false;
             }
             pc++;
             continue;
@@ -173,14 +186,19 @@ void Impl::TickScript()
             case scenario::Op::FADE: {
                 float totalDur = 0.5f;
                 if (!ins.b.empty()) {
-                    try { totalDur = std::stof(ins.b); } catch (...) {}
+                    try {
+                        totalDur = std::stof(ins.b);
+                    }
+                    catch (...) {
+                    }
                 }
                 fadePhaseDuration = totalDur * 0.5f;
                 fadeTimer = 0.0f;
                 fadePhase = FadePhase::Out;
-                if (pendingBg) SDL_DestroyTexture(pendingBg);
+                if (pendingBg)
+                    SDL_DestroyTexture(pendingBg);
                 pendingBg = LoadTexture(ins.a);
-                state     = CerekaState::Fading;
+                state = CerekaState::Fading;
                 pc++;
                 return;
             }
@@ -226,7 +244,8 @@ void Impl::TickScript()
                 if (!callStack.empty()) {
                     pc = callStack.back();
                     callStack.pop_back();
-                } else {
+                }
+                else {
                     state = CerekaState::Finished;
                 }
                 continue;
@@ -236,10 +255,56 @@ void Impl::TickScript()
                 pc++;
                 continue;
 
+            case scenario::Op::SET_VAR_NUM: {
+                float lhs = 0.0f;
+                auto it = numVariables.find(ins.a);
+                if (it != numVariables.end())
+                    lhs = it->second;
+                else {
+                    auto sit = variables.find(ins.a);
+                    if (sit != variables.end()) {
+                        try {
+                            lhs = std::stof(sit->second);
+                        }
+                        catch (...) {
+                        }
+                    }
+                }
+
+                float rhs = 0.0f;
+                try {
+                    rhs = std::stof(ins.c);
+                }
+                catch (...) {
+                }
+
+                float result = 0.0f;
+                if (ins.b == "+")
+                    result = lhs + rhs;
+                else if (ins.b == "-")
+                    result = lhs - rhs;
+                else if (ins.b == "*")
+                    result = lhs * rhs;
+                else if (ins.b == "/")
+                    result = (rhs != 0.0f) ? (lhs / rhs) : 0.0f;
+                else
+                    result = rhs;
+
+                numVariables[ins.a] = result;
+                variables[ins.a] = std::to_string(result);
+                std::cerr << "[CEREKA] NUM: $" << ins.a << " (" << lhs << " " << ins.b << " "
+                          << rhs << ") = " << result << "\n";
+                pc++;
+                continue;
+            }
+
             case scenario::Op::IF_EQ: {
                 auto it = variables.find(ins.a);
                 std::string val = (it != variables.end()) ? it->second : "";
-                if (val != ins.b) { skipMode = true; skipDepth = 1; }
+                if (val != ins.b) {
+                    skipMode = true;
+                    skipDepth = 1;
+                }
                 pc++;
                 continue;
             }
@@ -247,7 +312,138 @@ void Impl::TickScript()
             case scenario::Op::IF_NEQ: {
                 auto it = variables.find(ins.a);
                 std::string val = (it != variables.end()) ? it->second : "";
-                if (val == ins.b) { skipMode = true; skipDepth = 1; }
+                if (val == ins.b) {
+                    skipMode = true;
+                    skipDepth = 1;
+                }
+                pc++;
+                continue;
+            }
+
+            case scenario::Op::IF_GT: {
+                float lhs = 0.0f;
+                auto it = numVariables.find(ins.a);
+                if (it != numVariables.end())
+                    lhs = it->second;
+                else {
+                    auto sit = variables.find(ins.a);
+                    if (sit != variables.end()) {
+                        try {
+                            lhs = std::stof(sit->second);
+                        }
+                        catch (...) {
+                        }
+                    }
+                }
+                float rhs = 0.0f;
+                try {
+                    rhs = std::stof(ins.b);
+                }
+                catch (...) {
+                }
+                bool cond = lhs > rhs;
+                std::cerr << "[CEREKA] IF: $" << ins.a << " (" << lhs << ") > " << ins.b << " ("
+                          << rhs << ") = " << (cond ? "true" : "false") << "\n";
+                if (!cond) {
+                    skipMode = true;
+                    skipDepth = 1;
+                }
+                pc++;
+                continue;
+            }
+
+            case scenario::Op::IF_LT: {
+                float lhs = 0.0f;
+                auto it = numVariables.find(ins.a);
+                if (it != numVariables.end())
+                    lhs = it->second;
+                else {
+                    auto sit = variables.find(ins.a);
+                    if (sit != variables.end()) {
+                        try {
+                            lhs = std::stof(sit->second);
+                        }
+                        catch (...) {
+                        }
+                    }
+                }
+                float rhs = 0.0f;
+                try {
+                    rhs = std::stof(ins.b);
+                }
+                catch (...) {
+                }
+                bool cond = lhs < rhs;
+                std::cerr << "[CEREKA] IF: $" << ins.a << " (" << lhs << ") < " << ins.b << " ("
+                          << rhs << ") = " << (cond ? "true" : "false") << "\n";
+                if (!cond) {
+                    skipMode = true;
+                    skipDepth = 1;
+                }
+                pc++;
+                continue;
+            }
+
+            case scenario::Op::IF_GE: {
+                float lhs = 0.0f;
+                auto it = numVariables.find(ins.a);
+                if (it != numVariables.end())
+                    lhs = it->second;
+                else {
+                    auto sit = variables.find(ins.a);
+                    if (sit != variables.end()) {
+                        try {
+                            lhs = std::stof(sit->second);
+                        }
+                        catch (...) {
+                        }
+                    }
+                }
+                float rhs = 0.0f;
+                try {
+                    rhs = std::stof(ins.b);
+                }
+                catch (...) {
+                }
+                bool cond = lhs >= rhs;
+                std::cerr << "[CEREKA] IF: $" << ins.a << " (" << lhs << ") >= " << ins.b << " ("
+                          << rhs << ") = " << (cond ? "true" : "false") << "\n";
+                if (!cond) {
+                    skipMode = true;
+                    skipDepth = 1;
+                }
+                pc++;
+                continue;
+            }
+
+            case scenario::Op::IF_LE: {
+                float lhs = 0.0f;
+                auto it = numVariables.find(ins.a);
+                if (it != numVariables.end())
+                    lhs = it->second;
+                else {
+                    auto sit = variables.find(ins.a);
+                    if (sit != variables.end()) {
+                        try {
+                            lhs = std::stof(sit->second);
+                        }
+                        catch (...) {
+                        }
+                    }
+                }
+                float rhs = 0.0f;
+                try {
+                    rhs = std::stof(ins.b);
+                }
+                catch (...) {
+                }
+                bool cond = lhs <= rhs;
+                std::cerr << "[CEREKA] IF: $" << ins.a << " (" << lhs << ") <= " << ins.b << " ("
+                          << rhs << ") = " << (cond ? "true" : "false") << "\n";
+                if (!cond) {
+                    skipMode = true;
+                    skipDepth = 1;
+                }
                 pc++;
                 continue;
             }
@@ -301,7 +497,7 @@ void Impl::TickScript()
             case scenario::Op::LOAD: {
                 int slot = ins.a.empty() ? 0 : std::stoi(ins.a);
                 if (slot >= 1 && slot <= 10)
-                    LoadGame(slot); // restores pc and state from file
+                    LoadGame(slot);  // restores pc and state from file
                 return;
             }
 

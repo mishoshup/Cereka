@@ -13,7 +13,8 @@ namespace cereka::scenario {
 // ---------------------------------------------------------------------------
 // Forward declaration for recursive include/call resolution
 // ---------------------------------------------------------------------------
-static std::vector<Instruction> CompileFile(const fs::path &path, int depth);
+static std::vector<Instruction> CompileFile(const fs::path &path,
+                                            int depth);
 
 // ---------------------------------------------------------------------------
 // Run compiler.lua on script_text, return raw instruction list
@@ -59,55 +60,93 @@ static std::vector<Instruction> RunLuaCompiler(const std::string &scriptText)
     std::vector<Instruction> program;
 
     for (auto &p : instructions.pairs()) {
-        if (!p.second.is<sol::table>()) continue;
+        if (!p.second.is<sol::table>())
+            continue;
 
-        sol::table t  = p.second.as<sol::table>();
+        sol::table t = p.second.as<sol::table>();
         std::string op = t["op"].get_or<std::string>("");
-        if (op.empty()) continue;
+        if (op.empty())
+            continue;
 
         Instruction ins;
-        if      (op == "SAY")       ins.op = Op::SAY;
-        else if (op == "NARRATE")   ins.op = Op::NARRATE;
-        else if (op == "JUMP")      ins.op = Op::JUMP;
-        else if (op == "LABEL")     ins.op = Op::LABEL;
-        else if (op == "END")       ins.op = Op::END;
-        else if (op == "BG")        ins.op = Op::BG;
-        else if (op == "CHAR")      ins.op = Op::CHAR;
-        else if (op == "BUTTON")    ins.op = Op::BUTTON;
-        else if (op == "MENU")      ins.op = Op::MENU;
-        else if (op == "PLAY_BGM")  ins.op = Op::PLAY_BGM;
-        else if (op == "STOP_BGM")  ins.op = Op::STOP_BGM;
-        else if (op == "PLAY_SFX")  ins.op = Op::PLAY_SFX;
-        else if (op == "HIDE_CHAR") ins.op = Op::HIDE_CHAR;
-        else if (op == "SET_VAR")   ins.op = Op::SET_VAR;
-        else if (op == "IF_EQ")     ins.op = Op::IF_EQ;
-        else if (op == "IF_NEQ")    ins.op = Op::IF_NEQ;
-        else if (op == "ENDIF")     ins.op = Op::ENDIF;
-        else if (op == "FADE")      ins.op = Op::FADE;
-        else if (op == "INCLUDE")   ins.op = Op::INCLUDE;
-        else if (op == "CALL")      ins.op = Op::CALL;
-        else if (op == "UI_SET")    ins.op = Op::UI_SET;
-        else if (op == "SAVE")      ins.op = Op::SAVE;
-        else if (op == "LOAD")      ins.op = Op::LOAD;
-        else if (op == "SAVE_MENU") ins.op = Op::SAVE_MENU;
-        else if (op == "LOAD_MENU") ins.op = Op::LOAD_MENU;
+        if (op == "SAY")
+            ins.op = Op::SAY;
+        else if (op == "NARRATE")
+            ins.op = Op::NARRATE;
+        else if (op == "JUMP")
+            ins.op = Op::JUMP;
+        else if (op == "LABEL")
+            ins.op = Op::LABEL;
+        else if (op == "END")
+            ins.op = Op::END;
+        else if (op == "BG")
+            ins.op = Op::BG;
+        else if (op == "CHAR")
+            ins.op = Op::CHAR;
+        else if (op == "BUTTON")
+            ins.op = Op::BUTTON;
+        else if (op == "MENU")
+            ins.op = Op::MENU;
+        else if (op == "PLAY_BGM")
+            ins.op = Op::PLAY_BGM;
+        else if (op == "STOP_BGM")
+            ins.op = Op::STOP_BGM;
+        else if (op == "PLAY_SFX")
+            ins.op = Op::PLAY_SFX;
+        else if (op == "HIDE_CHAR")
+            ins.op = Op::HIDE_CHAR;
+        else if (op == "SET_VAR")
+            ins.op = Op::SET_VAR;
+        else if (op == "SET_VAR_NUM")
+            ins.op = Op::SET_VAR_NUM;
+        else if (op == "IF_EQ")
+            ins.op = Op::IF_EQ;
+        else if (op == "IF_NEQ")
+            ins.op = Op::IF_NEQ;
+        else if (op == "IF_GT")
+            ins.op = Op::IF_GT;
+        else if (op == "IF_LT")
+            ins.op = Op::IF_LT;
+        else if (op == "IF_GE")
+            ins.op = Op::IF_GE;
+        else if (op == "IF_LE")
+            ins.op = Op::IF_LE;
+        else if (op == "ENDIF")
+            ins.op = Op::ENDIF;
+        else if (op == "FADE")
+            ins.op = Op::FADE;
+        else if (op == "INCLUDE")
+            ins.op = Op::INCLUDE;
+        else if (op == "CALL")
+            ins.op = Op::CALL;
+        else if (op == "UI_SET")
+            ins.op = Op::UI_SET;
+        else if (op == "SAVE")
+            ins.op = Op::SAVE;
+        else if (op == "LOAD")
+            ins.op = Op::LOAD;
+        else if (op == "SAVE_MENU")
+            ins.op = Op::SAVE_MENU;
+        else if (op == "LOAD_MENU")
+            ins.op = Op::LOAD_MENU;
         else {
             std::cerr << "[CEREKA] Unknown op: " << op << "\n";
             continue;
         }
 
-        ins.a           = t["a"].get_or<std::string>("");
-        ins.b           = t["b"].get_or<std::string>("");
-        ins.c           = t["c"].get_or<std::string>("");
+        ins.a = t["a"].get_or<std::string>("");
+        ins.b = t["b"].get_or<std::string>("");
+        ins.c = t["c"].get_or<std::string>("");
         ins.exit_button = t["exit_button"].get_or(false);
 
         if (t["choices"].valid()) {
             sol::table choices = t["choices"];
             for (auto &c : choices.pairs()) {
-                if (!c.second.is<sol::table>()) continue;
+                if (!c.second.is<sol::table>())
+                    continue;
                 sol::table ctbl = c.second.as<sol::table>();
                 ChoiceOption opt;
-                opt.text        = ctbl["text"].get_or<std::string>("");
+                opt.text = ctbl["text"].get_or<std::string>("");
                 opt.targetLabel = ctbl["target"].get_or<std::string>("");
                 ins.choices.push_back(opt);
             }
@@ -122,7 +161,8 @@ static std::vector<Instruction> RunLuaCompiler(const std::string &scriptText)
 // ---------------------------------------------------------------------------
 // Resolve INCLUDEs and CALLs recursively, then return a flat instruction list
 // ---------------------------------------------------------------------------
-static std::vector<Instruction> CompileFile(const fs::path &path, int depth)
+static std::vector<Instruction> CompileFile(const fs::path &path,
+                                            int depth)
 {
     static constexpr int MAX_DEPTH = 32;
     if (depth > MAX_DEPTH) {
@@ -142,7 +182,7 @@ static std::vector<Instruction> CompileFile(const fs::path &path, int depth)
 
     fs::path dir = path.parent_path();
     std::vector<Instruction> resolved;
-    std::vector<Instruction> subroutines; // appended after END
+    std::vector<Instruction> subroutines;  // appended after END
     int callId = 0;
 
     for (auto &ins : raw) {
@@ -152,15 +192,15 @@ static std::vector<Instruction> CompileFile(const fs::path &path, int depth)
             if (!sub.empty() && sub.back().op == Op::END)
                 sub.pop_back();
             resolved.insert(resolved.end(), sub.begin(), sub.end());
-
-        } else if (ins.op == Op::CALL) {
+        }
+        else if (ins.op == Op::CALL) {
             // Replace CALL with a JUMP-to-subroutine + auto-generated label
-            std::string label = "__call_" + path.stem().string()
-                                + "_" + std::to_string(callId++) + "__";
+            std::string label = "__call_" + path.stem().string() + "_" + std::to_string(callId++) +
+                                "__";
 
             Instruction callIns;
             callIns.op = Op::CALL;
-            callIns.a  = label; // runtime: push pc+1, jump to this label
+            callIns.a = label;  // runtime: push pc+1, jump to this label
             resolved.push_back(callIns);
 
             // Compile the subroutine; replace its END with RETURN
@@ -168,15 +208,18 @@ static std::vector<Instruction> CompileFile(const fs::path &path, int depth)
             if (!sub.empty() && sub.back().op == Op::END)
                 sub.back().op = Op::RETURN;
             else {
-                Instruction ret; ret.op = Op::RETURN;
+                Instruction ret;
+                ret.op = Op::RETURN;
                 sub.push_back(ret);
             }
 
-            Instruction lbl; lbl.op = Op::LABEL; lbl.a = label;
+            Instruction lbl;
+            lbl.op = Op::LABEL;
+            lbl.a = label;
             subroutines.push_back(lbl);
             subroutines.insert(subroutines.end(), sub.begin(), sub.end());
-
-        } else {
+        }
+        else {
             resolved.push_back(ins);
         }
     }

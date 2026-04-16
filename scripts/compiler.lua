@@ -142,6 +142,20 @@ function compile(script_text)
             local var, val = l:match("^set%s+(%S+)%s+(.*)")
             val = val:match('^"(.-)"$') or val
             table.insert(instructions, { op = "SET_VAR", a = var, b = val })
+        elseif l:match("^%$%s+%S+%s*[%+%-]?=") then
+            -- Arithmetic: $ var += value, $ var -= value, $ var = expr
+            local var, op, rhs = l:match("^%$%s+(%S+)%s*([%+%-/%*])=%s*(.+)")
+            local real_op = op or "+"
+            if not var then
+                var = l:match("^%$%s+(%S+)%s*=")
+                rhs = l:match("^%$%s+%S+%s*=%s*(.+)")
+            end
+            if var then
+                rhs = rhs:match('^"(.-)"$') or rhs
+                table.insert(instructions, { op = "SET_VAR_NUM", a = var, b = real_op, c = rhs })
+            else
+                print("[COMPILER] Bad arithmetic syntax: " .. l)
+            end
         elseif l:match("^if%s+") then
             local var, val, opcode
             var, val = l:match("^if%s+(%S+)%s+==%s+(.*)")
@@ -150,6 +164,22 @@ function compile(script_text)
             else
                 var, val = l:match("^if%s+(%S+)%s+!=%s+(.*)")
                 opcode = "IF_NEQ"
+            end
+            if not var then
+                var, val = l:match("^if%s+(%S+)%s+>%s+(.*)")
+                opcode = "IF_GT"
+            end
+            if not var then
+                var, val = l:match("^if%s+(%S+)%s+<%s+(.*)")
+                opcode = "IF_LT"
+            end
+            if not var then
+                var, val = l:match("^if%s+(%S+)%s+>=%s+(.*)")
+                opcode = "IF_GE"
+            end
+            if not var then
+                var, val = l:match("^if%s+(%S+)%s+<=%s+(.*)")
+                opcode = "IF_LE"
             end
             if var and val then
                 val = val:match('^"(.-)"$') or val

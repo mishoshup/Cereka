@@ -99,7 +99,16 @@ static const char *kMainScriptTemplate =
 ;
 ; Starts with a main menu (New Game / Load Game / Quit).
 ; The story begins at label new_game.
-; Every engine command is shown with comments below.
+;
+; COMMAND REFERENCE:
+;   Variables:     set <var> <value>, $ <var> += -= *= /= <value>
+;   Comparisons:   if <var> == != > < >= <= <value>
+;   Flow:          label, jump, call, return, end
+;   Scene:         bg, char, hide char, bgm, sfx
+;   Dialogue:       say, narrate
+;   Menus:         menu, button goto <label>, button exit
+;   Save/Load:     save_menu, load_menu, save <1-10>, load <1-10>
+;
 ; Delete what you don't need and write your story.
 ; ================================================================
 ;
@@ -226,6 +235,65 @@ endif
 if choice != skipped
     narrate "This shows because choice != skipped."
 endif
+
+; ================================================================
+; NUMERIC VARIABLES — for stats, inventory, game logic
+; ================================================================
+
+; SET — create a string variable
+set player_name "Hero"
+
+; $ (arithmetic) — modify numeric variables
+;   $ var += value    add value to var
+;   $ var -= value    subtract value from var
+;   $ var *= value    multiply var by value
+;   $ var /= value    divide var by value
+;   $ var = expr     set var to result of expression
+;   Variables are stored as both string and number
+
+set gold 100
+set hp 100
+
+$ gold += 50
+$ hp -= 25
+$ gold = gold * 2
+
+narrate "You started with 100 gold and 100 hp."
+narrate "After gaining 50 gold and losing 25 hp, then doubling your gold..."
+narrate "You now have 250 gold and 75 hp!"
+
+; {var} — substitute variable values in text
+; Use {var_name} anywhere in dialogue to show the current value
+narrate "Current stats: gold={gold}, hp={hp}"
+
+; IF with comparisons — for numeric conditions
+;   if var > value    greater than
+;   if var < value    less than
+;   if var >= value   greater than or equal
+;   if var <= value   less than or equal
+;   if var == value   equal (works with strings too)
+;   if var != value   not equal (works with strings too)
+
+if gold > 200
+    narrate "You're rich! Gold is over {gold}!"
+endif
+
+if hp <= 75
+    narrate "Your health is getting low..."
+endif
+
+; Combined example: gold-based branching
+if gold >= 250
+    narrate "You have enough gold to buy the sword!"
+else
+    narrate "You need more gold to buy the sword."
+endif
+
+$ gold -= 100
+$ hp = hp + 50
+
+narrate "After spending 100 gold and healing 50 hp..."
+narrate "Final stats: gold={gold}, hp={hp}"
 
 ; SAVE — silently save to slot 1 (no overlay).
 save 1
