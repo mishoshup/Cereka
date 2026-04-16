@@ -1,16 +1,15 @@
+#include "text_renderer.hpp"
 #include "Cereka/exceptions.hpp"
-#include "SDL3/SDL_error.h"
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
-#include <cassert>
 #include <iostream>
 
 namespace cereka::text_renderer {
 
 void init_ttf()
 {
-    if (TTF_Init() == false) {
-        throw engine::error("TTF Init Failed: %s\n", SDL_GetError());
+    if (!TTF_Init()) {
+        throw engine::error("TTF_Init failed: %s", SDL_GetError());
     }
 }
 
@@ -19,7 +18,8 @@ TTF_Font *OpenFont(const std::string &fontPath,
 {
     TTF_Font *font = TTF_OpenFont(fontPath.c_str(), fontSize);
     if (!font) {
-        std::cerr << "Failed to open font '" << fontPath << "': " << SDL_GetError() << std::endl;
+        std::cerr << "[CEREKA] Failed to open font '" << fontPath << "': "
+                  << SDL_GetError() << '\n';
     }
     return font;
 }

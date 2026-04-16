@@ -29,31 +29,32 @@ function compile(script_text)
         -- MENU BLOCK
         if l:match("^menu") then
             table.insert(instructions, { op = "MENU" })
-            local menu_indent = get_indent(raw)
+            local block_indent = get_indent(raw)
             i = i + 1
 
             while i <= #lines do
                 local body_raw = lines[i]
-                local body_l = trim(body_raw)
-                local body_indent = get_indent(body_raw)
+                local body_l   = trim(body_raw)
+                local body_ind = get_indent(body_raw)
 
                 if body_l == "" or body_l:sub(1,1) == ";" then
                     i = i + 1
-                elseif body_indent <= menu_indent then
+                elseif body_ind <= block_indent then
                     break
+                elseif body_l:match("^bg%s+%S+%s+fade%s+") then
+                    local file, dur = body_l:match("^bg%s+(%S+)%s+fade%s+(%d+%.?%d*)")
+                    table.insert(instructions, { op = "FADE", a = file, b = dur })
+                    i = i + 1
                 elseif body_l:match("^bg%s+") then
                     local f = body_l:match("^bg%s+(%S+)")
                     table.insert(instructions, { op = "BG", a = f })
                     i = i + 1
                 elseif body_l:match('^button%s+"') then
                     local text, rest = body_l:match('button%s+"(.-)"%s*(.*)')
-                    local target = rest:match("goto%s+(%S+)") or ""
+                    local target  = rest:match("goto%s+(%S+)") or ""
                     local is_exit = rest:find("exit") ~= nil
                     table.insert(instructions, {
-                        op = "BUTTON",
-                        a = text,
-                        b = target,
-                        exit_button = is_exit,
+                        op = "BUTTON", a = text, b = target, exit_button = is_exit,
                     })
                     i = i + 1
                 else
@@ -64,13 +65,58 @@ function compile(script_text)
             goto continue
         end
 
+        -- UI BLOCK  (ui textbox / ui namebox / ui button / ui font)
+        if l:match("^ui%s+") then
+            local element     = l:match("^ui%s+(%S+)")
+            local block_indent = get_indent(raw)
+            i = i + 1
+
+            while i <= #lines do
+                local body_raw = lines[i]
+                local body_l   = trim(body_raw)
+                local body_ind = get_indent(body_raw)
+
+                if body_l == "" or body_l:sub(1,1) == ";" then
+                    i = i + 1
+                elseif body_ind <= block_indent then
+                    break
+                else
+                    local prop, val = body_l:match("^(%S+)%s+(.*)")
+                    if prop then
+                        table.insert(instructions, {
+                            op = "UI_SET",
+                            a  = element .. "." .. prop,
+                            b  = trim(val or ""),
+                        })
+                    end
+                    i = i + 1
+                end
+            end
+            goto continue
+        end
+
         -- Top-level commands
-        if l:match("^bg%s+") then
+        if l:match("^bg%s+%S+%s+fade%s+") then
+            local file, dur = l:match("^bg%s+(%S+)%s+fade%s+(%d+%.?%d*)")
+            table.insert(instructions, { op = "FADE", a = file, b = dur })
+        elseif l:match("^bg%s+") then
             local f = l:match("^bg%s+(%S+)")
             table.insert(instructions, { op = "BG", a = f })
         elseif l:match("^char%s+") then
-            local name, file = l:match("^char%s+(%S+)%s+(%S+)")
-            table.insert(instructions, { op = "CHAR", a = name, b = file })
+            -- char <id> [left|center|right] <file>
+            local words = {}
+            for w in l:gmatch("%S+") do words[#words+1] = w end
+            local name = words[2]
+            local pos, file
+            local valid_pos = { left=true, center=true, right=true }
+            if words[4] and valid_pos[words[3]] then
+                pos  = words[3]
+                file = words[4]
+            else
+                pos  = "center"
+                file = words[3]
+            end
+            table.insert(instructions, { op = "CHAR", a = name, b = file, c = pos })
         elseif l:match("^say%s+") then
             local speaker, text = l:match('say%s+(%S+)%s+"(.-)"')
             table.insert(instructions, { op = "SAY", a = speaker, b = text })
@@ -83,6 +129,12 @@ function compile(script_text)
         elseif l:match("^jump%s+") then
             local target = l:match("^jump%s+(%S+)")
             table.insert(instructions, { op = "JUMP", a = target })
+        elseif l:match("^include%s+") then
+            local file = l:match("^include%s+(%S+)")
+            table.insert(instructions, { op = "INCLUDE", a = file })
+        elseif l:match("^call%s+") then
+            local file = l:match("^call%s+(%S+)")
+            table.insert(instructions, { op = "CALL", a = file })
         elseif l:match("^hide%s+char%s+") then
             local id = l:match("^hide%s+char%s+(%S+)")
             table.insert(instructions, { op = "HIDE_CHAR", a = id })
@@ -91,8 +143,7 @@ function compile(script_text)
             val = val:match('^"(.-)"$') or val
             table.insert(instructions, { op = "SET_VAR", a = var, b = val })
         elseif l:match("^if%s+") then
-            local var, val
-            local opcode
+            local var, val, opcode
             var, val = l:match("^if%s+(%S+)%s+==%s+(.*)")
             if var then
                 opcode = "IF_EQ"

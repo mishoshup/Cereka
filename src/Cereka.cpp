@@ -1,897 +1,295 @@
+// Cereka.cpp — engine init/shutdown, event handling, SDL helpers, public API wrapper
 
-#include "Cereka/Cereka.hpp"
-#include "text_renderer.hpp"
-#include "video.hpp"
-#include "vn_instruction.hpp"
+#include "engine_impl.hpp"
 
-#include <SDL3/SDL.h>
-#include <SDL3_image/SDL_image.h>
-#include <SDL3_mixer/SDL_mixer.h>
-#include <SDL3_ttf/SDL_ttf.h>
-#include <filesystem>
-#include <iostream>
-#include <sol/sol.hpp>
-#include <unordered_map>
+// ---------------------------------------------------------------------------
+// Init / Shutdown
+// ---------------------------------------------------------------------------
 
-namespace fs = std::filesystem;
+bool Impl::InitGame(const char *title, int width, int height, bool fullscreen)
+{
+    video::init_video();
+    video::create_window(title, fullscreen, width, height);
+    window       = video::window;
+    screenWidth  = video::width;
+    screenHeight = video::height;
 
-using namespace cereka;
+    text_renderer::init_ttf();
 
-class CerekaEngine::Implementation {
+    renderer = CreateBestRenderer(window);
+    if (!renderer)
+        throw engine::error("All renderer attempts failed");
 
-   public:
-    SDL_Window *window = nullptr;
-    SDL_Renderer *renderer = nullptr;
-    int screenWidth = 0;
-    int screenHeight = 0;
+    LoadFont(uiCfg.fontSize);
 
-    TTF_Font *font = nullptr;
-    SDL_Texture *background = nullptr;
-    SDL_Texture *textBox = nullptr;
-    SDL_Texture *nameBox = nullptr;
-    SDL_Texture *buttonTexture = nullptr;
-    std::unordered_map<std::string, SDL_Texture *> characters;
-
-    bool audioInitialized = false;
-    MIX_Mixer *mixer = nullptr;
-    MIX_Audio *bgmAudio = nullptr;
-    MIX_Track *bgmTrack = nullptr;
-    std::unordered_map<std::string, MIX_Audio *> sfxCache;
-
-    std::unordered_map<std::string, std::string> variables;
-
-    // Skip mode for if/endif blocks
-    bool skipMode = false;
-    int  skipDepth = 0;
-
-    sol::state lua;
-    sol::coroutine script;
-    std::vector<cereka::scenario::Instruction> program;
-    std::unordered_map<std::string, size_t> labelMap;
-    size_t pc = 0;
-    size_t menuEndPC = 0;
-    bool scriptFinished = false;
-
-    std::string currentSpeaker;
-    std::string currentName;
-    std::string currentText;
-    float typewriterTimer = 0.0f;
-    int displayedChars = 0;
-    static constexpr float CHARS_PER_SECOND = 60.0f;
-
-    // Menu state
-    bool inMenu = false;
-    std::vector<std::string> buttonTexts;
-    std::vector<std::string> buttonTargets;
-    std::vector<bool> buttonExits;
-
-    CerekaState state = CerekaState::Running;
-
-    bool InitGame(const char *title,
-                  int width,
-                  int height,
-                  bool fullscreen)
-    {
-        // Video Related Functions
-        video::init_video();
-        video::create_window(title, fullscreen, width, height);
-        this->window = video::window;
-        this->screenWidth = video::width;
-        this->screenHeight = video::height;
-
-        text_renderer::init_ttf();
-        // Use first .ttf/.otf found in assets/fonts/ — no hardcoded filename
-        std::error_code ec;
-        for (auto &entry : fs::directory_iterator("assets/fonts", ec)) {
-            auto ext = entry.path().extension().string();
-            if (ext == ".ttf" || ext == ".otf") {
-                this->font = text_renderer::OpenFont(entry.path().string(), 36);
-                if (this->font) break;
-            }
-        }
-
-        this->renderer = CreateBestRenderer(this->window);
-        if (!this->renderer) {
-            throw engine::error("All renderer attempts failed\n");
-        }
-
-        this->textBox = CreateSolidTexture(
-            screenWidth, static_cast<int>(screenHeight * 0.25f), 0, 0, 0, 130);
-
-        this->nameBox = CreateSolidTexture(300, 60, 0, 255, 0, 255);
-
-        this->buttonTexture = CreateSolidTexture(600, 80, 0, 255, 255, 255);
-        if (!this->buttonTexture) {
-            throw engine::error("buttonTexture NULL – CreateSolidTexture failed: %s",
-                                SDL_GetError());
-        }
-
-        // Audio init (SDL_mixer3 API)
-        if (!MIX_Init()) {
-            std::cerr << "[CEREKA] MIX_Init failed: " << SDL_GetError() << "\n";
-        } else {
-            this->mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
-            if (!this->mixer) {
-                std::cerr << "[CEREKA] MIX_CreateMixerDevice failed: " << SDL_GetError() << "\n";
-                MIX_Quit();
-            } else {
-                this->audioInitialized = true;
-            }
-        }
-
-        return true;
-    }
-
-    void ShutDown()
-    {
-        if (this->background) {
-            SDL_DestroyTexture(this->background);
-            this->background = nullptr;
-        }
-        if (this->textBox) {
-            SDL_DestroyTexture(this->textBox);
-            this->textBox = nullptr;
-        }
-        if (this->nameBox) {
-            SDL_DestroyTexture(this->nameBox);
-            this->nameBox = nullptr;
-        }
-
-        for (auto &[id, tex] : this->characters) {
-            SDL_DestroyTexture(tex);
-        }
-        this->characters.clear();
-
-        if (this->font) {
-            TTF_CloseFont(this->font);
-            this->font = nullptr;
-        }
-        if (this->renderer) {
-            SDL_DestroyRenderer(this->renderer);
-            this->renderer = nullptr;
-        }
-        if (this->window) {
-            SDL_DestroyWindow(this->window);
-            this->window = nullptr;
-        }
-
-        if (this->audioInitialized) {
-            if (this->bgmTrack) {
-                MIX_StopTrack(this->bgmTrack, 0);
-                MIX_DestroyTrack(this->bgmTrack);
-                this->bgmTrack = nullptr;
-            }
-            if (this->bgmAudio) {
-                MIX_DestroyAudio(this->bgmAudio);
-                this->bgmAudio = nullptr;
-            }
-            for (auto &[name, audio] : this->sfxCache) {
-                MIX_DestroyAudio(audio);
-            }
-            this->sfxCache.clear();
-            MIX_DestroyMixer(this->mixer);
-            this->mixer = nullptr;
+    if (!MIX_Init()) {
+        std::cerr << "[CEREKA] MIX_Init failed: " << SDL_GetError() << "\n";
+    } else {
+        mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
+        if (!mixer) {
+            std::cerr << "[CEREKA] MIX_CreateMixerDevice failed: " << SDL_GetError() << "\n";
             MIX_Quit();
-            this->audioInitialized = false;
-        }
-
-        TTF_Quit();
-        SDL_Quit();
-    }
-
-    bool PollEvent(CerekaEvent &e)
-    {
-        SDL_Event sdl;
-        if (!SDL_PollEvent(&sdl))
-            return false;
-
-        switch (sdl.type) {
-            case SDL_EVENT_QUIT:
-                e = {CerekaEvent::Quit, 0};
-                return true;
-            case SDL_EVENT_KEY_DOWN:
-                e = {CerekaEvent::KeyDown, int(sdl.key.key)};
-                return true;
-            case SDL_EVENT_MOUSE_BUTTON_DOWN:
-                e.type = CerekaEvent::MouseDown;
-                e.key = 0;
-                e.mouseX = sdl.button.x;
-                e.mouseY = sdl.button.y;
-                return true;
-                return true;
-            default:
-                e = {CerekaEvent::Unknown, 0};
-                return true;
-        }
-    }
-
-    void Present()
-    {
-        SDL_RenderPresent(this->renderer);
-    }
-
-    void HandleEvent(const CerekaEvent &e)
-    {
-        if (state == CerekaState::WaitingForInput &&
-            (e.type == CerekaEvent::MouseDown || e.type == CerekaEvent::KeyDown))
-        {
-            state = CerekaState::Running;
-            return;
-        }
-
-        if (state == CerekaState::InMenu && e.type == CerekaEvent::MouseDown) {
-            int idx = HitTestButton(e.mouseX, e.mouseY);
-            if (idx < 0)
-                return;
-
-            if (buttonExits[idx]) {
-                ExitMenu();
-                state = CerekaState::Finished;
-                return;
-            }
-
-            if (!buttonTargets[idx].empty())
-                pc = labelMap[buttonTargets[idx]];
-            else
-                pc = menuEndPC;  //
-
-            ExitMenu();
-            state = CerekaState::Running;
-        }
-    }
-    void TickScript()
-    {
-        if (state != CerekaState::Running)
-            return;
-
-        while (pc < program.size()) {
-            const auto &ins = program[pc];
-
-            // --- Skip mode: inside a false if-block ---
-            if (skipMode) {
-                if (ins.op == scenario::Op::IF_EQ || ins.op == scenario::Op::IF_NEQ) {
-                    skipDepth++;
-                } else if (ins.op == scenario::Op::ENDIF) {
-                    skipDepth--;
-                    if (skipDepth == 0)
-                        skipMode = false;
-                }
-                pc++;
-                continue;
-            }
-
-            switch (ins.op) {
-
-                case scenario::Op::BG:
-                    ShowBackground(ins.a);
-                    pc++;
-                    continue;
-
-                case scenario::Op::CHAR:
-                    ShowCharacter(ins.a, ins.b);
-                    pc++;
-                    continue;
-
-                case scenario::Op::HIDE_CHAR:
-                    HideCharacter(ins.a);
-                    pc++;
-                    continue;
-
-                case scenario::Op::SAY:
-                    Say(ins.a, ins.a, ins.b);
-                    state = CerekaState::WaitingForInput;
-                    pc++;
-                    return;
-
-                case scenario::Op::NARRATE:
-                    Narrate(ins.b);
-                    state = CerekaState::WaitingForInput;
-                    pc++;
-                    return;
-
-                case scenario::Op::MENU:
-                    EnterMenu();
-                    state = CerekaState::InMenu;
-                    pc++;
-                    return;
-
-                case scenario::Op::JUMP:
-                    pc = labelMap[ins.a];
-                    continue;
-
-                case scenario::Op::SET_VAR:
-                    variables[ins.a] = ins.b;
-                    pc++;
-                    continue;
-
-                case scenario::Op::IF_EQ: {
-                    auto it = variables.find(ins.a);
-                    std::string val = (it != variables.end()) ? it->second : "";
-                    if (val != ins.b) { skipMode = true; skipDepth = 1; }
-                    pc++;
-                    continue;
-                }
-
-                case scenario::Op::IF_NEQ: {
-                    auto it = variables.find(ins.a);
-                    std::string val = (it != variables.end()) ? it->second : "";
-                    if (val == ins.b) { skipMode = true; skipDepth = 1; }
-                    pc++;
-                    continue;
-                }
-
-                case scenario::Op::ENDIF:
-                    pc++;
-                    continue;
-
-                case scenario::Op::PLAY_BGM:
-                    PlayBGM(ins.a);
-                    pc++;
-                    continue;
-
-                case scenario::Op::STOP_BGM:
-                    StopBGM();
-                    pc++;
-                    continue;
-
-                case scenario::Op::PLAY_SFX:
-                    PlaySFX(ins.a);
-                    pc++;
-                    continue;
-
-                case scenario::Op::END:
-                    state = CerekaState::Finished;
-                    return;
-
-                case scenario::Op::LABEL:
-                    pc++;
-                    continue;
-
-                default:
-                    pc++;
-                    continue;
-            }
-        }
-    }
-
-    void EnterMenu()
-    {
-        buttonTexts.clear();
-        buttonTargets.clear();
-        buttonExits.clear();
-
-        // Kita execute semua benda dalam menu block serta-merta
-        size_t scan = pc + 1;  // mula selepas MENU
-
-        while (scan < program.size()) {
-            const auto &ins = program[scan];
-
-            if (ins.op == scenario::Op::BG) {
-                ShowBackground(ins.a);  // ← LOAD BACKGROUND DALAM MENU!
-                scan++;
-            }
-            else if (ins.op == scenario::Op::BUTTON) {
-                buttonTexts.push_back(ins.a);
-                buttonTargets.push_back(ins.b);
-                buttonExits.push_back(ins.exit_button);
-                scan++;
-            }
-            else {
-                // Bukan BG atau BUTTON → tamat menu block
-                break;
-            }
-        }
-
-        inMenu = true;
-        this->menuEndPC = scan;
-    }
-
-    void Update(float dt)
-    {
-        if (currentText.empty())
-            return;
-
-        if (displayedChars < (int)currentText.length()) {
-            typewriterTimer += dt;
-            int charsToAdd = (int)(typewriterTimer * CHARS_PER_SECOND);
-            if (charsToAdd > 0) {
-                displayedChars += charsToAdd;
-                typewriterTimer -= charsToAdd / CHARS_PER_SECOND;
-                if (displayedChars > (int)currentText.length())
-                    displayedChars = currentText.length();
-            }
-        }
-    }
-
-    void Draw()
-    {
-        SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
-        SDL_RenderClear(renderer);
-
-        if (background) {
-            SDL_RenderTexture(renderer, background, nullptr, nullptr);
-        }
-
-        // Draw characters
-        float xPos = screenWidth * 0.1f;
-        const float spacing = screenWidth * 0.3f;
-        for (const auto &[id, tex] : characters) {
-            float tw = 0, th = 0;
-            SDL_GetTextureSize(tex, &tw, &th);
-            float scale = (screenHeight * 0.8f) / th;
-            SDL_FRect dst{
-                xPos, screenHeight - th * scale - screenHeight * 0.1f, tw * scale, th * scale};
-            SDL_RenderTexture(renderer, tex, nullptr, &dst);
-            xPos += spacing;
-        }
-
-        // Menu buttons
-        if (inMenu) {
-            float y = screenHeight * 0.4f;
-            const float h = 80, spacing = 20;
-            for (size_t i = 0; i < buttonTexts.size(); ++i) {
-                SDL_FRect btn{float(screenWidth) / 2 - 300, y, 600, h};
-                SDL_RenderTexture(renderer, buttonTexture, nullptr, &btn);
-
-                auto textTex = RenderText(buttonTexts[i], {255, 255, 255, 255});
-                if (textTex) {
-                    float tw, th;
-                    SDL_GetTextureSize(textTex, &tw, &th);
-                    SDL_FRect tr{float(screenWidth) / 2 - tw / 2, y + 40 - th / 2, tw, th};
-                    SDL_RenderTexture(renderer, textTex, nullptr, &tr);
-                    SDL_DestroyTexture(textTex);
-                }
-                y += h + spacing;
-            }
-        }
-
-        // Dialogue box
-        if (!currentText.empty()) {
-            if (textBox) {
-                SDL_FRect tb{0, screenHeight * 0.75f, (float)screenWidth, screenHeight * 0.25f};
-                SDL_RenderTexture(renderer, textBox, nullptr, &tb);
-            }
-            if (!currentSpeaker.empty() && nameBox) {
-                SDL_FRect nb{50, screenHeight * 0.75f - 70, 300, 60};
-                SDL_RenderTexture(renderer, nameBox, nullptr, &nb);
-                auto nameTex = RenderText(currentName, {255, 255, 255, 255});
-                if (nameTex) {
-                    float w, h;
-                    SDL_GetTextureSize(nameTex, &w, &h);
-                    SDL_FRect dst{70, screenHeight * 0.751f - 60, w, h};
-                    SDL_RenderTexture(renderer, nameTex, nullptr, &dst);
-                    SDL_DestroyTexture(nameTex);
-                }
-            }
-
-            std::string visible = currentText.substr(0, displayedChars);
-            auto textTex = RenderText(visible, {255, 255, 255, 255});
-            if (textTex) {
-                float w, h;
-                SDL_GetTextureSize(textTex, &w, &h);
-                float margin = 70;
-                float maxW = screenWidth - 2 * margin;
-                float scale = w > maxW ? maxW / w : 1.0f;
-                SDL_FRect dst{margin, screenHeight * 0.80f, w * scale, h * scale};
-                SDL_RenderTexture(renderer, textTex, nullptr, &dst);
-                SDL_DestroyTexture(textTex);
-            }
-        }
-    }
-
-    // Private helpers
-    SDL_Renderer *CreateBestRenderer(SDL_Window *window)
-    {
-        const char *preferred_drivers[] = {"gpu", "vulkan", "opengl", "opengles2"};
-        const int num_preferred = sizeof(preferred_drivers) / sizeof(preferred_drivers[0]);
-
-        for (int i = 0; i < num_preferred; ++i) {
-            const char *name = preferred_drivers[i];
-            SDL_Renderer *renderer = SDL_CreateRenderer(window, name);
-            if (renderer) {
-                SDL_Log("Successfully created renderer: %s", name);
-
-                if (SDL_SetRenderVSync(renderer, 1)) {
-                    SDL_Log("VSync enabled successfully.");
-                }
-                else {
-                    std::cerr << "Warning: VSync failed (" << SDL_GetError()
-                              << "), continuing without it.\n";
-                }
-
-                return renderer;
-            }
-            else {
-                std::cout << "Failed to create renderer '" << name << "': " << SDL_GetError()
-                          << "\n";
-            }
-        }
-
-        SDL_Renderer *renderer = SDL_CreateRenderer(window, nullptr);
-        if (renderer) {
-            std::cout << "Fallback renderer created.\n";
-        }
-        return renderer;
-    }
-
-    SDL_Texture *LoadTexture(const std::string &path)
-    {
-        SDL_Texture *tex = IMG_LoadTexture(this->renderer, ("assets/bg/" + path).c_str());
-        if (!tex)
-            std::cerr << "Failed to load bg: " << path << " - " << SDL_GetError() << '\n';
-        return tex;
-    }
-
-    void LoadCompiledScript(const std::vector<scenario::Instruction> &compiled)
-    {
-        program = compiled;
-        pc = 0;
-        scriptFinished = false;
-        variables.clear();
-        skipMode = false;
-        skipDepth = 0;
-
-        // build label map
-        labelMap.clear();
-        for (size_t i = 0; i < program.size(); ++i) {
-            if (program[i].op == scenario::Op::LABEL)
-                labelMap[program[i].a] = i;
-        }
-
-    }
-
-    void AdvanceScriptOnce()
-    {
-        if (scriptFinished || pc >= program.size())
-            return;
-
-        const scenario::Instruction &ins = program[pc];
-
-        switch (ins.op) {
-            case scenario::Op::BG:
-                ShowBackground(ins.a);
-                pc++;
-                break;
-            case scenario::Op::CHAR:
-                ShowCharacter(ins.a, ins.b);
-                pc++;
-                break;
-            case scenario::Op::SAY:
-                Say(ins.a, ins.a, ins.b);
-                pc++;
-                break;
-            case scenario::Op::NARRATE:
-                Narrate(ins.b);
-                pc++;
-                break;
-            case scenario::Op::BUTTON:
-                buttonTexts.push_back(ins.a);
-                buttonTargets.push_back(ins.b);
-                buttonExits.push_back(ins.exit_button);
-                pc++;
-                break;
-                break;
-            case scenario::Op::JUMP:
-                if (labelMap.count(ins.a)) {
-                    pc = labelMap[ins.a];
-                }
-                else {
-                    std::cerr << "[ERROR] Unknown label: " << ins.a << "\n";
-                    pc++;
-                }
-                break;
-            case scenario::Op::END:
-                scriptFinished = true;
-                break;
-            default:
-                pc++;
-                break;
-        }
-    }
-
-    void ShowBackground(const std::string &f)
-    {
-        if (this->background) {
-            SDL_DestroyTexture(this->background);
-        }
-        this->background = LoadTexture(f);
-    }
-
-    void ShowCharacter(const std::string &id, const std::string &filename)
-    {
-        HideCharacter(id);
-        std::string path = "assets/characters/" + filename;
-        SDL_Texture *tex = IMG_LoadTexture(this->renderer, path.c_str());
-        if (!tex) {
-            std::cerr << "[CEREKA] Failed to load character sprite: " << path
-                      << " - " << SDL_GetError() << "\n";
         } else {
-            SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
-            this->characters[id] = tex;
+            audioInitialized = true;
         }
     }
 
-    void PlayBGM(const std::string &filename)
-    {
-        if (!audioInitialized) return;
+    return true;
+}
 
-        // Stop and destroy previous BGM
-        if (bgmTrack) {
-            MIX_StopTrack(bgmTrack, 0);
-            MIX_DestroyTrack(bgmTrack);
-            bgmTrack = nullptr;
-        }
-        if (bgmAudio) {
-            MIX_DestroyAudio(bgmAudio);
-            bgmAudio = nullptr;
-        }
+void Impl::ShutDown()
+{
+    auto destroyTex = [](SDL_Texture *&t) {
+        if (t) { SDL_DestroyTexture(t); t = nullptr; }
+    };
 
-        std::string path = "assets/sounds/" + filename;
-        bgmAudio = MIX_LoadAudio(mixer, path.c_str(), false);  // stream, don't predecode
-        if (!bgmAudio) {
-            std::cerr << "[CEREKA] Failed to load BGM: " << path << " - " << SDL_GetError() << "\n";
-            return;
-        }
+    destroyTex(background);
+    destroyTex(pendingBg);
+    destroyTex(uiCfg.textbox.image);
+    destroyTex(uiCfg.namebox.image);
+    destroyTex(uiCfg.button.image);
+    destroyTex(uiCfg.button.hoverImage);
 
-        bgmTrack = MIX_CreateTrack(mixer);
-        if (!bgmTrack) {
-            std::cerr << "[CEREKA] Failed to create BGM track: " << SDL_GetError() << "\n";
-            MIX_DestroyAudio(bgmAudio);
-            bgmAudio = nullptr;
-            return;
-        }
+    for (auto &[id, entry] : characters)
+        SDL_DestroyTexture(entry.tex);
+    characters.clear();
 
-        MIX_SetTrackAudio(bgmTrack, bgmAudio);
-        MIX_SetTrackLoops(bgmTrack, -1);  // loop forever
-        MIX_PlayTrack(bgmTrack, 0);
+    if (font)     { TTF_CloseFont(font);          font     = nullptr; }
+    if (renderer) { SDL_DestroyRenderer(renderer); renderer = nullptr; }
+    if (window)   { SDL_DestroyWindow(window);     window   = nullptr; }
+
+    if (audioInitialized) {
+        if (bgmTrack) { MIX_StopTrack(bgmTrack, 0); MIX_DestroyTrack(bgmTrack); bgmTrack = nullptr; }
+        if (bgmAudio) { MIX_DestroyAudio(bgmAudio); bgmAudio = nullptr; }
+        for (auto &[name, audio] : sfxCache) MIX_DestroyAudio(audio);
+        sfxCache.clear();
+        MIX_DestroyMixer(mixer); mixer = nullptr;
+        MIX_Quit();
+        audioInitialized = false;
     }
 
-    void StopBGM()
-    {
-        if (!audioInitialized) return;
-        if (bgmTrack) {
-            MIX_StopTrack(bgmTrack, 0);
-            MIX_DestroyTrack(bgmTrack);
-            bgmTrack = nullptr;
+    TTF_Quit();
+    SDL_Quit();
+}
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+
+bool Impl::PollEvent(cereka::CerekaEvent &e)
+{
+    SDL_Event sdl;
+    if (!SDL_PollEvent(&sdl)) return false;
+
+    switch (sdl.type) {
+        case SDL_EVENT_QUIT:
+            e = {cereka::CerekaEvent::Quit, 0};
+            return true;
+        case SDL_EVENT_KEY_DOWN:
+            e = {cereka::CerekaEvent::KeyDown, int(sdl.key.key)};
+            return true;
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
+            e.type   = cereka::CerekaEvent::MouseDown;
+            e.key    = 0;
+            e.mouseX = sdl.button.x;
+            e.mouseY = sdl.button.y;
+            return true;
+        default:
+            e = {cereka::CerekaEvent::Unknown, 0};
+            return true;
+    }
+}
+
+void Impl::Present() { SDL_RenderPresent(renderer); }
+
+// ---------------------------------------------------------------------------
+// SDL helpers
+// ---------------------------------------------------------------------------
+
+SDL_Renderer *Impl::CreateBestRenderer(SDL_Window *win)
+{
+    const char *preferred[] = {"gpu", "vulkan", "opengl", "opengles2"};
+    for (const char *name : preferred) {
+        SDL_Renderer *r = SDL_CreateRenderer(win, name);
+        if (r) {
+            SDL_Log("Renderer: %s", name);
+            if (!SDL_SetRenderVSync(r, 1))
+                std::cerr << "[CEREKA] VSync unavailable: " << SDL_GetError() << "\n";
+            return r;
         }
-        if (bgmAudio) {
-            MIX_DestroyAudio(bgmAudio);
-            bgmAudio = nullptr;
+    }
+    return SDL_CreateRenderer(win, nullptr);
+}
+
+SDL_Texture *Impl::LoadTexture(const std::string &filename)
+{
+    SDL_Texture *tex = IMG_LoadTexture(renderer, ("assets/bg/" + filename).c_str());
+    if (!tex)
+        std::cerr << "[CEREKA] Failed to load bg: " << filename << " — " << SDL_GetError() << '\n';
+    return tex;
+}
+
+SDL_Texture *Impl::RenderText(const std::string &text, SDL_Color color)
+{
+    if (text.empty() || !font) return nullptr;
+    SDL_Surface *surf = TTF_RenderText_Blended(font, text.c_str(), text.size(), color);
+    if (!surf) return nullptr;
+    SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surf);
+    SDL_DestroySurface(surf);
+    return tex;
+}
+
+// ---------------------------------------------------------------------------
+// Scene helpers
+// ---------------------------------------------------------------------------
+
+void Impl::ShowBackground(const std::string &filename)
+{
+    if (background) SDL_DestroyTexture(background);
+    background = LoadTexture(filename);
+}
+
+float Impl::posToXNorm(const std::string &pos)
+{
+    if (pos == "left")  return 0.2f;
+    if (pos == "right") return 0.8f;
+    return 0.5f;
+}
+
+void Impl::ShowCharacter(const std::string &id,
+                         const std::string &filename,
+                         const std::string &pos)
+{
+    HideCharacter(id);
+    std::string path = "assets/characters/" + filename;
+    SDL_Texture *tex = IMG_LoadTexture(renderer, path.c_str());
+    if (!tex) {
+        std::cerr << "[CEREKA] Failed to load character: " << path << " — " << SDL_GetError() << "\n";
+        return;
+    }
+    SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+    characters[id] = {tex, posToXNorm(pos)};
+}
+
+void Impl::HideCharacter(const std::string &id)
+{
+    auto it = characters.find(id);
+    if (it != characters.end()) {
+        SDL_DestroyTexture(it->second.tex);
+        characters.erase(it);
+    }
+}
+
+void Impl::Say(const std::string &speaker,
+               const std::string &name,
+               const std::string &text)
+{
+    currentSpeaker  = speaker;
+    currentName     = name;
+    currentText     = text;
+    displayedChars  = 0;
+    typewriterTimer = 0.0f;
+}
+
+void Impl::Narrate(const std::string &text) { Say("", "", text); }
+
+// ---------------------------------------------------------------------------
+// Menu
+// ---------------------------------------------------------------------------
+
+void Impl::EnterMenu()
+{
+    buttonTexts.clear();
+    buttonTargets.clear();
+    buttonExits.clear();
+
+    size_t scan = pc + 1;
+    while (scan < program.size()) {
+        const auto &ins = program[scan];
+
+        if (ins.op == scenario::Op::BG) {
+            ShowBackground(ins.a);
+            scan++;
+        } else if (ins.op == scenario::Op::FADE) {
+            // Instant swap inside menu — no game loop available to animate
+            ShowBackground(ins.a);
+            scan++;
+        } else if (ins.op == scenario::Op::BUTTON) {
+            buttonTexts.push_back(ins.a);
+            buttonTargets.push_back(ins.b);
+            buttonExits.push_back(ins.exit_button);
+            scan++;
+        } else {
+            break;
         }
     }
 
-    void PlaySFX(const std::string &filename)
-    {
-        if (!audioInitialized) return;
+    inMenu    = true;
+    menuEndPC = scan;
+}
 
-        auto it = sfxCache.find(filename);
-        if (it == sfxCache.end()) {
-            std::string path = "assets/sounds/" + filename;
-            MIX_Audio *audio = MIX_LoadAudio(mixer, path.c_str(), true);  // predecode SFX
-            if (!audio) {
-                std::cerr << "[CEREKA] Failed to load SFX: " << path << " - " << SDL_GetError() << "\n";
-                return;
-            }
-            sfxCache[filename] = audio;
-            it = sfxCache.find(filename);
-        }
-        MIX_PlayAudio(mixer, it->second);  // fire and forget
+void Impl::ExitMenu()
+{
+    inMenu = false;
+    buttonTexts.clear();
+    buttonTargets.clear();
+    buttonExits.clear();
+}
+
+int Impl::HitTestButton(int mx, int my)
+{
+    const float bw = uiCfg.button.w;
+    const float bh = uiCfg.button.h;
+    float y = screenHeight * 0.4f;
+    float x = (float)screenWidth / 2.0f - bw / 2.0f;
+
+    for (size_t i = 0; i < buttonTexts.size(); ++i) {
+        if (mx >= x && mx <= x + bw && my >= y && my <= y + bh)
+            return (int)i;
+        y += bh + 20.0f;
     }
-
-    void HideCharacter(const std::string &id)
-    {
-        auto it = this->characters.find(id);
-        if (it != this->characters.end()) {
-            SDL_DestroyTexture(it->second);
-            this->characters.erase(it);
-        }
-    }
-
-    void Say(const std::string &speaker,
-             const std::string &name,
-             const std::string &text)
-    {
-        this->currentSpeaker = speaker;
-        this->currentName = name;
-        this->currentText = text;
-        this->displayedChars = 0;
-        this->typewriterTimer = 0.0f;
-    }
-
-    void Narrate(const std::string &text)
-    {
-        Say("", "Narrator", text);
-    }
-
-    SDL_Texture *CreateSolidTexture(int w,
-                                    int h,
-                                    Uint8 r,
-                                    Uint8 g,
-                                    Uint8 b,
-                                    Uint8 a)
-    {
-        SDL_Texture *texture = SDL_CreateTexture(
-            this->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, w, h);
-        if (!texture) {
-            return nullptr;
-        }
-        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderTarget(this->renderer, texture);
-        SDL_SetRenderDrawColor(this->renderer, r, g, b, a);
-        SDL_RenderClear(this->renderer);
-        SDL_SetRenderTarget(this->renderer, nullptr);
-        return texture;
-    }
-
-    SDL_Texture *RenderText(const std::string &text,
-                            SDL_Color color)
-    {
-        if (text.empty() || !this->font)
-            return nullptr;
-        SDL_Surface *surf = TTF_RenderText_Blended(this->font, text.c_str(), text.size(), color);
-        if (!surf)
-            return nullptr;
-        SDL_Texture *tex = SDL_CreateTextureFromSurface(this->renderer, surf);
-        SDL_DestroySurface(surf);
-        return tex;
-    }
-    void ExitMenu()
-    {
-        inMenu = false;
-        buttonTexts.clear();
-        buttonTargets.clear();
-        buttonExits.clear();
-    }
-    void LoadScript(const std::string &filename)
-    {
-        sol::load_result chunk = lua.load_file(filename);
-        if (!chunk.valid()) {
-            sol::error err = chunk;
-            std::cerr << "[CEREKA] Lua load error in " << filename << ": " << err.what() << "\n";
-            return;
-        }
-        script = sol::coroutine(chunk);
-        scriptFinished = false;
-    }
-
-    void Reset()
-    {
-        this->currentText.clear();
-        this->displayedChars = 0;
-        this->typewriterTimer = 0.0f;
-        this->currentSpeaker.clear();
-        this->currentName.clear();
-        if (this->background) {
-            SDL_DestroyTexture(this->background);
-            this->background = nullptr;
-        }
-        this->characters.clear();
-    }
-
-    int HitTestButton(int mx,
-                      int my)
-    {
-        float y = screenHeight * 0.4f;
-        const float h = 80;
-        const float spacing = 20;
-        float x = screenWidth / 2.0f - 300;
-
-        for (size_t i = 0; i < buttonTexts.size(); ++i) {
-            SDL_FRect r{x, y, 600, h};
-            if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {
-                return (int)i;
-            }
-            y += h + spacing;
-        }
-        return -1;
-    }
-};
-
-CerekaEngine::CerekaEngine() : pImplementation(new Implementation()) {}
-
-CerekaEngine::~CerekaEngine()
-{
-    delete pImplementation;
+    return -1;
 }
 
-bool CerekaEngine::InitGame(const char *title,
-                            int w,
-                            int h,
-                            bool fullscreen)
-{
-    return pImplementation->InitGame(title, w, h, fullscreen);
-}
+// ---------------------------------------------------------------------------
+// Public CerekaEngine wrapper — thin delegates to Impl
+// ---------------------------------------------------------------------------
 
-void CerekaEngine::ShutDown()
-{
-    pImplementation->ShutDown();
-}
+cereka::CerekaEngine::CerekaEngine()  : pImplementation(new Impl()) {}
+cereka::CerekaEngine::~CerekaEngine() { delete pImplementation; }
 
-bool CerekaEngine::PollEvent(CerekaEvent &e)
-{
-    return pImplementation->PollEvent(e);
-}
+bool cereka::CerekaEngine::InitGame(const char *title, int w, int h, bool fullscreen)
+{ return pImplementation->InitGame(title, w, h, fullscreen); }
 
-void CerekaEngine::Present()
-{
-    pImplementation->Present();
-}
+void cereka::CerekaEngine::ShutDown()
+{ pImplementation->ShutDown(); }
 
-int CerekaEngine::Width() const
-{
-    return pImplementation->screenWidth;
-}
+bool cereka::CerekaEngine::PollEvent(CerekaEvent &e)
+{ return pImplementation->PollEvent(e); }
 
-int CerekaEngine::Height() const
-{
-    return pImplementation->screenHeight;
-}
+void cereka::CerekaEngine::Present()    { pImplementation->Present(); }
+int  cereka::CerekaEngine::Width()  const { return pImplementation->screenWidth; }
+int  cereka::CerekaEngine::Height() const { return pImplementation->screenHeight; }
 
-void CerekaEngine::LoadScript(const std::string &filename)
-{
-    pImplementation->LoadScript(filename);
-}
+void cereka::CerekaEngine::LoadCompiledScript(const std::vector<scenario::Instruction> &compiled)
+{ pImplementation->LoadCompiledScript(compiled); }
 
-void CerekaEngine::Reset()
-{
-    pImplementation->Reset();
-}
+void cereka::CerekaEngine::LoadScript(const std::string &filename)
+{ pImplementation->LoadScript(filename); }
 
-void CerekaEngine::HandleEvent(const CerekaEvent &e)
-{
-    pImplementation->HandleEvent(e);
-}
+void cereka::CerekaEngine::TickScript()          { pImplementation->TickScript(); }
+void cereka::CerekaEngine::Reset()               { pImplementation->Reset(); }
+void cereka::CerekaEngine::HandleEvent(const CerekaEvent &e) { pImplementation->HandleEvent(e); }
+void cereka::CerekaEngine::Update(float dt)      { pImplementation->Update(dt); }
+void cereka::CerekaEngine::Draw()                { pImplementation->Draw(); }
 
-void CerekaEngine::Update(float dt)
-{
-    pImplementation->Update(dt);
-}
+bool               cereka::CerekaEngine::InMenu()         const { return pImplementation->inMenu; }
+const std::string &cereka::CerekaEngine::CurrentText()    const { return pImplementation->currentText; }
+size_t             cereka::CerekaEngine::ButtonCount()    const { return pImplementation->buttonTexts.size(); }
+size_t             cereka::CerekaEngine::ProgramCounter() const { return pImplementation->pc; }
 
-void CerekaEngine::Draw()
-{
-    pImplementation->Draw();
-}
+bool cereka::CerekaEngine::IsGameFinished() const
+{ return pImplementation->state == CerekaState::Finished; }
 
-bool CerekaEngine::IsFinished() const
-{
-    return pImplementation->scriptFinished;
-}
-
-bool CerekaEngine::IsGameFinished() const
-{
-    return pImplementation->state == CerekaState::Finished;
-}
-
-void CerekaEngine::LoadCompiledScript(const std::vector<scenario::Instruction> &compiled)
-{
-    pImplementation->LoadCompiledScript(compiled);
-}
-
-void CerekaEngine::AdvanceScriptOnce()
-{
-    pImplementation->AdvanceScriptOnce();
-}
-bool CerekaEngine::InMenu() const
-{
-    return pImplementation->inMenu;
-}
-
-const std::string &CerekaEngine::CurrentText() const
-{
-    return pImplementation->currentText;
-}
-
-size_t CerekaEngine::ButtonCount() const
-{
-    return pImplementation->buttonTexts.size();
-}
-
-size_t CerekaEngine::ProgramCounter() const
-{
-    return pImplementation->pc;
-}
-
-void CerekaEngine::TickScript()
-{
-    return pImplementation->TickScript();
-}
+bool cereka::CerekaEngine::IsFinished() const
+{ return pImplementation->scriptFinished; }

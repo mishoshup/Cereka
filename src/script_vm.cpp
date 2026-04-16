@@ -1,0 +1,262 @@
+// script_vm.cpp — script VM: TickScript, Update (typewriter + fade), Load, Reset
+
+#include "engine_impl.hpp"
+
+// ---------------------------------------------------------------------------
+// Script loading
+// ---------------------------------------------------------------------------
+
+void Impl::LoadCompiledScript(const std::vector<scenario::Instruction> &compiled)
+{
+    program        = compiled;
+    pc             = 0;
+    scriptFinished = false;
+    variables.clear();
+    callStack.clear();
+    skipMode  = false;
+    skipDepth = 0;
+
+    labelMap.clear();
+    for (size_t i = 0; i < program.size(); ++i)
+        if (program[i].op == scenario::Op::LABEL)
+            labelMap[program[i].a] = i;
+}
+
+void Impl::LoadScript(const std::string &filename)
+{
+    sol::load_result chunk = lua.load_file(filename);
+    if (!chunk.valid()) {
+        sol::error err = chunk;
+        std::cerr << "[CEREKA] Lua load error in " << filename << ": " << err.what() << "\n";
+        return;
+    }
+    script        = sol::coroutine(chunk);
+    scriptFinished = false;
+}
+
+void Impl::Reset()
+{
+    currentText.clear();
+    displayedChars  = 0;
+    typewriterTimer = 0.0f;
+    currentSpeaker.clear();
+    currentName.clear();
+    if (background) { SDL_DestroyTexture(background); background = nullptr; }
+    characters.clear();
+}
+
+// ---------------------------------------------------------------------------
+// Update — typewriter + fade transition
+// ---------------------------------------------------------------------------
+
+void Impl::Update(float dt)
+{
+    // Typewriter
+    if (!currentText.empty() && displayedChars < (int)currentText.length()) {
+        typewriterTimer += dt;
+        int charsToAdd = (int)(typewriterTimer * CHARS_PER_SECOND);
+        if (charsToAdd > 0) {
+            displayedChars += charsToAdd;
+            typewriterTimer -= charsToAdd / CHARS_PER_SECOND;
+            if (displayedChars > (int)currentText.length())
+                displayedChars = (int)currentText.length();
+        }
+    }
+
+    // Fade transition
+    if (state == CerekaState::Fading) {
+        fadeTimer += dt;
+        if (fadePhase == FadePhase::Out && fadeTimer >= fadePhaseDuration) {
+            if (background) { SDL_DestroyTexture(background); background = nullptr; }
+            background = pendingBg;
+            pendingBg  = nullptr;
+            fadePhase  = FadePhase::In;
+            fadeTimer  = 0.0f;
+        } else if (fadePhase == FadePhase::In && fadeTimer >= fadePhaseDuration) {
+            fadePhase = FadePhase::None;
+            fadeTimer = 0.0f;
+            state     = CerekaState::Running;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Event handling
+// ---------------------------------------------------------------------------
+
+void Impl::HandleEvent(const CerekaEvent &e)
+{
+    if (state == CerekaState::WaitingForInput &&
+        (e.type == CerekaEvent::MouseDown || e.type == CerekaEvent::KeyDown))
+    {
+        state = CerekaState::Running;
+        return;
+    }
+
+    if (state == CerekaState::InMenu && e.type == CerekaEvent::MouseDown) {
+        int idx = HitTestButton(e.mouseX, e.mouseY);
+        if (idx < 0) return;
+
+        if (buttonExits[idx]) {
+            ExitMenu();
+            state = CerekaState::Finished;
+            return;
+        }
+
+        pc = buttonTargets[idx].empty() ? menuEndPC : labelMap[buttonTargets[idx]];
+        ExitMenu();
+        state = CerekaState::Running;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// TickScript — main VM dispatch loop
+// ---------------------------------------------------------------------------
+
+void Impl::TickScript()
+{
+    if (state != CerekaState::Running)
+        return;
+
+    while (pc < program.size()) {
+        const auto &ins = program[pc];
+
+        // Skip mode: inside a false if-block
+        if (skipMode) {
+            if (ins.op == scenario::Op::IF_EQ || ins.op == scenario::Op::IF_NEQ)
+                skipDepth++;
+            else if (ins.op == scenario::Op::ENDIF) {
+                skipDepth--;
+                if (skipDepth == 0) skipMode = false;
+            }
+            pc++;
+            continue;
+        }
+
+        switch (ins.op) {
+
+            case scenario::Op::BG:
+                ShowBackground(ins.a);
+                pc++;
+                continue;
+
+            case scenario::Op::FADE: {
+                float totalDur = 0.5f;
+                if (!ins.b.empty()) {
+                    try { totalDur = std::stof(ins.b); } catch (...) {}
+                }
+                fadePhaseDuration = totalDur * 0.5f;
+                fadeTimer = 0.0f;
+                fadePhase = FadePhase::Out;
+                if (pendingBg) SDL_DestroyTexture(pendingBg);
+                pendingBg = LoadTexture(ins.a);
+                state     = CerekaState::Fading;
+                pc++;
+                return;
+            }
+
+            case scenario::Op::CHAR:
+                ShowCharacter(ins.a, ins.b, ins.c);
+                pc++;
+                continue;
+
+            case scenario::Op::HIDE_CHAR:
+                HideCharacter(ins.a);
+                pc++;
+                continue;
+
+            case scenario::Op::SAY:
+                Say(ins.a, ins.a, ins.b);
+                state = CerekaState::WaitingForInput;
+                pc++;
+                return;
+
+            case scenario::Op::NARRATE:
+                Narrate(ins.b);
+                state = CerekaState::WaitingForInput;
+                pc++;
+                return;
+
+            case scenario::Op::MENU:
+                EnterMenu();
+                state = CerekaState::InMenu;
+                pc++;
+                return;
+
+            case scenario::Op::JUMP:
+                pc = labelMap[ins.a];
+                continue;
+
+            case scenario::Op::CALL:
+                callStack.push_back(pc + 1);
+                pc = labelMap[ins.a];
+                continue;
+
+            case scenario::Op::RETURN:
+                if (!callStack.empty()) {
+                    pc = callStack.back();
+                    callStack.pop_back();
+                } else {
+                    state = CerekaState::Finished;
+                }
+                continue;
+
+            case scenario::Op::SET_VAR:
+                variables[ins.a] = ins.b;
+                pc++;
+                continue;
+
+            case scenario::Op::IF_EQ: {
+                auto it = variables.find(ins.a);
+                std::string val = (it != variables.end()) ? it->second : "";
+                if (val != ins.b) { skipMode = true; skipDepth = 1; }
+                pc++;
+                continue;
+            }
+
+            case scenario::Op::IF_NEQ: {
+                auto it = variables.find(ins.a);
+                std::string val = (it != variables.end()) ? it->second : "";
+                if (val == ins.b) { skipMode = true; skipDepth = 1; }
+                pc++;
+                continue;
+            }
+
+            case scenario::Op::ENDIF:
+                pc++;
+                continue;
+
+            case scenario::Op::PLAY_BGM:
+                PlayBGM(ins.a);
+                pc++;
+                continue;
+
+            case scenario::Op::STOP_BGM:
+                StopBGM();
+                pc++;
+                continue;
+
+            case scenario::Op::PLAY_SFX:
+                PlaySFX(ins.a);
+                pc++;
+                continue;
+
+            case scenario::Op::UI_SET:
+                ApplyUiSet(ins.a, ins.b);
+                pc++;
+                continue;
+
+            case scenario::Op::END:
+                state = CerekaState::Finished;
+                return;
+
+            case scenario::Op::LABEL:
+                pc++;
+                continue;
+
+            default:
+                pc++;
+                continue;
+        }
+    }
+}

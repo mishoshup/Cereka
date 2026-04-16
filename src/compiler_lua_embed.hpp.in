@@ -1,7 +1,0 @@
-#pragma once
-// Auto-generated from scripts/compiler.lua — do not edit directly.
-namespace cereka {
-static const char *COMPILER_LUA_SOURCE = R"LUA_DELIM(
-@COMPILER_LUA_RAW@
-)LUA_DELIM";
-}

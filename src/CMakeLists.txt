@@ -1,15 +1,21 @@
 file(GLOB_RECURSE SRC CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 
-# Embed compiler.lua as a C++ string at configure time
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/compiler.lua" COMPILER_LUA_RAW)
-configure_file(
-    compiler_lua_embed.hpp.in
-    "${CMAKE_CURRENT_BINARY_DIR}/compiler_lua_embed.hpp"
-    @ONLY
+set(COMPILER_LUA       "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/compiler.lua")
+set(COMPILER_LUA_EMBED "${CMAKE_CURRENT_BINARY_DIR}/compiler_lua_embed.hpp")
+
+# Re-embed compiler.lua at build time whenever the .lua file changes.
+add_custom_command(
+    OUTPUT  "${COMPILER_LUA_EMBED}"
+    COMMAND ${CMAKE_COMMAND}
+            -DSRC="${COMPILER_LUA}"
+            -DDST="${COMPILER_LUA_EMBED}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/compiler/embed_lua.cmake"
+    DEPENDS "${COMPILER_LUA}"
+    COMMENT "Embedding scripts/compiler.lua"
 )
 
-add_library(Cereka STATIC ${SRC})
+add_library(Cereka STATIC ${SRC} "${COMPILER_LUA_EMBED}")
 
 target_include_directories(Cereka
     PUBLIC
@@ -20,6 +26,7 @@ target_include_directories(Cereka
 # CMake strips /usr/* paths from -I flags as "implicit system paths".
 # Force Lua 5.4 headers before system Lua 5.5 by injecting the -I flag directly.
 target_compile_options(Cereka PUBLIC "-I/usr/include/lua5.4")
+
 target_include_directories(Cereka
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -28,6 +35,5 @@ target_include_directories(Cereka
 target_link_libraries(Cereka PUBLIC vendor)
 
 target_include_directories(Cereka
-  PUBLIC vendor/sol2/include
+    PUBLIC vendor/sol2/include
 )
-

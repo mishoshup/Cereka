@@ -24,7 +24,7 @@ namespace fs = std::filesystem;
 // Embedded project templates
 // ============================================================================
 
-static const char *kGameCfgTemplate = R"(# Cereka game configuration
+static const char *kGameCfgTemplate = R"CRKA(# Cereka game configuration
 # -----------------------------------------------
 # title      : window title shown in the taskbar
 # width/height: resolution in pixels
@@ -36,77 +36,152 @@ width      = 1280
 height     = 720
 fullscreen = false
 entry      = assets/scripts/main.crka
-)";
+)CRKA";
 
 // Starter script — uses the bundled placeholder assets so the game runs
 // immediately out of the box. Every command is shown with comments.
-static const char *kMainScriptTemplate = R"(; ================================================================
-; main.crka — Cereka starter script
-; Placeholder assets are already included so this runs right away.
-; Replace them with your own files and edit freely.
-; Lines starting with ; are comments — ignored by the engine.
+// ---------------------------------------------------------------------------
+// ui.crka — UI theme. Included by main.crka.
+// ---------------------------------------------------------------------------
+static const char *kUiScriptTemplate = R"CRKA(; ================================================================
+; ui.crka — Cereka UI theme
+;
+; Included at the top of main.crka via:  include ui.crka
+; Change any value here to restyle the whole game with no recompile.
+;
+; Positions:  use % for screen-relative (75%) or raw pixels (540)
+; Colors:     r g b a  (0–255 each)
+; Images:     path relative to project root — omit to use solid color
 ; ================================================================
+
+; ---- Dialogue text box (bottom area) ----
+ui textbox
+    color          0 0 0 160
+    y              75%
+    h              25%
+    text_margin_x  80
+    text_color     255 255 255 255
+;   image  assets/ui/textbox.png   ; uncomment to use a custom image
+
+; ---- Speaker name box ----
+ui namebox
+    color       30 30 100 255
+    x           50
+    y_offset    -65
+    w           260
+    h           52
+    text_color  255 220 120 255
+;   image  assets/ui/namebox.png
+
+; ---- Choice buttons ----
+ui button
+    color       20 80 120 255
+    w           560
+    h           72
+    text_color  255 255 255 255
+;   image        assets/ui/button.png
+;   hover_image  assets/ui/button_hover.png
+
+; ---- Font ----
+ui font
+    size  36
+)CRKA";
+
+// ---------------------------------------------------------------------------
+// scene_two.crka — called from main.crka to demo multi-file scripts.
+// ---------------------------------------------------------------------------
+static const char *kSceneTwoTemplate = R"CRKA(; ================================================================
+; scene_two.crka — a separate scene file
+;
+; Called from main.crka with:   call scene_two.crka
+; The engine returns to main.crka automatically when this ends.
+;
+; Use 'call' for scenes that need to return (subroutines).
+; Use 'include' to inline a file at compile time (no return).
+; ================================================================
+
+char Bob right placeholder_char.png
+say Bob "I am Bob, loaded from scene_two.crka!"
+say Bob "When this scene ends, the engine returns to main.crka."
+hide char Bob
+)CRKA";
+
+// ---------------------------------------------------------------------------
+// main.crka — entry point and full command tutorial.
+// ---------------------------------------------------------------------------
+static const char *kMainScriptTemplate = R"CRKA(; ================================================================
+; main.crka — Cereka entry point
+;
+; This file is a full tutorial. Every command is shown with comments.
+; Delete what you don't need and start writing your story.
+; ================================================================
+
+; INCLUDE — inline another script at compile time.
+; Use it to load your UI theme, shared labels, etc.
+; Syntax: include <filename>   (relative to this file's directory)
+include ui.crka
 
 label start
 
-; BGM — background music, loops forever.
-; Put your music files in assets/sounds/
+; BGM — background music, loops forever until stop_bgm.
 ; Syntax: bgm <filename>
 bgm placeholder_bgm.wav
 
-; BG — show a background image. Only one active at a time.
-; Put your images in assets/bg/
+; BG — show a background image instantly.
 ; Syntax: bg <filename>
 bg placeholder_bg.png
 
 ; NARRATE — narrator text, no speaker name shown.
 ; Click or press a key to advance.
-narrate "Welcome to your visual novel!"
-narrate "This script runs with the included placeholder assets."
-narrate "Replace them with your own files when you are ready."
+narrate "Welcome to Cereka!"
+narrate "Every command in the engine is shown in this script."
 
-; CHAR — show a character sprite. ID is your short reference tag.
-; Multiple characters can be on screen at once.
-; Put sprites in assets/characters/
-; Syntax: char <ID> <filename>
-char Alice placeholder_char.png
+; BG FADE — crossfade to a new background over <seconds>.
+; The script pauses until the transition completes.
+; Syntax: bg <filename> fade <seconds>
+bg placeholder_bg.png fade 1.0
+narrate "That background faded in."
 
-; SAY — dialogue with a speaker name box. ID must match a loaded char.
+; CHAR — show a character sprite.
+; Position: left, center (default), or right.
+; Syntax: char <ID> [left|center|right] <filename>
+char Alice center placeholder_char.png
+
+; SAY — dialogue with a speaker name box.
 ; Syntax: say <ID> "text"
-say Alice "Hi! I am a placeholder character. Replace me with your sprite."
+say Alice "Hi! I am loaded from assets/characters/"
+say Alice "My position can be left, center, or right."
 
-; SFX — one-shot sound effect, does NOT pause the script.
-; Put sounds in assets/sounds/
+; SFX — one-shot sound effect. Does NOT pause the script.
 ; Syntax: sfx <filename>
 sfx placeholder_sfx.wav
 
-; SET — store a variable. All values are strings.
+; CALL — run another script file as a subroutine and return here.
+; Syntax: call <filename>
+call scene_two.crka
+
+narrate "Returned from scene_two.crka."
+
+; SET — store a string variable.
 ; Syntax: set <variable> <value>
 set choice none
 
-; MENU — present choices to the player.
-;   Indent bg/button lines inside the block.
-;   button "Label" goto <label>  — jump on click
+; MENU — present choices. Indent bg/button lines inside.
+;   button "Label" goto <label>  — jump to label on click
 ;   button "Label" exit          — quit the game
 menu
-    bg placeholder_bg.png
-    button "Learn more"  goto more_info
-    button "Skip to end" goto the_end
-    button "Quit"        exit
+    bg placeholder_bg.png fade 0.5
+    button "Explore"   goto explore
+    button "Skip"      goto the_end
+    button "Quit"      exit
 
-; JUMP — unconditional jump to a label.
-; Syntax: jump <label>
-jump the_end
+label explore
 
-
-label more_info
-
-; HIDE CHAR — remove a character sprite from screen.
+; HIDE CHAR — remove a character sprite.
 ; Syntax: hide char <ID>
 hide char Alice
 
 ; IF / ENDIF — conditional block. Operators: == and !=
-; Syntax: if <variable> == <value>
 set choice explored
 
 if choice == explored
@@ -114,29 +189,32 @@ if choice == explored
 endif
 
 if choice != skipped
-    narrate "This line shows because choice != skipped."
+    narrate "This shows because choice != skipped."
 endif
 
-; STOP_BGM — stop the background music.
-; Syntax: stop_bgm
-stop_bgm
-
-narrate "That is every Cereka command."
-narrate "Delete this demo content and start writing your story."
+; JUMP — unconditional jump to a label.
+; Syntax: jump <label>
+jump the_end
 
 
 label the_end
 
-narrate "Folder layout:"
+; STOP_BGM — stop background music.
+stop_bgm
+
+narrate "That covers every Cereka command."
+narrate "Project layout:"
+narrate "  assets/scripts/     .crka script files"
 narrate "  assets/bg/          backgrounds"
 narrate "  assets/characters/  sprites"
 narrate "  assets/sounds/      music and sfx"
-narrate "  assets/scripts/     your .crka scripts"
+narrate "  assets/fonts/       .ttf / .otf fonts"
 narrate "  game.cfg            title, resolution, entry point"
+narrate "  ui.crka             UI theme (colors, sizes, images)"
 
-; END — mark the end of the script.
+; END — marks the end of the script.
 end
-)";
+)CRKA";
 
 // ============================================================================
 // State
@@ -332,7 +410,7 @@ static void doCreateProject()
         std::error_code ec;
         for (const char *sub : {"assets/scripts", "assets/bg",
                                 "assets/characters", "assets/fonts",
-                                "assets/sounds"}) {
+                                "assets/sounds", "assets/ui"}) {
             fs::path p = dir / sub;
             fs::create_directories(p, ec);
             if (ec) {
@@ -349,6 +427,18 @@ static void doCreateProject()
             if (!f) { appendLog("[ERROR] Cannot write game.cfg\n"); s_busy = false; return; }
             f << kGameCfgTemplate;
             appendLog("  + game.cfg\n");
+        }
+        {
+            std::ofstream f(dir / "assets" / "scripts" / "ui.crka");
+            if (!f) { appendLog("[ERROR] Cannot write ui.crka\n"); s_busy = false; return; }
+            f << kUiScriptTemplate;
+            appendLog("  + assets/scripts/ui.crka\n");
+        }
+        {
+            std::ofstream f(dir / "assets" / "scripts" / "scene_two.crka");
+            if (!f) { appendLog("[ERROR] Cannot write scene_two.crka\n"); s_busy = false; return; }
+            f << kSceneTwoTemplate;
+            appendLog("  + assets/scripts/scene_two.crka\n");
         }
         {
             std::ofstream f(dir / "assets" / "scripts" / "main.crka");
