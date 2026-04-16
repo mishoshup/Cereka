@@ -14,7 +14,7 @@ static fs::path homeDir()
 {
 #ifdef _WIN32
     char path[MAX_PATH] = {};
-    GetEnvironmentVariableA("USERPROFILE", path, MAX_PATH);
+    GetEnvironmentVariableA("APPDATA", path, MAX_PATH);
     return fs::path(path);
 #else
     const char *home = getenv("HOME");

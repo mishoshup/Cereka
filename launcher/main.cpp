@@ -13,6 +13,7 @@
 #include <QPushButton>
 #include <QSizePolicy>
 #include <QStackedLayout>
+#include <QStandardPaths>
 #include <QTextEdit>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -145,9 +146,17 @@ class LauncherWindow : public QWidget {
 
     void doSelectProjectsDir()
     {
+        QString defaultPath;
+#ifdef _WIN32
+        defaultPath =
+            QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation).first() +
+            "\\Cereka";
+#else
+        defaultPath = QDir::homePath() + "/Games";
+#endif
         QString path = QFileDialog::getExistingDirectory(this,
                                                          "Select Projects Directory",
-                                                         QDir::homePath() + "/Games",
+                                                         defaultPath,
                                                          QFileDialog::ShowDirsOnly |
                                                              QFileDialog::DontUseNativeDialog);
 
