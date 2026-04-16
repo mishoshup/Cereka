@@ -109,6 +109,7 @@ bool Impl::PollEvent(cereka::CerekaEvent &e)
         return false;
 
     switch (sdl.type) {
+        case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
         case SDL_EVENT_QUIT:
             e = {cereka::CerekaEvent::Quit, 0};
             return true;
@@ -419,7 +420,13 @@ size_t cereka::CerekaEngine::ProgramCounter() const
 
 bool cereka::CerekaEngine::IsGameFinished() const
 {
-    return pImplementation->state == CerekaState::Finished;
+    return pImplementation->state == CerekaState::Finished ||
+           pImplementation->state == CerekaState::Quit;
+}
+
+bool cereka::CerekaEngine::IsGameQuit() const
+{
+    return pImplementation->state == CerekaState::Quit;
 }
 
 bool cereka::CerekaEngine::IsFinished() const

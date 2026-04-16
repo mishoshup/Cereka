@@ -186,7 +186,7 @@ int main(int argc,
         engine.Present();
     }
 
-    L("GAME FINISHED");
+    L(engine.IsGameQuit() ? "GAME QUIT" : "GAME FINISHED");
 
     engine.ShutDown();
     return 0;

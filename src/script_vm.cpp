@@ -94,6 +94,11 @@ void Impl::Update(float dt)
 
 void Impl::HandleEvent(const CerekaEvent &e)
 {
+    if (e.type == CerekaEvent::Quit) {
+        state = CerekaState::Quit;
+        return;
+    }
+
     // Save/Load overlay — intercept all input while overlay is open
     if (state == CerekaState::SaveMenu || state == CerekaState::LoadMenu) {
         bool isSaving = (state == CerekaState::SaveMenu);
