@@ -1,4 +1,8 @@
 add_subdirectory(SDL)
+
+# Vendored SDL flags moved to cmake/toolchains/ucrt64.cmake for cross-compiles
+# (keeps vendor files untouched; toolchain forces these when targeting UCRT)
+
 add_subdirectory(SDL_image)
 add_subdirectory(SDL_ttf)
 add_subdirectory(SDL_mixer)
@@ -12,12 +16,12 @@ set(LUA_BUILD_COMPILER  OFF CACHE BOOL "" FORCE)
 set(LUA_ENABLE_SHARED   OFF CACHE BOOL "" FORCE)
 add_subdirectory(lua)
 
-# Route all vendor DLL outputs to the build root so executables find them
-# without PATH tricks or manual copying.
+# Route vendor DLLs alongside CerekaGame so they are found at runtime
+# and packaged together when distributing.
 if(WIN32)
     foreach(_t SDL3-shared SDL3_image-shared SDL3_ttf-shared SDL3_mixer-shared)
         set_target_properties(${_t} PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/runtimes/windows")
     endforeach()
 endif()
 

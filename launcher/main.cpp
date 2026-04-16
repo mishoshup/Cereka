@@ -12,6 +12,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -19,7 +20,6 @@
 #    include <windows.h>
 #else
 #    include <limits.h>
-#    include <signal.h>
 #    include <sys/wait.h>
 #    include <unistd.h>
 #endif
@@ -43,6 +43,8 @@ static Screen s_screen = Screen::Home;
 static fs::path s_selectedDir;
 static bool s_hasGameCfg = false;
 static std::string s_gameTitle;
+static char s_titleEdit[256]   = "";
+static char s_folderRename[256] = "";
 
 // Directory text input
 static char s_dirInput[2048] = "";
@@ -139,6 +141,33 @@ static void refreshBrowser(const fs::path &p)
 // Project loading (main-thread only)
 // ============================================================================
 
+static void saveTitleToGameCfg(const std::string &newTitle)
+{
+    fs::path cfgPath = s_selectedDir / "game.cfg";
+    std::vector<std::string> lines;
+    {
+        std::ifstream f(cfgPath);
+        std::string line;
+        while (std::getline(f, line))
+            lines.push_back(line);
+    }
+    bool replaced = false;
+    for (auto &l : lines) {
+        if (!replaced && l.find("title") == 0 && l.find('=') != std::string::npos) {
+            l = "title      = " + newTitle;
+            replaced = true;
+        }
+    }
+    if (!replaced)
+        lines.push_back("title      = " + newTitle);
+    {
+        std::ofstream f(cfgPath);
+        for (auto &l : lines)
+            f << l << "\n";
+    }
+    s_gameTitle = newTitle;
+}
+
 static void loadProject(const fs::path &dir)
 {
     s_selectedDir = dir;
@@ -165,6 +194,7 @@ static void loadProject(const fs::path &dir)
                 break;
             }
         }
+        strncpy(s_titleEdit, s_gameTitle.c_str(), sizeof(s_titleEdit) - 1);
         addRecent(dir.string());
     }
 
@@ -191,28 +221,38 @@ static std::vector<std::string> getScripts()
 // Find CerekaGame binary (sibling of this executable)
 // ============================================================================
 
-static std::string findGameRunner()
+static fs::path selfExeDir()
 {
 #ifdef _WIN32
     char path[MAX_PATH] = {};
     GetModuleFileNameA(NULL, path, MAX_PATH);
-
-    fs::path exeDir = fs::path(path).parent_path();
-    fs::path candidate = exeDir / "CerekaGame.exe";
-
-    return fs::exists(candidate) ? candidate.string() : "CerekaGame.exe";
-
+    return fs::path(path).parent_path();
 #else
     char exePath[2048] = {};
     ssize_t len = readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
+    if (len > 0)
+        return fs::path(std::string(exePath, len)).parent_path();
+    return fs::current_path();
+#endif
+}
 
-    if (len > 0) {
-        fs::path exeDir = fs::path(std::string(exePath, len)).parent_path();
-        fs::path candidate = exeDir / "CerekaGame";
-        return fs::exists(candidate) ? candidate.string() : "CerekaGame";
-    }
+static fs::path runtimeDir(const std::string &platform)
+{
+    return selfExeDir() / "runtimes" / platform;
+}
 
-    return "CerekaGame";
+static std::string findGameRunner()
+{
+#ifdef _WIN32
+    fs::path r = runtimeDir("windows") / "CerekaGame.exe";
+    if (fs::exists(r)) return r.string();
+    r = selfExeDir() / "CerekaGame.exe";
+    return fs::exists(r) ? r.string() : "CerekaGame.exe";
+#else
+    fs::path r = runtimeDir("linux") / "CerekaGame";
+    if (fs::exists(r)) return r.string();
+    r = selfExeDir() / "CerekaGame";
+    return fs::exists(r) ? r.string() : "CerekaGame";
 #endif
 }
 
@@ -348,6 +388,177 @@ static void doCreateProject()
 
         appendLog("\n[OK] Project created. Click Launch to run.\n");
         s_reloadPending = true;
+        s_busy = false;
+    }).detach();
+}
+
+// filter: "" = all platforms, "linux" or "windows" = single platform
+static void doPackage(const std::string &filter = "")
+{
+    if (s_busy.exchange(true))
+        return;
+    clearLog();
+
+    std::thread([dir = s_selectedDir, title = s_gameTitle, filter]() {
+        // Derive a filesystem-safe name from the game title
+        std::string gameName = title.empty() ? dir.filename().string() : title;
+        for (char &c : gameName)
+            if (c == ' ')
+                c = '_';
+
+        appendLog("Packaging: " + dir.string() + "\n\n");
+
+        struct PlatformSpec {
+            std::string name;
+            std::string gameExe;
+            std::string archiveSuffix;
+        };
+        static const PlatformSpec platforms[] = {
+            { "linux",   "CerekaGame",     "-linux.tar.gz" },
+            { "windows", "CerekaGame.exe", "-windows.zip"  },
+        };
+
+        bool anyPackaged = false;
+
+        for (auto &plat : platforms) {
+            if (!filter.empty() && plat.name != filter)
+                continue;
+
+            fs::path runtimeBin = runtimeDir(plat.name) / plat.gameExe;
+            if (!fs::exists(runtimeBin)) {
+                appendLog("  [skip] runtimes/" + plat.name + "/ not found\n");
+                continue;
+            }
+
+            appendLog("--- " + plat.name + " ---\n");
+
+            fs::path stagingDir = dir.parent_path() / (gameName + "-" + plat.name + "-dist");
+            fs::path gameSubDir = stagingDir / gameName;
+
+            std::error_code ec;
+            fs::remove_all(stagingDir, ec);
+            fs::create_directories(gameSubDir, ec);
+            if (ec) {
+                appendLog("[ERROR] Cannot create staging dir: " + ec.message() + "\n");
+                continue;
+            }
+
+            // Copy game binary
+            fs::copy_file(runtimeBin, stagingDir / plat.gameExe,
+                          fs::copy_options::overwrite_existing, ec);
+            if (ec) {
+                appendLog("[ERROR] Cannot copy " + plat.gameExe + ": " + ec.message() + "\n");
+                fs::remove_all(stagingDir, ec);
+                continue;
+            }
+            appendLog("  + " + plat.gameExe + "\n");
+
+            // Copy all DLLs from the runtime dir (Windows only)
+            if (plat.name == "windows") {
+                for (auto &e : fs::directory_iterator(runtimeDir("windows"), ec)) {
+                    if (e.path().extension() == ".dll") {
+                        fs::copy_file(e.path(), stagingDir / e.path().filename(),
+                                      fs::copy_options::overwrite_existing, ec);
+                        if (!ec)
+                            appendLog("  + " + e.path().filename().string() + "\n");
+                    }
+                }
+            }
+
+            // Recursively copy project files (skip saves/)
+            std::function<void(const fs::path &, const fs::path &)> copyTree;
+            copyTree = [&](const fs::path &src, const fs::path &dst) {
+                fs::create_directories(dst, ec);
+                for (auto &entry : fs::directory_iterator(src, ec)) {
+                    if (entry.path().filename() == "saves")
+                        continue;
+                    if (entry.is_directory(ec)) {
+                        copyTree(entry.path(), dst / entry.path().filename());
+                    } else {
+                        fs::copy_file(entry.path(), dst / entry.path().filename(),
+                                      fs::copy_options::overwrite_existing, ec);
+                        if (!ec)
+                            appendLog("  + " +
+                                      fs::relative(entry.path(), dir).string() + "\n");
+                    }
+                }
+            };
+            copyTree(dir, gameSubDir);
+
+            fs::path archivePath = dir.parent_path() / (gameName + plat.archiveSuffix);
+            std::string stagingName = stagingDir.filename().string();
+            int ret = 0;
+
+            if (plat.name == "linux") {
+                // Write launch.sh
+                {
+                    fs::path launchSh = stagingDir / "launch.sh";
+                    std::ofstream f(launchSh);
+                    f << "#!/bin/bash\n"
+                      << "cd \"$(dirname \"$0\")\"\n"
+                      << "./CerekaGame \"" << gameName << "\"\n";
+                    fs::permissions(launchSh,
+                                    fs::perms::owner_exec | fs::perms::group_exec |
+                                        fs::perms::others_exec,
+                                    fs::perm_options::add, ec);
+                }
+                appendLog("  + launch.sh\n");
+
+                std::string cmd = "tar czf \"" + archivePath.string() +
+                                  "\" -C \"" + dir.parent_path().string() +
+                                  "\" \"" + stagingName + "\"";
+                appendLog("\n$ " + cmd + "\n");
+                ret = system(cmd.c_str());
+                if (ret != 0)
+                    appendLog("[ERROR] tar failed (exit " + std::to_string(ret) + ")\n");
+
+            } else {
+                // Write launch.bat
+                {
+                    std::ofstream f(stagingDir / "launch.bat");
+                    f << "@echo off\r\n"
+                      << "cd /d \"%~dp0\"\r\n"
+                      << "CerekaGame.exe \"" << gameName << "\"\r\n";
+                }
+                appendLog("  + launch.bat\n");
+
+#ifdef _WIN32
+                std::string cmd =
+                    "powershell -NoProfile -Command \"Compress-Archive -Force"
+                    " -Path '" + stagingDir.string() +
+                    "' -DestinationPath '" + archivePath.string() + "'\"";
+                appendLog("\n$ " + cmd + "\n");
+                ret = system(cmd.c_str());
+                if (ret != 0)
+                    appendLog("[ERROR] Compress-Archive failed (exit " +
+                              std::to_string(ret) + ")\n");
+#else
+                std::string cmd = "zip -r \"" + archivePath.string() +
+                                  "\" \"" + stagingName + "\"" +
+                                  " -C \"" + dir.parent_path().string() + "\"";
+                // zip doesn't support -C; change dir first
+                cmd = "cd \"" + dir.parent_path().string() +
+                      "\" && zip -r \"" + archivePath.string() +
+                      "\" \"" + stagingName + "\"";
+                appendLog("\n$ " + cmd + "\n");
+                ret = system(cmd.c_str());
+                if (ret != 0)
+                    appendLog("[ERROR] zip failed (exit " + std::to_string(ret) +
+                              "). Install zip: sudo pacman -S zip  or  sudo apt install zip\n");
+#endif
+            }
+
+            fs::remove_all(stagingDir, ec);
+
+            if (ret == 0) {
+                appendLog("[OK] " + archivePath.string() + "\n\n");
+                anyPackaged = true;
+            }
+        }
+
+        if (!anyPackaged)
+            appendLog("\n[ERROR] No runtimes found. Build CerekaGame for at least one platform first.\n");
+
         s_busy = false;
     }).detach();
 }
@@ -621,13 +832,58 @@ static void drawProject(ImGuiStyle &style)
     bool busy = s_busy.load();
 
     // Header
-    std::string title = (s_hasGameCfg && !s_gameTitle.empty()) ? s_gameTitle :
-                                                                 s_selectedDir.filename().string();
     ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.f), "CEREKA LAUNCHER");
     ImGui::SameLine(0, 12);
-    ImGui::TextUnformatted(title.c_str());
-    ImGui::SameLine(0, 12);
+    if (s_hasGameCfg) {
+        // Editable game title — saves to game.cfg on Enter or unfocus
+        ImGui::SetNextItemWidth(200.f);
+        bool commit = ImGui::InputText("##title_edit", s_titleEdit, sizeof(s_titleEdit),
+                                       ImGuiInputTextFlags_EnterReturnsTrue);
+        bool lostFocus = ImGui::IsItemDeactivatedAfterEdit();
+        if ((commit || lostFocus) && s_titleEdit[0] != '\0') {
+            std::string newTitle(s_titleEdit);
+            if (newTitle != s_gameTitle)
+                saveTitleToGameCfg(newTitle);
+        }
+    } else {
+        ImGui::TextUnformatted(s_selectedDir.filename().string().c_str());
+    }
+    ImGui::SameLine(0, 8);
     ImGui::TextDisabled("(%s)", s_selectedDir.string().c_str());
+    ImGui::SameLine(0, 8);
+    if (ImGui::SmallButton("rename folder")) {
+        strncpy(s_folderRename, s_selectedDir.filename().string().c_str(),
+                sizeof(s_folderRename) - 1);
+        ImGui::OpenPopup("##rename_folder");
+    }
+    if (ImGui::BeginPopup("##rename_folder")) {
+        ImGui::TextUnformatted("New folder name:");
+        ImGui::SetNextItemWidth(240.f);
+        bool ok = ImGui::InputText("##folder_new_name", s_folderRename,
+                                   sizeof(s_folderRename),
+                                   ImGuiInputTextFlags_EnterReturnsTrue);
+        ImGui::SameLine();
+        ok = ok || ImGui::Button("OK");
+        if (ok && s_folderRename[0] != '\0') {
+            fs::path newDir = s_selectedDir.parent_path() / s_folderRename;
+            std::error_code ec;
+            fs::rename(s_selectedDir, newDir, ec);
+            if (!ec) {
+                std::string oldPath = s_selectedDir.string();
+                auto it = std::find(s_recents.begin(), s_recents.end(), oldPath);
+                if (it != s_recents.end()) *it = newDir.string();
+                saveRecents();
+                loadProject(newDir);
+            } else {
+                appendLog("[ERROR] Rename failed: " + ec.message() + "\n");
+            }
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel"))
+            ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
     ImGui::Separator();
     ImGui::Spacing();
 
@@ -644,6 +900,19 @@ static void drawProject(ImGuiStyle &style)
     else {
         if (ImGui::Button("  Launch Game  ", ImVec2(130, 0)))
             doLaunch();
+        ImGui::SameLine(0, 8);
+        // Package split-button: left half runs all platforms, arrow opens menu
+        if (ImGui::Button("  Package  ", ImVec2(88, 0)))
+            doPackage();
+        ImGui::SameLine(0, 1);
+        if (ImGui::ArrowButton("##pkg_arrow", ImGuiDir_Down))
+            ImGui::OpenPopup("pkg_menu");
+        if (ImGui::BeginPopup("pkg_menu")) {
+            if (ImGui::MenuItem("All platforms"))  doPackage();
+            if (ImGui::MenuItem("Linux only"))     doPackage("linux");
+            if (ImGui::MenuItem("Windows only"))   doPackage("windows");
+            ImGui::EndPopup();
+        }
     }
 
     ImGui::SameLine(0, 12);

@@ -78,11 +78,15 @@ static const char *kSceneTwoTemplate =
 ;
 ; Use 'call' for scenes that need to return (subroutines).
 ; Use 'include' to inline a file at compile time (no return).
+;
+; Alice is already on the left when we arrive here.
+; Bob enters on the right so they face each other.
 ; ================================================================
 
 char Bob right placeholder_char.png
 say Bob "I am Bob, loaded from scene_two.crka!"
-say Bob "When this scene ends, the engine returns to main.crka."
+say Alice "And I am still here — character state carries across calls."
+say Bob "When this scene ends the engine returns to main.crka."
 hide char Bob
 )CRKA";
 
@@ -97,6 +101,23 @@ static const char *kMainScriptTemplate =
 ; The story begins at label new_game.
 ; Every engine command is shown with comments below.
 ; Delete what you don't need and write your story.
+; ================================================================
+;
+; Project folder layout:
+;
+;   game.cfg                  — title, resolution, entry script
+;   assets/
+;     scripts/                — .crka script files (this folder)
+;       main.crka             — entry point (set in game.cfg)
+;       ui.crka               — UI theme (included by main.crka)
+;       scene_two.crka        — example subroutine scene
+;     bg/                     — background images (.png/.jpg)
+;     characters/             — character sprites (.png)
+;     sounds/                 — music and sound effects (.wav/.ogg)
+;     fonts/                  — font files (.ttf/.otf)
+;     ui/                     — optional UI images (textbox, buttons…)
+;   saves/                    — save files, auto-created at runtime
+;
 ; ================================================================
 
 include ui.crka
@@ -137,22 +158,39 @@ bgm placeholder_bgm.wav
 bg placeholder_bg.png
 
 ; NARRATE — narrator text (no name box). Click/key to advance.
-narrate "Welcome to Cereka!"
-narrate "Every command in the engine is shown in this script."
+narrate "Welcome to Cereka! This script is your tutorial."
+narrate "Every command in the engine is shown here with comments."
+narrate "When you are done reading, delete everything and write your story."
+
+; ---- Folder layout tour ----
+narrate "Your project is organized like this:"
+narrate "  game.cfg             — title, resolution, entry script"
+narrate "  assets/scripts/      — .crka script files (you are here)"
+narrate "  assets/bg/           — background images (.png, .jpg)"
+narrate "  assets/characters/   — character sprites (.png)"
+narrate "  assets/sounds/       — music and sound effects (.wav, .ogg)"
+narrate "  assets/fonts/        — font files (.ttf, .otf)"
+narrate "  assets/ui/           — optional UI images (textbox, buttons...)"
+narrate "  saves/               — save files, auto-created when you save"
 
 ; BG FADE — crossfade to a new background over <seconds>.
 bg placeholder_bg.png fade 1.0
-narrate "That background faded in."
+narrate "That background faded in over 1 second."
 
 ; CHAR — show a character sprite.
-; Position: left, center (default), or right.
+; Re-running char with the same ID moves it to the new position.
 ; Syntax: char <ID> [left|center|right] <filename>
-char Alice center placeholder_char.png
+char Alice left placeholder_char.png
 
 ; SAY — dialogue with a speaker name box.
 ; Syntax: say <ID> "text"
-say Alice "Hi! I am loaded from assets/characters/"
-say Alice "My position can be left, center, or right."
+say Alice "Hi! I can stand on the left..."
+char Alice center placeholder_char.png
+say Alice "...the center..."
+char Alice right placeholder_char.png
+say Alice "...or the right!"
+char Alice left placeholder_char.png
+say Alice "Let me move aside. Someone is coming."
 
 ; SFX — one-shot sound effect (does not pause the script).
 sfx placeholder_sfx.wav

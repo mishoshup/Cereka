@@ -6,6 +6,10 @@ target_include_directories(CerekaGame PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
 )
 
-set_target_properties(CerekaGame PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
-)
+if(WIN32)
+    set_target_properties(CerekaGame PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/runtimes/windows")
+else()
+    set_target_properties(CerekaGame PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/runtimes/linux")
+endif()
