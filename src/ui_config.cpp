@@ -1,11 +1,13 @@
-// ui_config.cpp — ApplyUiSet using ConfigManager + font loading
+// ui_config.cpp — ConfigManager integration + font loading
+//
+// Font loading is still here as it's engine-specific.
+// ConfigManager handles all UI properties via the property system.
 
 #include "engine_impl.hpp"
-#include <cstdio>
 
-// ---------------------------------------------------------------------------
-// Font loading (also called from InitGame and when font.size changes)
-// ---------------------------------------------------------------------------
+// ============================================================================
+// Font Loading
+// ============================================================================
 
 void Impl::LoadFont(int size)
 {
@@ -32,9 +34,9 @@ void Impl::LoadFont(int size)
     }
 }
 
-// ---------------------------------------------------------------------------
-// InitConfigManager — setup ConfigManager with engine context
-// ---------------------------------------------------------------------------
+// ============================================================================
+// ConfigManager Initialization
+// ============================================================================
 
 void Impl::InitConfigManager()
 {
@@ -44,6 +46,7 @@ void Impl::InitConfigManager()
     ctx.uiCfg = &uiCfg;
 
     ctx.reloadFont = [this](int size) { LoadFont(size); };
+
     ctx.loadTexture = [this](SDL_Texture *&tex, const std::string &path) {
         if (tex) {
             SDL_DestroyTexture(tex);
@@ -52,8 +55,7 @@ void Impl::InitConfigManager()
         if (!path.empty()) {
             tex = IMG_LoadTexture(renderer, path.c_str());
             if (!tex) {
-                std::cerr << "[CONFIG] Failed to load texture '" << path << "': " << SDL_GetError()
-                          << "\n";
+                std::cerr << "[CONFIG] Failed to load texture: " << path << "\n";
             }
         }
     };
@@ -62,9 +64,9 @@ void Impl::InitConfigManager()
     configManager.initDefaults();
 }
 
-// ---------------------------------------------------------------------------
+// ============================================================================
 // ApplyUiSet — delegate to ConfigManager
-// ---------------------------------------------------------------------------
+// ============================================================================
 
 void Impl::ApplyUiSet(const std::string &key,
                       const std::string &val)
