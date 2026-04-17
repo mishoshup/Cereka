@@ -1,7 +1,12 @@
+#include <cstdio>
 #include <QApplication>
 #include <QDir>
 #include <QFileDialog>
 #include <QFont>
+#include <QFontDatabase>
+#include <QFrame>
+#include <QGraphicsDropShadowEffect>
+#include <QGraphicsOpacityEffect>
 #include <QHBoxLayout>
 #include <QInputDialog>
 #include <QLabel>
@@ -10,20 +15,23 @@
 #include <QListWidgetItem>
 #include <QMenu>
 #include <QMetaObject>
+#include <QPropertyAnimation>
 #include <QPushButton>
 #include <QSizePolicy>
-#include <QStackedLayout>
+#include <QStackedWidget>
 #include <QStandardPaths>
 #include <QTextEdit>
 #include <QVBoxLayout>
 #include <QWidget>
 
 #include "config.hpp"
+#include "embedded_assets.h"
 #include "project_manager.hpp"
 
 #ifdef _WIN32
 #    include <windows.h>
 #else
+#    include <sys/wait.h>
 #    include <unistd.h>
 #endif
 
@@ -92,27 +100,72 @@ static std::string findGameRunner()
 
 class LauncherWindow : public QWidget {
     Q_OBJECT
-   public:
+
+public:
     LauncherWindow()
     {
         setWindowTitle("Cereka Launcher");
-        setMinimumSize(700, 550);
-        resize(900, 650);
+        setMinimumSize(820, 560);
+        resize(980, 660);
 
+        loadFont();
         applyDarkTheme();
 
-        m_layout = new QStackedLayout(this);
-        setLayout(m_layout);
+        QHBoxLayout *root = new QHBoxLayout(this);
+        root->setContentsMargins(0, 0, 0, 0);
+        root->setSpacing(0);
 
-        createWelcomeScreen();
-        createHomeScreen();
-        createProjectScreen();
+        root->addWidget(buildSidebar());
 
-        m_layout->setCurrentIndex(0);
+        QFrame *divider = new QFrame();
+        divider->setFixedWidth(1);
+        divider->setStyleSheet("background-color: #1A1A26; border: none;");
+        root->addWidget(divider);
+
+        m_contentStack = new QStackedWidget();
+        m_contentStack->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        m_contentStack->addWidget(buildWelcomeScreen()); // 0
+        m_contentStack->addWidget(buildEmptyState());    // 1
+        m_contentStack->addWidget(buildProjectDetail()); // 2
+
+        m_contentOpacity = new QGraphicsOpacityEffect(m_contentStack);
+        m_contentStack->setGraphicsEffect(m_contentOpacity);
+        m_contentOpacity->setOpacity(1.0);
+
+        m_fadeAnim = new QPropertyAnimation(m_contentOpacity, "opacity", this);
+        m_fadeAnim->setDuration(140);
+        connect(m_fadeAnim, &QPropertyAnimation::finished, this, &LauncherWindow::onFadeFinished);
+
+        root->addWidget(m_contentStack, 1);
 
         if (!Config::instance().isFirstLaunch()) {
-            m_layout->setCurrentIndex(1);
-            refreshProjectList();
+            refreshSidebar();
+            m_contentStack->setCurrentIndex(1);
+        }
+    }
+
+private slots:
+    void onFadeFinished()
+    {
+        if (m_pendingPage >= 0) {
+            m_contentStack->setCurrentIndex(m_pendingPage);
+            m_pendingPage = -1;
+            m_fadeAnim->setStartValue(0.0);
+            m_fadeAnim->setEndValue(1.0);
+            m_fadeAnim->start();
+        }
+    }
+
+private:
+    // ── Setup ─────────────────────────────────────────────────────────────────
+
+    void loadFont()
+    {
+        int id = QFontDatabase::addApplicationFontFromData(
+            QByteArray(reinterpret_cast<const char *>(kMontserratTtf), kMontserratTtf_len));
+        if (id >= 0) {
+            QString family = QFontDatabase::applicationFontFamilies(id).at(0);
+            qApp->setFont(QFont(family, 10));
         }
     }
 
@@ -131,16 +184,387 @@ class LauncherWindow : public QWidget {
         qApp->setPalette(dark);
     }
 
-    void refreshProjectList()
+    void fadeToPage(int page)
     {
-        m_projectsList->clear();
-        for (auto &p : ProjectManager::instance().listProjects()) {
-            auto item = new QListWidgetItem(QString::fromStdString(p.title));
-            item->setData(Qt::UserRole, QString::fromStdString(p.path.string()));
-            m_projectsList->addItem(item);
-        }
+        if (m_pendingPage < 0 && m_contentStack->currentIndex() == page)
+            return;
+        m_pendingPage = page;
+        m_fadeAnim->stop();
+        m_fadeAnim->setStartValue(m_contentOpacity->opacity());
+        m_fadeAnim->setEndValue(0.0);
+        m_fadeAnim->start();
+    }
 
-        m_projectsDirLabel->setText(
+    // ── Sidebar ───────────────────────────────────────────────────────────────
+
+    QWidget *buildSidebar()
+    {
+        QWidget *sidebar = new QWidget();
+        sidebar->setFixedWidth(210);
+        sidebar->setStyleSheet("background-color: #0E0E16;");
+
+        QVBoxLayout *v = new QVBoxLayout(sidebar);
+        v->setContentsMargins(0, 0, 0, 0);
+        v->setSpacing(0);
+
+        // Logo area
+        QWidget *logoArea = new QWidget();
+        logoArea->setStyleSheet("background: transparent;");
+        QVBoxLayout *logoLayout = new QVBoxLayout(logoArea);
+        logoLayout->setContentsMargins(18, 22, 18, 18);
+        logoLayout->setSpacing(3);
+
+        QLabel *logo = new QLabel("CEREKA");
+        QFont logoFont = qApp->font();
+        logoFont.setPointSize(17);
+        logoFont.setBold(true);
+        logoFont.setLetterSpacing(QFont::AbsoluteSpacing, 5);
+        logo->setFont(logoFont);
+        logo->setStyleSheet("color: #B8944A;");
+        logoLayout->addWidget(logo);
+
+        QLabel *tagline = new QLabel("Visual Novel Engine");
+        tagline->setStyleSheet("color: #3A3A52; font-size: 10px;");
+        logoLayout->addWidget(tagline);
+        v->addWidget(logoArea);
+
+        addHRule(v, "#1A1A26");
+
+        // Projects section label
+        QWidget *secWidget = new QWidget();
+        secWidget->setStyleSheet("background: transparent;");
+        QVBoxLayout *secLayout = new QVBoxLayout(secWidget);
+        secLayout->setContentsMargins(18, 14, 18, 6);
+        QLabel *secLabel = new QLabel("PROJECTS");
+        secLabel->setStyleSheet(
+            "color: #3A3A52; font-size: 10px; font-weight: 600; letter-spacing: 2px;");
+        secLayout->addWidget(secLabel);
+        v->addWidget(secWidget);
+
+        // Project list
+        m_sidebarList = new QListWidget();
+        m_sidebarList->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        m_sidebarList->setStyleSheet(R"(
+            QListWidget {
+                background: transparent; border: none;
+                outline: none; padding: 0 8px;
+            }
+            QListWidget::item {
+                padding: 9px 10px; border-radius: 6px;
+                margin: 1px 0; color: #9999B0; font-size: 13px;
+            }
+            QListWidget::item:selected {
+                background-color: #231C0E; color: #D4A84E; font-weight: 600;
+            }
+            QListWidget::item:hover:!selected { background-color: #14141E; }
+        )");
+        connect(m_sidebarList,
+                &QListWidget::itemClicked,
+                this,
+                &LauncherWindow::onSidebarProjectClicked);
+        v->addWidget(m_sidebarList, 1);
+
+        addHRule(v, "#1A1A26");
+
+        // Bottom buttons
+        QWidget *bottom = new QWidget();
+        bottom->setStyleSheet("background: transparent;");
+        QVBoxLayout *bottomLayout = new QVBoxLayout(bottom);
+        bottomLayout->setContentsMargins(12, 12, 12, 16);
+        bottomLayout->setSpacing(6);
+
+        QPushButton *newBtn = new QPushButton("+ New Project");
+        newBtn->setMinimumHeight(36);
+        newBtn->setStyleSheet(R"(
+            QPushButton {
+                background-color: #B8944A; color: #0A0A0A; border: none;
+                border-radius: 6px; font-size: 12px; font-weight: 700; padding: 0 14px;
+            }
+            QPushButton:hover { background-color: #C8A55C; }
+        )");
+        connect(newBtn, &QPushButton::clicked, this, &LauncherWindow::doNewProject);
+        bottomLayout->addWidget(newBtn);
+
+        m_changeFolderBtn = new QPushButton("Change Folder");
+        m_changeFolderBtn->setMinimumHeight(30);
+        m_changeFolderBtn->setStyleSheet(R"(
+            QPushButton {
+                background-color: transparent; color: #44445A; border: none;
+                border-radius: 6px; font-size: 11px; padding: 0 14px;
+            }
+            QPushButton:hover { color: #AAAACC; background-color: #14141E; }
+        )");
+        connect(m_changeFolderBtn,
+                &QPushButton::clicked,
+                this,
+                &LauncherWindow::doChangeProjectsDir);
+        bottomLayout->addWidget(m_changeFolderBtn);
+        v->addWidget(bottom);
+
+        return sidebar;
+    }
+
+    static void addHRule(QVBoxLayout *v, const char *color)
+    {
+        QFrame *f = new QFrame();
+        f->setFixedHeight(1);
+        f->setStyleSheet(QString("background-color: %1; border: none;").arg(color));
+        v->addWidget(f);
+    }
+
+    // ── Welcome screen ────────────────────────────────────────────────────────
+
+    QWidget *buildWelcomeScreen()
+    {
+        QWidget *w = new QWidget();
+        w->setStyleSheet("background-color: #181820;");
+        QVBoxLayout *v = new QVBoxLayout(w);
+        v->setContentsMargins(40, 40, 40, 40);
+        v->setSpacing(0);
+        v->addStretch();
+
+        QLabel *hero = new QLabel("CEREKA");
+        QFont heroFont = qApp->font();
+        heroFont.setPointSize(40);
+        heroFont.setBold(true);
+        heroFont.setLetterSpacing(QFont::AbsoluteSpacing, 10);
+        hero->setFont(heroFont);
+        hero->setStyleSheet("color: #B8944A;");
+        hero->setAlignment(Qt::AlignCenter);
+        v->addWidget(hero);
+
+        v->addSpacing(8);
+
+        QLabel *tagline = new QLabel("Visual Novel Engine");
+        tagline->setStyleSheet("color: #44445A; font-size: 13px; letter-spacing: 3px;");
+        tagline->setAlignment(Qt::AlignCenter);
+        v->addWidget(tagline);
+
+        v->addSpacing(48);
+
+        QLabel *heading = new QLabel("Welcome!");
+        QFont headingFont = qApp->font();
+        headingFont.setPointSize(16);
+        headingFont.setBold(true);
+        heading->setFont(headingFont);
+        heading->setStyleSheet("color: white;");
+        heading->setAlignment(Qt::AlignCenter);
+        v->addWidget(heading);
+
+        v->addSpacing(10);
+
+        QLabel *desc = new QLabel("Select a folder where all your projects will be stored.");
+        desc->setStyleSheet("color: #555566; font-size: 14px;");
+        desc->setAlignment(Qt::AlignCenter);
+        v->addWidget(desc);
+
+        v->addSpacing(28);
+
+        QPushButton *selectBtn = new QPushButton("Select Projects Folder");
+        selectBtn->setMinimumHeight(48);
+        selectBtn->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
+        selectBtn->setStyleSheet(R"(
+            QPushButton {
+                background-color: #B8944A; color: #0A0A0A; border: none;
+                border-radius: 8px; padding: 12px 36px; font-size: 15px; font-weight: 700;
+            }
+            QPushButton:hover { background-color: #C8A55C; }
+        )");
+        connect(selectBtn, &QPushButton::clicked, this, &LauncherWindow::doSelectProjectsDir);
+        v->addWidget(selectBtn, 0, Qt::AlignCenter);
+
+        v->addStretch();
+        return w;
+    }
+
+    // ── Empty state ───────────────────────────────────────────────────────────
+
+    QWidget *buildEmptyState()
+    {
+        QWidget *w = new QWidget();
+        w->setStyleSheet("background-color: #181820;");
+        QVBoxLayout *v = new QVBoxLayout(w);
+        v->setAlignment(Qt::AlignCenter);
+        v->setSpacing(12);
+
+        QLabel *glyph = new QLabel("◈");
+        glyph->setStyleSheet("color: #25252F; font-size: 56px;");
+        glyph->setAlignment(Qt::AlignCenter);
+        v->addWidget(glyph);
+
+        m_emptyTitle = new QLabel("No project selected");
+        QFont ef = qApp->font();
+        ef.setPointSize(14);
+        ef.setBold(true);
+        m_emptyTitle->setFont(ef);
+        m_emptyTitle->setStyleSheet("color: #44445A;");
+        m_emptyTitle->setAlignment(Qt::AlignCenter);
+        v->addWidget(m_emptyTitle);
+
+        m_emptyDesc = new QLabel("Create a new project or select one from the sidebar.");
+        m_emptyDesc->setStyleSheet("color: #33333F; font-size: 13px;");
+        m_emptyDesc->setAlignment(Qt::AlignCenter);
+        v->addWidget(m_emptyDesc);
+
+        return w;
+    }
+
+    void updateEmptyState()
+    {
+        m_emptyTitle->setText("No project selected");
+        m_emptyDesc->setText("Create a new project or select one from the sidebar.");
+        m_changeFolderBtn->setText("Change Folder");
+    }
+
+    // ── Project detail ────────────────────────────────────────────────────────
+
+    QWidget *buildProjectDetail()
+    {
+        QWidget *proj = new QWidget();
+        proj->setStyleSheet("background-color: #181820;");
+        QVBoxLayout *v = new QVBoxLayout(proj);
+        v->setContentsMargins(28, 24, 28, 24);
+        v->setSpacing(0);
+
+        // Header: title + rename
+        QHBoxLayout *header = new QHBoxLayout();
+        header->setSpacing(12);
+
+        m_projTitleLabel = new QLabel();
+        QFont titleFont = qApp->font();
+        titleFont.setPointSize(15);
+        titleFont.setBold(true);
+        m_projTitleLabel->setFont(titleFont);
+        m_projTitleLabel->setStyleSheet("color: white;");
+        m_projTitleLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        header->addWidget(m_projTitleLabel);
+
+        QPushButton *renameBtn = new QPushButton("Rename");
+        renameBtn->setMinimumHeight(28);
+        renameBtn->setStyleSheet(R"(
+            QPushButton {
+                background-color: #202030; color: #666688; border: none;
+                border-radius: 5px; padding: 0 12px; font-size: 11px;
+            }
+            QPushButton:hover { background-color: #2C2C42; color: white; }
+        )");
+        connect(renameBtn, &QPushButton::clicked, this, &LauncherWindow::doRenameProject);
+        header->addWidget(renameBtn);
+        v->addLayout(header);
+
+        v->addSpacing(16);
+
+        QFrame *sep = new QFrame();
+        sep->setFixedHeight(1);
+        sep->setStyleSheet("background-color: #202030; border: none;");
+        v->addWidget(sep);
+
+        v->addSpacing(22);
+
+        // Action buttons
+        QHBoxLayout *actions = new QHBoxLayout();
+        actions->setSpacing(10);
+
+        m_launchBtn = new QPushButton("▶  Launch Game");
+        m_launchBtn->setMinimumHeight(44);
+        m_launchBtn->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
+        m_launchBtn->setStyleSheet(R"(
+            QPushButton {
+                background-color: #B8944A; color: #0A0A0A; border: none;
+                border-radius: 7px; padding: 0 26px; font-size: 14px; font-weight: 700;
+            }
+            QPushButton:hover { background-color: #C8A55C; }
+            QPushButton:disabled { background-color: #3A2E18; color: #665533; }
+        )");
+        connect(m_launchBtn, &QPushButton::clicked, this, &LauncherWindow::doLaunch);
+        actions->addWidget(m_launchBtn);
+
+        QPushButton *packageBtn = new QPushButton("Package  ▾");
+        packageBtn->setMinimumHeight(44);
+        packageBtn->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
+
+        QMenu *pkgMenu = new QMenu(packageBtn);
+        pkgMenu->setStyleSheet(R"(
+            QMenu {
+                background-color: #1A1A28; border: 1px solid #2A2A3A;
+                border-radius: 8px; padding: 4px;
+            }
+            QMenu::item {
+                padding: 8px 20px; color: #BBBBCC; font-size: 13px; border-radius: 4px;
+            }
+            QMenu::item:selected { background-color: #B8944A; color: #0A0A0A; }
+            QMenu::separator { height: 1px; background: #2A2A3A; margin: 4px 8px; }
+        )");
+        pkgMenu->addAction("Package for Linux",   [this]() { doPackage("linux"); });
+        pkgMenu->addAction("Package for Windows", [this]() { doPackage("windows"); });
+        pkgMenu->addSeparator();
+        pkgMenu->addAction("Package All", [this]() { doPackage(); });
+        packageBtn->setMenu(pkgMenu);
+        packageBtn->setStyleSheet(R"(
+            QPushButton {
+                background-color: #202030; color: #BBBBCC; border: none;
+                border-radius: 7px; padding: 0 20px; font-size: 13px;
+            }
+            QPushButton:hover { background-color: #2C2C42; }
+            QPushButton::menu-indicator { image: none; }
+        )");
+        actions->addWidget(packageBtn);
+        actions->addStretch();
+        v->addLayout(actions);
+
+        v->addSpacing(10);
+
+        m_statusLabel = new QLabel();
+        m_statusLabel->setStyleSheet("color: #B8944A; font-size: 12px;");
+        v->addWidget(m_statusLabel);
+
+        v->addSpacing(20);
+
+        QLabel *outLabel = new QLabel("OUTPUT");
+        outLabel->setStyleSheet(
+            "color: #33334A; font-size: 10px; font-weight: 600; letter-spacing: 2px;");
+        v->addWidget(outLabel);
+        v->addSpacing(8);
+
+        m_log = new QTextEdit();
+        m_log->setReadOnly(true);
+        m_log->setPlaceholderText("Output will appear here...");
+        m_log->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        m_log->setStyleSheet(R"(
+            QTextEdit {
+                background-color: #0E0E16; border: 1px solid #1E1E2C;
+                border-radius: 8px; padding: 14px; font-size: 12px; color: #6666AA;
+            }
+        )");
+        v->addWidget(m_log, 1);
+
+        return proj;
+    }
+
+    // ── Actions ───────────────────────────────────────────────────────────────
+
+    void onSidebarProjectClicked(QListWidgetItem *item)
+    {
+        fs::path path = item->data(Qt::UserRole).toString().toStdString();
+        if (ProjectManager::instance().loadProject(path)) {
+            m_projTitleLabel->setText(
+                QString::fromStdString(ProjectManager::instance().currentTitle()));
+            clearLog();
+            updateLog();
+            fadeToPage(2);
+        }
+    }
+
+    void refreshSidebar()
+    {
+        m_sidebarList->clear();
+        for (auto &p : ProjectManager::instance().listProjects()) {
+            auto *item = new QListWidgetItem(QString::fromStdString(p.title));
+            item->setData(Qt::UserRole, QString::fromStdString(p.path.string()));
+            m_sidebarList->addItem(item);
+        }
+        updateEmptyState();
+        m_changeFolderBtn->setToolTip(
             QString::fromStdString(Config::instance().projectsDir().string()));
     }
 
@@ -159,15 +583,13 @@ class LauncherWindow : public QWidget {
                                                          defaultPath,
                                                          QFileDialog::ShowDirsOnly |
                                                              QFileDialog::DontUseNativeDialog);
-
         if (!path.isEmpty()) {
             fs::path dir(path.toStdString());
-            if (!fs::exists(dir)) {
+            if (!fs::exists(dir))
                 fs::create_directories(dir);
-            }
             Config::instance().setProjectsDir(dir);
-            m_layout->setCurrentIndex(1);
-            refreshProjectList();
+            refreshSidebar();
+            fadeToPage(1);
         }
     }
 
@@ -178,46 +600,16 @@ class LauncherWindow : public QWidget {
             return;
 
         if (ProjectManager::instance().createProject(name.toStdString())) {
-            refreshProjectList();
-            showProjectScreen();
-        }
-        else {
+            refreshSidebar();
+            for (int i = 0; i < m_sidebarList->count(); ++i) {
+                if (m_sidebarList->item(i)->text() == name) {
+                    m_sidebarList->setCurrentRow(i);
+                    onSidebarProjectClicked(m_sidebarList->item(i)); // loads + fades to page 2
+                    break;
+                }
+            }
+        } else {
             appendLog("[ERROR] Project already exists or creation failed.");
-            updateLog();
-        }
-    }
-
-    void doOpenProject()
-    {
-        auto item = m_projectsList->currentItem();
-        if (!item)
-            return;
-
-        fs::path path = item->data(Qt::UserRole).toString().toStdString();
-        if (ProjectManager::instance().loadProject(path)) {
-            showProjectScreen();
-        }
-    }
-
-    void doRenameProject()
-    {
-        auto item = m_projectsList->currentItem();
-        if (!item)
-            return;
-
-        QString currentName = item->text();
-        QString newName = QInputDialog::getText(
-            this, "Rename Project", "Enter new name:", QLineEdit::Normal, currentName);
-
-        if (newName.isEmpty() || newName == currentName)
-            return;
-
-        fs::path oldPath = item->data(Qt::UserRole).toString().toStdString();
-        if (ProjectManager::instance().renameProject(oldPath, newName.toStdString())) {
-            refreshProjectList();
-        }
-        else {
-            appendLog("[ERROR] Rename failed. Project may already exist.");
             updateLog();
         }
     }
@@ -232,18 +624,40 @@ class LauncherWindow : public QWidget {
 
         if (!path.isEmpty()) {
             fs::path dir(path.toStdString());
-            if (!fs::exists(dir)) {
+            if (!fs::exists(dir))
                 fs::create_directories(dir);
-            }
             Config::instance().setProjectsDir(dir);
-            refreshProjectList();
+            refreshSidebar();
         }
     }
 
-    void doBack()
+    void doRenameProject()
     {
-        m_layout->setCurrentIndex(1);
-        refreshProjectList();
+        auto *item = m_sidebarList->currentItem();
+        if (!item)
+            return;
+
+        QString currentName = item->text();
+        QString newName = QInputDialog::getText(
+            this, "Rename Project", "New name:", QLineEdit::Normal, currentName);
+
+        if (newName.isEmpty() || newName == currentName)
+            return;
+
+        fs::path oldPath = item->data(Qt::UserRole).toString().toStdString();
+        if (ProjectManager::instance().renameProject(oldPath, newName.toStdString())) {
+            refreshSidebar();
+            for (int i = 0; i < m_sidebarList->count(); ++i) {
+                if (m_sidebarList->item(i)->text() == newName) {
+                    m_sidebarList->setCurrentRow(i);
+                    break;
+                }
+            }
+            m_projTitleLabel->setText(newName);
+        } else {
+            appendLog("[ERROR] Rename failed. Project may already exist.");
+            updateLog();
+        }
     }
 
     void doLaunch()
@@ -253,7 +667,7 @@ class LauncherWindow : public QWidget {
         clearLog();
         updateLog();
         setProjectUiEnabled(false);
-        m_statusLabel->setText("Launching...");
+        m_statusLabel->setText("Running...");
 
         std::thread([this]() {
             std::string runner = findGameRunner();
@@ -261,38 +675,92 @@ class LauncherWindow : public QWidget {
             appendLog("$ " + runner + " " + path.string());
             QMetaObject::invokeMethod(this, [this]() { updateLog(); }, Qt::QueuedConnection);
 
-            pid_t pid = 0;
+            auto drainPipe = [this](auto readFn) {
+                char buf[512];
+                std::string partial;
+                while (true) {
+                    int n = readFn(buf, sizeof(buf) - 1);
+                    if (n <= 0)
+                        break;
+                    buf[n] = '\0';
+                    for (int i = 0; i < n; ++i) {
+                        char c = buf[i];
+                        if (c == '\r')
+                            continue;
+                        if (c == '\n') {
+                            appendLog(partial);
+                            partial.clear();
+                            QMetaObject::invokeMethod(
+                                this, [this]() { updateLog(); }, Qt::QueuedConnection);
+                        } else {
+                            partial += c;
+                        }
+                    }
+                }
+                if (!partial.empty()) {
+                    appendLog(partial);
+                    QMetaObject::invokeMethod(
+                        this, [this]() { updateLog(); }, Qt::QueuedConnection);
+                }
+            };
+
 #ifdef _WIN32
+            SECURITY_ATTRIBUTES sa{sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};
+            HANDLE hRead, hWrite;
+            CreatePipe(&hRead, &hWrite, &sa, 0);
+            SetHandleInformation(hRead, HANDLE_FLAG_INHERIT, 0);
+
             STARTUPINFOA si{};
             PROCESS_INFORMATION pi{};
             si.cb = sizeof(si);
+            si.hStdOutput = hWrite;
+            si.hStdError  = hWrite;
+            si.dwFlags    = STARTF_USESTDHANDLES;
+
             std::string cmd = "\"" + runner + "\" \"" + path.string() + "\"";
-            CreateProcessA(NULL,
-                           (char *)cmd.c_str(),
-                           NULL,
-                           NULL,
-                           FALSE,
-                           0,
-                           NULL,
-                           path.string().c_str(),
-                           &si,
-                           &pi);
-            appendLog("[OK] Game running");
+            BOOL ok = CreateProcessA(NULL, (char *)cmd.c_str(), NULL, NULL, TRUE, 0,
+                                     NULL, path.string().c_str(), &si, &pi);
+            CloseHandle(hWrite);
+            if (ok) {
+                drainPipe([&](char *b, int sz) -> int {
+                    DWORD n = 0;
+                    return ReadFile(hRead, b, sz, &n, NULL) ? (int)n : -1;
+                });
+                WaitForSingleObject(pi.hProcess, INFINITE);
+                CloseHandle(pi.hProcess);
+                CloseHandle(pi.hThread);
+            } else {
+                appendLog("[ERROR] CreateProcess failed");
+            }
+            CloseHandle(hRead);
 #else
-            pid = fork();
-            if (pid == 0) {
-                chdir(path.string().c_str());
-                execlp(runner.c_str(), runner.c_str(), path.string().c_str(), nullptr);
-                _exit(127);
-            }
-            else if (pid > 0) {
-                appendLog("[OK] Game running");
-            }
-            else {
-                appendLog("[ERROR] fork() failed");
+            int pipefd[2];
+            if (pipe(pipefd) != 0) {
+                appendLog("[ERROR] pipe() failed");
+            } else {
+                pid_t pid = fork();
+                if (pid == 0) {
+                    ::close(pipefd[0]);
+                    dup2(pipefd[1], STDOUT_FILENO);
+                    dup2(pipefd[1], STDERR_FILENO);
+                    ::close(pipefd[1]);
+                    chdir(path.string().c_str());
+                    execlp(runner.c_str(), runner.c_str(), path.string().c_str(), nullptr);
+                    _exit(127);
+                } else if (pid > 0) {
+                    ::close(pipefd[1]);
+                    drainPipe([&](char *b, int sz) -> int {
+                        return (int)read(pipefd[0], b, sz);
+                    });
+                    ::close(pipefd[0]);
+                    waitpid(pid, nullptr, 0);
+                } else {
+                    appendLog("[ERROR] fork() failed");
+                    ::close(pipefd[0]);
+                    ::close(pipefd[1]);
+                }
             }
 #endif
-
             s_busy = false;
             QMetaObject::invokeMethod(
                 this,
@@ -352,9 +820,13 @@ class LauncherWindow : public QWidget {
 
                 appendLog("--- " + plat.name + " ---");
 
-                fs::path stagingDir = dirStr.parent_path() /
-                                      (gameName + "-" + plat.name + "-dist");
-                fs::path gameSubDir = stagingDir / gameName;
+                // Staging dir named after the game, e.g. MyGame-linux/
+                std::string stagingDirName = gameName + "-" + plat.name;
+                fs::path stagingDir = dirStr.parent_path() / stagingDirName;
+
+                // The renamed game executable (MyGame or MyGame.exe)
+                std::string gameExeName =
+                    (plat.name == "windows") ? gameName + ".exe" : gameName;
 
                 std::error_code ec;
                 fs::remove_all(stagingDir, ec);
@@ -366,11 +838,13 @@ class LauncherWindow : public QWidget {
                     continue;
                 }
 
-                appendLog("Copying runtime...");
+                appendLog("Copying runtime as " + gameExeName + "...");
                 QMetaObject::invokeMethod(this, [this]() { updateLog(); }, Qt::QueuedConnection);
 
-                fs::copy_file(
-                    runtimeBin, stagingDir / plat.exe, fs::copy_options::overwrite_existing, ec);
+                fs::copy_file(runtimeBin,
+                              stagingDir / gameExeName,
+                              fs::copy_options::overwrite_existing,
+                              ec);
                 if (ec) {
                     appendLog("[ERROR] Cannot copy runtime: " + ec.message());
                     fs::remove_all(stagingDir, ec);
@@ -378,9 +852,15 @@ class LauncherWindow : public QWidget {
                         this, [this]() { updateLog(); }, Qt::QueuedConnection);
                     continue;
                 }
-                appendLog("Copied " + plat.exe);
 
-                fs::create_directories(gameSubDir, ec);
+                // Make the renamed exe executable on Linux
+                if (plat.name == "linux") {
+                    fs::permissions(stagingDir / gameExeName,
+                                    fs::perms::owner_exec | fs::perms::group_exec |
+                                        fs::perms::others_exec,
+                                    fs::perm_options::add,
+                                    ec);
+                }
 
                 if (plat.name == "windows") {
                     for (auto &e : fs::directory_iterator(runtimeDir("windows"), ec)) {
@@ -398,6 +878,7 @@ class LauncherWindow : public QWidget {
                 appendLog("Copying project files...");
                 QMetaObject::invokeMethod(this, [this]() { updateLog(); }, Qt::QueuedConnection);
 
+                // Copy assets flat beside the exe — no subfolder needed
                 std::function<void(const fs::path &, const fs::path &)> copyTree;
                 copyTree = [&](const fs::path &src, const fs::path &dst) {
                     fs::create_directories(dst, ec);
@@ -406,63 +887,39 @@ class LauncherWindow : public QWidget {
                             continue;
                         if (entry.is_directory(ec)) {
                             copyTree(entry.path(), dst / entry.path().filename());
-                        }
-                        else {
+                        } else {
                             fs::copy_file(entry.path(),
                                           dst / entry.path().filename(),
                                           fs::copy_options::overwrite_existing,
                                           ec);
                             if (!ec)
-                                appendLog("  + " + fs::relative(entry.path(), dirStr).string());
+                                appendLog("  + " +
+                                          fs::relative(entry.path(), dirStr).string());
                         }
                     }
                 };
-                copyTree(dirStr, gameSubDir);
+                copyTree(dirStr, stagingDir);
 
                 appendLog("Creating archive...");
                 QMetaObject::invokeMethod(this, [this]() { updateLog(); }, Qt::QueuedConnection);
 
                 fs::path archivePath = dirStr.parent_path() / (gameName + plat.suffix);
-                std::string stagingName = stagingDir.filename().string();
                 int ret = 0;
 
                 if (plat.name == "linux") {
-                    {
-                        fs::path launchSh = stagingDir / "launch.sh";
-                        std::ofstream f(launchSh);
-                        f << "#!/bin/bash\n"
-                          << "cd \"$(dirname \"$0\")\"\n"
-                          << "./CerekaGame \"" << gameName << "\"\n";
-                        fs::permissions(launchSh,
-                                        fs::perms::owner_exec | fs::perms::group_exec |
-                                            fs::perms::others_exec,
-                                        fs::perm_options::add,
-                                        ec);
-                    }
-                    appendLog("Created launch.sh");
-
                     std::string cmd = "tar czf \"" + archivePath.string() + "\" -C \"" +
-                                      dirStr.parent_path().string() + "\" \"" + stagingName +
-                                      "\" 2>&1";
+                                      dirStr.parent_path().string() + "\" \"" +
+                                      stagingDirName + "\" 2>&1";
                     ret = system(cmd.c_str());
                     if (ret != 0)
                         appendLog("[ERROR] tar failed");
-                }
-                else {
-                    {
-                        std::ofstream f(stagingDir / "launch.bat");
-                        f << "@echo off\r\n"
-                          << "cd /d \"%~dp0\"\r\n"
-                          << "CerekaGame.exe \"" << gameName << "\"\r\n";
-                    }
-                    appendLog("Created launch.bat");
-
+                } else {
 #ifdef _WIN32
                     std::string cmd =
                         "powershell -NoProfile -Command \"Compress-Archive -Force"
                         " -Path '" +
-                        stagingDir.string() + "' -DestinationPath '" + archivePath.string() +
-                        "\" 2>&1";
+                        stagingDir.string() + "' -DestinationPath '" +
+                        archivePath.string() + "\" 2>&1";
                     ret = system(cmd.c_str());
                     if (ret != 0)
                         appendLog("[ERROR] Compress failed");
@@ -475,8 +932,9 @@ class LauncherWindow : public QWidget {
                             this, [this]() { updateLog(); }, Qt::QueuedConnection);
                         continue;
                     }
-                    std::string cmd = "cd \"" + dirStr.parent_path().string() + "\" && zip -r \"" +
-                                      archivePath.string() + "\" \"" + stagingName + "\" 2>&1";
+                    std::string cmd =
+                        "cd \"" + dirStr.parent_path().string() + "\" && zip -r \"" +
+                        archivePath.string() + "\" \"" + stagingDirName + "\" 2>&1";
                     ret = system(cmd.c_str());
                     if (ret != 0)
                         appendLog("[ERROR] zip failed");
@@ -514,18 +972,8 @@ class LauncherWindow : public QWidget {
     void updateLog()
     {
         QString text = QString::fromStdString(s_log);
-        if (m_homeLog->toPlainText() != text)
-            m_homeLog->setPlainText(text);
-        if (m_projLog->toPlainText() != text)
-            m_projLog->setPlainText(text);
-    }
-
-    void showProjectScreen()
-    {
-        m_layout->setCurrentIndex(2);
-        m_projTitleLabel->setText(
-            QString::fromStdString(ProjectManager::instance().currentTitle()));
-        updateLog();
+        if (m_log->toPlainText() != text)
+            m_log->setPlainText(text);
     }
 
     void setProjectUiEnabled(bool enabled)
@@ -533,347 +981,38 @@ class LauncherWindow : public QWidget {
         m_launchBtn->setEnabled(enabled);
     }
 
-   private:
-    void createWelcomeScreen()
-    {
-        QWidget *welcome = new QWidget();
-        welcome->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        QVBoxLayout *v = new QVBoxLayout(welcome);
-        v->setSpacing(16);
-        v->setContentsMargins(40, 40, 40, 40);
+    // ── Members ───────────────────────────────────────────────────────────────
 
-        v->addStretch();
+    QListWidget *m_sidebarList = nullptr;
+    QPushButton *m_changeFolderBtn = nullptr;
 
-        QLabel *hero = new QLabel("CEREKA");
-        QFont heroFont;
-        heroFont.setPointSize(40);
-        heroFont.setBold(true);
-        hero->setFont(heroFont);
-        hero->setStyleSheet("color: #b8944a; letter-spacing: 10px;");
-        v->addWidget(hero, 0, Qt::AlignCenter);
+    QStackedWidget *m_contentStack = nullptr;
+    QLabel *m_emptyTitle = nullptr;
+    QLabel *m_emptyDesc = nullptr;
 
-        QLabel *tagline = new QLabel("Visual Novel Engine");
-        tagline->setStyleSheet("color: #777; font-size: 14px; letter-spacing: 3px;");
-        v->addWidget(tagline, 0, Qt::AlignCenter);
+    QLabel *m_projTitleLabel = nullptr;
+    QPushButton *m_launchBtn = nullptr;
+    QLabel *m_statusLabel = nullptr;
+    QTextEdit *m_log = nullptr;
 
-        v->addSpacing(40);
-
-        QLabel *welcomeText = new QLabel("Welcome!");
-        welcomeText->setStyleSheet("color: white; font-size: 20px; font-weight: 600;");
-        v->addWidget(welcomeText, 0, Qt::AlignCenter);
-
-        QLabel *descText = new QLabel("Select a folder where all your projects will be stored.");
-        descText->setStyleSheet("color: #999; font-size: 14px;");
-        descText->setAlignment(Qt::AlignCenter);
-        v->addWidget(descText, 0, Qt::AlignCenter);
-
-        v->addSpacing(24);
-
-        QPushButton *selectBtn = new QPushButton("Select Projects Folder");
-        selectBtn->setMinimumHeight(48);
-        selectBtn->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-        selectBtn->setStyleSheet(R"(
-            QPushButton {
-                background-color: #b8944a; color: white; border: none;
-                border-radius: 8px; padding: 12px 32px; font-size: 15px; font-weight: 600;
-            }
-            QPushButton:hover { background-color: #c8a55c; }
-        )");
-        connect(selectBtn, &QPushButton::clicked, this, &LauncherWindow::doSelectProjectsDir);
-        v->addWidget(selectBtn, 0, Qt::AlignCenter);
-
-        v->addStretch();
-
-        m_layout->addWidget(welcome);
-    }
-
-    void createHomeScreen()
-    {
-        QWidget *home = new QWidget();
-        home->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        QVBoxLayout *v = new QVBoxLayout(home);
-        v->setSpacing(16);
-        v->setContentsMargins(40, 32, 40, 32);
-
-        QLabel *hero = new QLabel("CEREKA");
-        QFont heroFont;
-        heroFont.setPointSize(28);
-        heroFont.setBold(true);
-        hero->setFont(heroFont);
-        hero->setStyleSheet("color: #b8944a; letter-spacing: 8px;");
-        v->addWidget(hero, 0, Qt::AlignCenter);
-
-        QLabel *tagline = new QLabel("Visual Novel Engine");
-        tagline->setStyleSheet("color: #777; font-size: 13px; letter-spacing: 2px;");
-        v->addWidget(tagline, 0, Qt::AlignCenter);
-        v->addSpacing(20);
-
-        QLabel *dirLabel = new QLabel("Projects Folder:");
-        dirLabel->setStyleSheet(
-            "color: #888; font-size: 11px; font-weight: 500; text-transform: uppercase; "
-            "letter-spacing: 2px;");
-        v->addWidget(dirLabel);
-
-        QHBoxLayout *dirRow = new QHBoxLayout();
-        dirRow->setSpacing(8);
-        m_projectsDirLabel = new QLabel();
-        m_projectsDirLabel->setStyleSheet("color: #aaa; font-size: 13px;");
-        m_projectsDirLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        dirRow->addWidget(m_projectsDirLabel, 1);
-
-        QPushButton *changeBtn = new QPushButton("Change");
-        changeBtn->setFixedWidth(80);
-        changeBtn->setMinimumHeight(32);
-        changeBtn->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-        changeBtn->setStyleSheet(R"(
-            QPushButton {
-                background-color: #3a3a4a; color: white; border: none;
-                border-radius: 6px; padding: 0 12px; font-size: 12px;
-            }
-            QPushButton:hover { background-color: #4a4a5a; }
-        )");
-        connect(changeBtn, &QPushButton::clicked, this, &LauncherWindow::doChangeProjectsDir);
-        dirRow->addWidget(changeBtn);
-        v->addLayout(dirRow);
-
-        QLabel *projectsLabel = new QLabel("Projects");
-        projectsLabel->setStyleSheet(
-            "color: #888; font-size: 11px; font-weight: 500; text-transform: uppercase; "
-            "letter-spacing: 2px;");
-        v->addWidget(projectsLabel);
-
-        m_projectsList = new QListWidget();
-        m_projectsList->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        m_projectsList->setStyleSheet(R"(
-            QListWidget {
-                background-color: #2a2a3a; border: 1px solid #3a3a4a;
-                border-radius: 8px; padding: 6px; outline: none;
-            }
-            QListWidget::item {
-                padding: 10px 14px; border-radius: 4px; margin: 2px 0;
-            }
-            QListWidget::item:selected {
-                background-color: #b8944a; color: white;
-            }
-            QListWidget::item:hover:!selected { background-color: #333344; }
-        )");
-        connect(
-            m_projectsList, &QListWidget::itemDoubleClicked, this, &LauncherWindow::doOpenProject);
-        connect(
-            m_projectsList, &QListWidget::itemClicked, this, &LauncherWindow::onProjectSelected);
-        v->addWidget(m_projectsList, 1);
-
-        QHBoxLayout *actions = new QHBoxLayout();
-        actions->setSpacing(8);
-
-        QPushButton *newBtn = new QPushButton("+ New Project");
-        newBtn->setMinimumHeight(40);
-        newBtn->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-        newBtn->setStyleSheet(R"(
-            QPushButton {
-                background-color: #b8944a; color: white; border: none;
-                border-radius: 6px; padding: 8px 16px; font-size: 13px; font-weight: 600;
-            }
-            QPushButton:hover { background-color: #c8a55c; }
-        )");
-        connect(newBtn, &QPushButton::clicked, this, &LauncherWindow::doNewProject);
-        actions->addWidget(newBtn);
-
-        QPushButton *renameBtn = new QPushButton("Rename Project");
-        renameBtn->setMinimumHeight(40);
-        renameBtn->setEnabled(false);
-        renameBtn->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-        renameBtn->setStyleSheet(R"(
-            QPushButton {
-                background-color: #3a3a4a; color: white; border: none;
-                border-radius: 6px; padding: 8px 14px; font-size: 13px;
-            }
-            QPushButton:hover:enabled { background-color: #4a4a5a; }
-            QPushButton:disabled { background-color: #2a2a3a; color: #555; }
-        )");
-        connect(renameBtn, &QPushButton::clicked, this, &LauncherWindow::doRenameProject);
-        m_renameBtn = renameBtn;
-        actions->addWidget(renameBtn);
-
-        QPushButton *openBtn = new QPushButton("Open Project");
-        openBtn->setMinimumHeight(40);
-        openBtn->setEnabled(false);
-        openBtn->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-        openBtn->setStyleSheet(R"(
-            QPushButton {
-                background-color: #3a3a4a; color: white; border: none;
-                border-radius: 6px; padding: 8px 14px; font-size: 13px;
-            }
-            QPushButton:hover:enabled { background-color: #4a4a5a; }
-            QPushButton:disabled { background-color: #2a2a3a; color: #555; }
-        )");
-        connect(openBtn, &QPushButton::clicked, this, &LauncherWindow::doOpenProject);
-        m_openBtn = openBtn;
-        actions->addWidget(openBtn);
-
-        actions->addStretch();
-        v->addLayout(actions);
-
-        m_homeLog = new QTextEdit();
-        m_homeLog->setReadOnly(true);
-        m_homeLog->setMaximumHeight(70);
-        m_homeLog->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        m_homeLog->setPlaceholderText("Activity log...");
-        m_homeLog->setStyleSheet(R"(
-            QTextEdit {
-                background-color: #2a2a3a; border: 1px solid #3a3a4a;
-                border-radius: 8px; padding: 10px; font-size: 12px; color: #999;
-            }
-        )");
-        v->addWidget(m_homeLog);
-
-        m_layout->addWidget(home);
-    }
-
-    void onProjectSelected()
-    {
-        bool hasSelection = m_projectsList->currentItem() != nullptr;
-        m_renameBtn->setEnabled(hasSelection);
-        m_openBtn->setEnabled(hasSelection);
-    }
-
-    void createProjectScreen()
-    {
-        QWidget *proj = new QWidget();
-        proj->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        QVBoxLayout *v = new QVBoxLayout(proj);
-        v->setContentsMargins(20, 20, 20, 20);
-        v->setSpacing(12);
-
-        QHBoxLayout *header = new QHBoxLayout();
-        header->setSpacing(8);
-
-        QPushButton *backBtn = new QPushButton("< Back");
-        backBtn->setFixedWidth(70);
-        backBtn->setMinimumHeight(30);
-        backBtn->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-        backBtn->setStyleSheet(R"(
-            QPushButton {
-                background-color: #3a3a4a; color: white; border: none;
-                border-radius: 6px; padding: 0 12px; font-size: 12px;
-            }
-            QPushButton:hover { background-color: #4a4a5a; }
-        )");
-        connect(backBtn, &QPushButton::clicked, this, &LauncherWindow::doBack);
-        header->addWidget(backBtn);
-
-        QFont headerFont;
-        headerFont.setBold(true);
-        headerFont.setPointSize(13);
-        QLabel *logo = new QLabel("CEREKA");
-        logo->setFont(headerFont);
-        logo->setStyleSheet("color: #b8944a; letter-spacing: 3px;");
-        header->addWidget(logo);
-
-        m_projTitleLabel = new QLabel();
-        m_projTitleLabel->setFont(headerFont);
-        m_projTitleLabel->setStyleSheet("color: white;");
-        m_projTitleLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        header->addWidget(m_projTitleLabel);
-        header->addStretch();
-
-        QPushButton *renameBtn = new QPushButton("Rename Project");
-        renameBtn->setMinimumHeight(30);
-        renameBtn->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-        renameBtn->setStyleSheet(R"(
-            QPushButton {
-                background-color: #3a3a4a; color: white; border: none;
-                border-radius: 6px; padding: 0 12px; font-size: 12px;
-            }
-            QPushButton:hover { background-color: #4a4a5a; }
-        )");
-        connect(renameBtn, &QPushButton::clicked, this, &LauncherWindow::doRenameProject);
-        header->addWidget(renameBtn);
-        v->addLayout(header);
-
-        QFrame *sep = new QFrame();
-        sep->setFrameShape(QFrame::HLine);
-        sep->setStyleSheet("color: #3a3a4a;");
-        v->addWidget(sep);
-
-        QHBoxLayout *actions = new QHBoxLayout();
-        actions->setSpacing(8);
-
-        m_launchBtn = new QPushButton("Launch Game");
-        m_launchBtn->setMinimumHeight(42);
-        m_launchBtn->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-        m_launchBtn->setStyleSheet(R"(
-            QPushButton {
-                background-color: #b8944a; color: white; border: none;
-                border-radius: 6px; padding: 10px 20px; font-size: 14px; font-weight: 600;
-            }
-            QPushButton:hover { background-color: #c8a55c; }
-        )");
-        connect(m_launchBtn, &QPushButton::clicked, this, &LauncherWindow::doLaunch);
-        actions->addWidget(m_launchBtn);
-
-        QPushButton *packageBtn = new QPushButton("Package");
-        packageBtn->setMinimumHeight(42);
-        packageBtn->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-        QMenu *menu = new QMenu(packageBtn);
-        QAction *linuxAct = menu->addAction("Package for Linux");
-        QAction *winAct = menu->addAction("Package for Windows");
-        menu->addSeparator();
-        QAction *allAct = menu->addAction("Package All");
-        connect(linuxAct, &QAction::triggered, [this]() { doPackage("linux"); });
-        connect(winAct, &QAction::triggered, [this]() { doPackage("windows"); });
-        connect(allAct, &QAction::triggered, [this]() { doPackage(); });
-        packageBtn->setMenu(menu);
-        packageBtn->setStyleSheet(R"(
-            QPushButton {
-                background-color: #3a3a4a; color: white; border: none;
-                border-radius: 6px; padding: 10px 16px; font-size: 13px;
-            }
-            QPushButton:hover { background-color: #4a4a5a; }
-            QPushButton::menu-indicator { subcontrol-position: right center; subcontrol-origin: padding; right: 10px; }
-        )");
-        actions->addWidget(packageBtn);
-        actions->addStretch();
-        v->addLayout(actions);
-
-        m_statusLabel = new QLabel();
-        m_statusLabel->setStyleSheet("color: #888; font-size: 12px;");
-        v->addWidget(m_statusLabel, 0, Qt::AlignCenter);
-
-        m_projLog = new QTextEdit();
-        m_projLog->setReadOnly(true);
-        m_projLog->setPlaceholderText("Activity log...");
-        m_projLog->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        m_projLog->setStyleSheet(R"(
-            QTextEdit {
-                background-color: #2a2a3a; border: 1px solid #3a3a4a;
-                border-radius: 8px; padding: 10px; font-size: 12px; color: #999;
-            }
-        )");
-        v->addWidget(m_projLog, 1);
-
-        m_layout->addWidget(proj);
-    }
-
-    QStackedLayout *m_layout;
-
-    QLabel *m_projectsDirLabel;
-    QListWidget *m_projectsList;
-    QPushButton *m_renameBtn;
-    QPushButton *m_openBtn;
-    QTextEdit *m_homeLog;
-
-    QLabel *m_projTitleLabel;
-    QPushButton *m_launchBtn;
-    QLabel *m_statusLabel;
-    QTextEdit *m_projLog;
+    QGraphicsOpacityEffect *m_contentOpacity = nullptr;
+    QPropertyAnimation *m_fadeAnim = nullptr;
+    int m_pendingPage = -1;
 };
 
 #include "main.moc"
 
-int main(int argc,
-         char **argv)
+int main(int argc, char **argv)
 {
+    std::string logPath = (selfExeDir() / "cereka_launcher.log").string();
+    if (FILE *lf = std::fopen(logPath.c_str(), "w")) {
+        std::fclose(lf);
+        std::freopen(logPath.c_str(), "w", stdout);
+        std::freopen(logPath.c_str(), "a", stderr);
+        std::setvbuf(stdout, nullptr, _IOLBF, 0);
+        std::setvbuf(stderr, nullptr, _IOLBF, 0);
+    }
+
     QApplication app(argc, argv);
     LauncherWindow w;
     w.show();

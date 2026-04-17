@@ -43,7 +43,7 @@ ${EMBED_BGM}
 ${EMBED_FONT}
 ")
 
-add_executable(CerekaLauncher
+add_executable(CerekaLauncher WIN32
     main.cpp
     config.cpp
     project_manager.cpp

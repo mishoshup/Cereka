@@ -7,7 +7,28 @@
 #include <string>
 #include <unordered_map>
 
+#ifdef _WIN32
+#    include <windows.h>
+#else
+#    include <unistd.h>
+#endif
+
 namespace fs = std::filesystem;
+
+static fs::path exeDir()
+{
+#ifdef _WIN32
+    char buf[MAX_PATH] = {};
+    GetModuleFileNameA(NULL, buf, MAX_PATH);
+    return fs::path(buf).parent_path();
+#else
+    char buf[2048] = {};
+    ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+    if (len > 0)
+        return fs::path(std::string(buf, len)).parent_path();
+    return fs::current_path();
+#endif
+}
 
 // ---------------------------------------------------------------------------
 // Minimal key = value config parser
@@ -78,7 +99,7 @@ int main(int argc,
     if (argc >= 2)
         projectRoot = fs::absolute(argv[1]).lexically_normal().string();
     else
-        projectRoot = fs::current_path().lexically_normal().string();
+        projectRoot = exeDir().lexically_normal().string();
 
     L("projectRoot = " + projectRoot);
 
