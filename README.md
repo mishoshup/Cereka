@@ -34,7 +34,9 @@ cd cereka-linux
 
 ### Prerequisites
 
-Everything is vendored — the only requirements are a C++ compiler, CMake, and Ninja.
+SDL3, sol2, Lua, and ImGui are all vendored. The only external requirement is **Qt6** (used by the launcher) — install it once via [aqtinstall](https://github.com/miurahr/aqtinstall) and CMake will find it automatically.
+
+#### 1. Compiler, CMake, Ninja
 
 **Linux**
 ```
@@ -43,10 +45,28 @@ g++ or clang++ (C++17+)   cmake (3.24+)   ninja   git
 On Arch: `sudo pacman -S base-devel cmake ninja`  
 On Ubuntu/Debian: `sudo apt install build-essential cmake ninja-build`
 
-**Windows (native)** — install [MSYS2](https://www.msys2.org/), then from an UCRT64 shell:
+**Windows (native)** — install [MSYS2](https://www.msys2.org/), then from a UCRT64 shell:
 ```
 pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja
 ```
+
+#### 2. Qt6
+
+**Linux**
+```bash
+# Install pipx if needed: sudo pacman -S python-pipx  (Arch)
+#                          sudo apt install pipx       (Ubuntu/Debian)
+pipx install aqtinstall
+aqt install-qt linux desktop 6.8.3 linux_gcc_64 -O ~/Qt
+```
+
+**Windows** — from a regular Command Prompt or PowerShell:
+```bat
+pip install aqtinstall
+aqt install-qt windows desktop 6.8.3 win64_msvc2022_64 -O C:\Qt
+```
+
+CMake defaults to these install paths. If you installed Qt elsewhere, pass `-DCMAKE_PREFIX_PATH=/your/qt/path` when configuring.
 
 ### Build
 
@@ -248,7 +268,7 @@ Paths are relative to the including file. Max depth: 32.
 cereka/
   src/         — Cereka engine library (C++)
   runner/      — CerekaGame executable
-  launcher/    — CerekaLauncher (ImGui project manager)
+  launcher/    — CerekaLauncher (Qt6 project manager)
   scripts/     — compiler.lua (.crka → bytecode, embedded at build time)
   vendor/      — SDL3, SDL3_ttf, SDL3_mixer, SDL3_image, sol2, ImGui, Lua 5.4
   include/     — public API headers

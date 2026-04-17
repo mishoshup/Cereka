@@ -1,20 +1,16 @@
 cmake_minimum_required(VERSION 3.16)
 project(Cereka LANGUAGES CXX)
 
+set(CEREKA_QT_VERSION "6.8.3" CACHE STRING "Qt version installed via aqtinstall")
+if(WIN32)
+    list(APPEND CMAKE_PREFIX_PATH "C:/Qt/${CEREKA_QT_VERSION}/win64_msvc2022_64")
+else()
+    list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/Qt/${CEREKA_QT_VERSION}/linux_gcc_64")
+endif()
+
 find_package(Qt6 COMPONENTS Widgets REQUIRED)
 
 set(CMAKE_AUTOMOC ON)
-
-set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../vendor/imgui")
-
-set(IMGUI_SOURCES
-    ${IMGUI_DIR}/imgui.cpp
-    ${IMGUI_DIR}/imgui_draw.cpp
-    ${IMGUI_DIR}/imgui_tables.cpp
-    ${IMGUI_DIR}/imgui_widgets.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_sdl3.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_sdlrenderer3.cpp
-)
 
 set(ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/template_assets)
 set(EMBED_HEADER ${CMAKE_CURRENT_BINARY_DIR}/embedded_assets.h)
@@ -51,18 +47,13 @@ add_executable(CerekaLauncher
     main.cpp
     config.cpp
     project_manager.cpp
-    ${IMGUI_SOURCES}
 )
 
 target_include_directories(CerekaLauncher PRIVATE
-    ${IMGUI_DIR}
-    ${IMGUI_DIR}/backends
-    ${CMAKE_CURRENT_SOURCE_DIR}/../vendor/SDL/include
-    ${CMAKE_BINARY_DIR}/../vendor/SDL/include-revision
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-target_link_libraries(CerekaLauncher PRIVATE Qt6::Widgets SDL3::SDL3)
+target_link_libraries(CerekaLauncher PRIVATE Qt6::Widgets)
 
 target_compile_features(CerekaLauncher PRIVATE cxx_std_17)
 
