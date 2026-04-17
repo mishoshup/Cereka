@@ -9,4 +9,5 @@ add_subdirectory(vendor)
 add_subdirectory(src)
 add_subdirectory(runner)
 add_subdirectory(launcher)
+add_subdirectory(tests)
 

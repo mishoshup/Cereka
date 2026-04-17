@@ -101,8 +101,8 @@ void Impl::HandleEvent(const CerekaEvent &e)
     }
 
     // Save/Load overlay — intercept all input while overlay is open
-    if (state == CerekaState::SaveMenu || state == CerekaState::LoadMenu) {
-        bool isSaving = (state == CerekaState::SaveMenu);
+    if (state == CerekaState::SaveMenuState || state == CerekaState::LoadMenuState) {
+        bool isSaving = (state == CerekaState::SaveMenuState);
         if (e.type == CerekaEvent::KeyDown && e.key == SDLK_ESCAPE) {
             state = stateBeforeSaveMenu;
             return;
@@ -126,7 +126,7 @@ void Impl::HandleEvent(const CerekaEvent &e)
     if (e.type == CerekaEvent::KeyDown && e.key == SDLK_ESCAPE) {
         if (state == CerekaState::WaitingForInput || state == CerekaState::Running) {
             stateBeforeSaveMenu = state;
-            state = CerekaState::SaveMenu;
+            state = CerekaState::SaveMenuState;
             return;
         }
     }
@@ -483,13 +483,13 @@ void Impl::TickScript()
 
             case scenario::Op::SAVE_MENU:
                 stateBeforeSaveMenu = state;
-                state = CerekaState::SaveMenu;
+                state = CerekaState::SaveMenuState;
                 pc++;
                 return;
 
             case scenario::Op::LOAD_MENU:
                 stateBeforeSaveMenu = state;
-                state = CerekaState::LoadMenu;
+                state = CerekaState::LoadMenuState;
                 pc++;
                 return;
 

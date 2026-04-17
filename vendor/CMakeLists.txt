@@ -16,6 +16,9 @@ set(LUA_BUILD_COMPILER  OFF CACHE BOOL "" FORCE)
 set(LUA_ENABLE_SHARED   OFF CACHE BOOL "" FORCE)
 add_subdirectory(lua)
 
+# Glaze — header-only JSON/TOML serialization library
+add_subdirectory(glaze)
+
 # Route vendor DLLs alongside CerekaGame so they are found at runtime
 # and packaged together when distributing.
 if(WIN32)
@@ -33,4 +36,5 @@ target_link_libraries(vendor INTERFACE
     SDL3_ttf::SDL3_ttf
     SDL3_mixer::SDL3_mixer
     Lua::Library
-    sol2)
+    sol2
+    glaze::glaze)

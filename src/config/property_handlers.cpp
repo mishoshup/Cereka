@@ -177,7 +177,11 @@ std::string serializeColor(const SDL_Color &val)
 std::string serializeDim(const Dim &val)
 {
     if (val.relative) {
-        return std::to_string(val.value * 100) + "%";
+        float pct = val.value * 100.0f;
+        if (pct == static_cast<int>(pct)) {
+            return std::to_string(static_cast<int>(pct)) + "%";
+        }
+        return std::to_string(pct) + "%";
     }
     return std::to_string(val.value);
 }

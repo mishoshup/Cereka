@@ -165,7 +165,12 @@ std::string ConfigManager::getValue(const std::string &key) const
     // Helper to serialize Dim
     auto serializeDim = [](const Dim &d) -> std::string {
         if (d.relative) {
-            return std::to_string(d.value * 100) + "%";
+            float pct = d.value * 100.0f;
+            int rounded = static_cast<int>(pct + 0.5f);
+            if (pct >= rounded - 0.001f && pct <= rounded + 0.001f) {
+                return std::to_string(rounded) + "%";
+            }
+            return std::to_string(pct) + "%";
         }
         return std::to_string(d.value);
     };
