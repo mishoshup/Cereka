@@ -1,6 +1,7 @@
 // script_vm.cpp — script VM: TickScript, Update (typewriter + fade), Load, Reset
 
 #include "engine_impl.hpp"
+#include <algorithm>
 
 // ---------------------------------------------------------------------------
 // Script loading
@@ -131,7 +132,10 @@ void Impl::HandleEvent(const CerekaEvent &e)
     }
 
     if (state == CerekaState::WaitingForInput &&
-        (e.type == CerekaEvent::MouseDown || e.type == CerekaEvent::KeyDown))
+        (e.type == CerekaEvent::MouseDown ||
+         (e.type == CerekaEvent::KeyDown &&
+          std::find(uiCfg.advanceKeys.begin(), uiCfg.advanceKeys.end(), (SDL_Keycode)e.key) !=
+              uiCfg.advanceKeys.end())))
     {
         state = CerekaState::Running;
         return;

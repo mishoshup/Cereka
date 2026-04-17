@@ -65,8 +65,19 @@ function compile(script_text)
             goto continue
         end
 
-        -- UI BLOCK  (ui textbox / ui namebox / ui button / ui font)
-        if l:match("^ui%s+") then
+        -- UI BLOCK  (ui textbox / ui namebox / ui button / ui font / ui advance_keys)
+        if l:match("^ui%s+advance_keys%s+") then
+            local keys = l:match("^ui%s+advance_keys%s+(.*)")
+            if keys then
+                table.insert(instructions, { op = "UI_SET", a = "advance_keys", b = trim(keys) })
+            end
+            i = i + 1
+            goto continue
+        elseif l:match("^ui%s+advance_keys$") then
+            table.insert(instructions, { op = "UI_SET", a = "advance_keys", b = "space enter" })
+            i = i + 1
+            goto continue
+        elseif l:match("^ui%s+") then
             local element     = l:match("^ui%s+(%S+)")
             local block_indent = get_indent(raw)
             i = i + 1
