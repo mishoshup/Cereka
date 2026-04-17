@@ -5,79 +5,303 @@
 - **Custom script only** (`.crka`) — no external languages
 - **Sensible defaults** — works great out of the box
 - **Highly customizable** — power users can override/tweak everything
+- **Enterprise maintainability** — scalable, testable, extensible for mobile (Android/iOS)
 - Goal: As powerful as Ren'Py but custom script only
-
-## Core Architecture Decisions
-
-### Script Language
-
-- Indent-based blocks (Ren'Py-style)
-- `.crka` files with compile-time include system
-- Hyprland-like import system for screens/widgets
-
-### Screen System (First-Class Citizen)
-
-- Screens are hierarchical layout trees
-- Built-in screens auto-available
-- User override allowed (like Ren'Py)
-- ATL transforms work on screens
-
-### Widget System
-
-- Widgets defined with indent-based DSL
-- Sensible defaults out of the box
-- Override allowed with full customization
-- Screen-like definition syntax
-
-### ATL (Animation & Transformation Language)
-
-- Full ATL support (Ren'Py-equivalent)
-- Works on: characters, backgrounds, screens
-- Ease functions: linear, ease-in, ease-out, ease-in-out
-
-### Audio Architecture
-
-- 4-channel mixing: BGM, Voice, SFX, Master
-- Per-channel volume control
-- Fade in/out support
 
 ---
 
-## Sprint 1: Foundation
+## Architecture Overview
 
-### ~~1.1 Variables: Numeric + Arithmetic~~
+### Design Principles
 
-- ~~Operators: `+`, `-`, `*`, `/`, `%`~~
-- ~~Comparisons: `==`, `!=`, `>`, `<`, `>=`, `<=`~~
-- ~~Bonus: `{var}` substitution in text~~
+1. **Modularity**: Each system (state, config, input) is isolated and testable
+2. **Abstraction**: Platform-specific code behind interfaces
+3. **Configuration-driven**: Sensible defaults, everything overridable via `ui.crka`
+4. **Testable**: Unit tests for core logic
 
-### 1.2 Audio: 4-Channel Mixer
+### Directory Structure (Target)
+
+```
+src/
+├── Cereka/                  # Public API headers
+├── engine/                  # Core engine (platform-agnostic)
+│   ├── engine.hpp          # Main engine class
+│   ├── engine.cpp
+│   └── impl/               # Implementation details
+│       ├── scene_state.hpp    # Scene (bg, characters)
+│       ├── dialog_state.hpp    # Dialogue/text state
+│       ├── menu_state.hpp      # Menu/choices
+│       ├── audio_state.hpp     # Audio manager
+│       └── vm_state.hpp        # Script VM state
+├── state/                  # State machine system
+│   ├── state_machine.hpp
+│   ├── i_state.hpp         # State interface
+│   ├── running_state.cpp
+│   ├── waiting_state.cpp
+│   ├── menu_state.cpp
+│   ├── fade_state.cpp
+│   └── overlay_state.cpp   # Save/load menus
+├── config/                 # Configuration system
+│   ├── config_manager.hpp
+│   └── property_parsers.hpp
+├── input/                  # Input abstraction
+│   ├── input_manager.hpp   # Unified input interface
+│   └── input_desktop.cpp   # Keyboard/mouse
+├── events/                 # Event system
+│   └── event_bus.hpp
+├── platform/               # Platform abstraction (placeholder)
+│   └── platform.hpp
+├── renderer/               # Rendering system
+│   └── draw_manager.hpp
+├── compiler/              # Script compiler
+│   ├── vn_instruction.hpp
+│   └── compiler.lua        # Embedded Lua compiler
+└── tests/                  # Unit tests
+    ├── config_test.cpp
+    ├── state_machine_test.cpp
+    └── vm_test.cpp
+```
+
+---
+
+## Phase 0: Refactoring (Foundation)
+
+> **Critical**: Complete before adding features to prevent technical debt.
+
+### 0.1 Config System Refactor
+
+**Problem**: `ApplyUiSet()` if-else chain doesn't scale with new properties.
+
+**Solution**: Property Map Pattern with validation.
+
+```cpp
+namespace config {
+
+struct PropertyDescriptor {
+    std::string key;
+    std::string description;
+    std::function<void(const std::string&)> apply;
+};
+
+class ConfigManager {
+    std::vector<PropertyDescriptor> properties;
+public:
+    void registerProperty(PropertyDescriptor prop);
+    void apply(const std::string& key, const std::string& val);
+    void serialize(std::ostream& os);
+    void deserialize(std::istream& is);
+};
+
+} // namespace config
+```
+
+**Benefits**:
+- Self-documenting (description field)
+- Compile-time validation
+- Easy to add new properties
+- Serializable for save files
+
+**Implementation**: Replace `ApplyUiSet()` with `ConfigManager::registerProperty()` calls.
+
+---
+
+### 0.2 State Machine Refactor
+
+**Problem**: `stateBeforeSaveMenu` antipattern, monolithic `HandleEvent()`.
+
+**Solution**: Full Hierarchical State Machine (HSM) pattern.
+
+```cpp
+namespace state {
+
+class IState {
+public:
+    virtual ~IState() = default;
+    virtual void onEnter() {}
+    virtual void onExit() {}
+    virtual void update(float dt) = 0;
+    virtual void handleEvent(const CerekaEvent& e) = 0;
+    virtual void draw() = 0;
+    virtual CerekaState getType() const = 0;
+};
+
+class StateMachine {
+    std::vector<std::unique_ptr<IState>> stateStack; // For overlays
+
+public:
+    void push(std::unique_ptr<IState> state);   // Overlay states
+    void replace(std::unique_ptr<IState> state); // Transitions
+    void pop();                                  // Return from overlay
+    void update(float dt);
+    void handleEvent(const CerekaEvent& e);
+    void draw();
+    IState* current() const;
+};
+
+} // namespace state
+```
+
+**State implementations**:
+| State | Description |
+|-------|-------------|
+| `RunningState` | Normal dialogue execution |
+| `WaitingState` | Waiting for user to advance |
+| `MenuState` | Choice menu displayed |
+| `FadeState` | Background/character transitions |
+| `SaveMenuState` | Save overlay (stackable) |
+| `LoadMenuState` | Load overlay (stackable) |
+| `FinishedState` | Script ended naturally |
+| `QuitState` | User closed window |
+
+**Benefits**:
+- Each state isolated with enter/exit hooks
+- Overlay states naturally stack
+- No more `stateBeforeSaveMenu` hack
+- Easy to add new states
+
+---
+
+### 0.3 Testing Framework
+
+**Setup**: GoogleTest (gtest)
+
+```cmake
+# tests/CMakeLists.txt
+add_executable(cereka_test
+    config_test.cpp
+    state_machine_test.cpp
+    vm_test.cpp
+)
+target_link_libraries(cereka_test PRIVATE Cereka gtest)
+include(GoogleTest)
+gtest_discover_tests(cereka_test)
+```
+
+**Test coverage**:
+| Component | Tests |
+|-----------|-------|
+| ConfigManager | Property registration, parsing, serialization |
+| StateMachine | State transitions, push/pop, event handling |
+| ScriptVM | Instruction execution, variables, labels |
+| Compiler | Lua parsing, instruction generation |
+
+---
+
+### 0.4 Component Split
+
+**Problem**: `CerekaImpl` is a god class with 40+ members.
+
+**Solution**: Split into focused components.
+
+```
+engine/impl/
+├── scene_state.hpp      # background, characters
+├── dialog_state.hpp     # currentText, typewriter, speaker
+├── menu_state.hpp       # buttons, targets
+├── audio_state.hpp      # BGM, SFX tracks
+└── vm_state.hpp         # program, pc, variables, labels
+```
+
+**Benefits**:
+- Clear ownership of data
+- Easier to test individual components
+- Parallel development
+
+---
+
+### 0.5 Event Bus
+
+**Problem**: Hard-coded event flow between systems.
+
+**Solution**: Decoupled event system.
+
+```cpp
+class EventBus {
+    std::vector<std::function<void(const CerekaEvent&)>> listeners;
+public:
+    void subscribe(std::function<void(const CerekaEvent&)> handler);
+    void emit(const CerekaEvent& e);
+    void unsubscribeAll();
+};
+```
+
+**Usage**:
+```cpp
+eventBus.subscribe([](const CerekaEvent& e) {
+    if (e.type == CerekaEvent::KeyDown && e.key == config.advanceKeys[0])
+        stateMachine.current()->onAdvance();
+});
+```
+
+**Benefits**:
+- Decouples input from logic
+- Mobile touch events can emit same bus
+- Easy to add keybindings
+
+---
+
+### 0.6 Platform Abstraction (Placeholder)
+
+**Purpose**: Prepare for Android/iOS.
+
+```cpp
+namespace platform {
+
+class IPlatform {
+public:
+    virtual ~IPlatform() = default;
+    virtual std::string getStoragePath() = 0;
+    virtual std::string getAssetPath() = 0;
+    virtual void vibrate(int ms) = 0;
+    virtual void showKeyboard() = 0;
+    // Future: getScreenDPI(), getDeviceId(), etc.
+};
+
+class PlatformDesktop : public IPlatform { /* ... */ };
+class PlatformAndroid : public IPlatform { /* TODO */ };
+class PlatformIOS : public IPlatform { /* TODO */ };
+
+} // namespace platform
+```
+
+**Note**: Desktop implementation only for now. Mobile is future.
+
+---
+
+## Phase 1: Foundation Features
+
+> **Note**: Phase 0 must be complete before these.
+
+### 1.1 Audio: 4-Channel Mixer
 
 - Channels: `bgm`, `voice`, `sfx`, `master`
 - Volume: 0.0 to 1.0
 - Preferences persist across sessions
-- `SetVolume` action for screens
 
-### 1.3 Audio: Fade In/Out
+### 1.2 Audio: Fade In/Out
 
 ```
 bgm music.ogg fade 2.0
 stop_bgm fade 1.0
-SetVolume("bgm", 0.5, fade=1.0)
 ```
 
-### 1.4 Voice Lines
+### 1.3 Voice Lines
 
 ```
 voice "alice_01.ogg"
 say alice "Hello!"
-; Voice auto-plays with dialogue
-; Uses voice volume channel
+```
+
+### 1.4 wait/pause
+
+```
+wait 2.0              ; wait N seconds
+wait for voice        ; wait for voice line to finish
 ```
 
 ---
 
-## Sprint 2: ATL Core
+## Phase 2: ATL Core
 
 ### 2.1 ATL Transforms (Characters)
 
@@ -85,35 +309,25 @@ say alice "Hello!"
 char eileen happy center with dissolve
 char alice surprised left with fade
 char bob thinking right with ease-in move
-char cathy happy center with zoom 1.5
-char dave neutral left with rotate 15
 ```
-
-- Transform types: `dissolve`, `fade`, `move`, `zoom`, `rotate`
-- Duration: default 0.5s or explicit
-- Ease: linear, ease-in, ease-out, ease-in-out
 
 ### 2.2 ATL Transforms (Backgrounds)
 
 ```
 bg park with dissolve
 bg beach with flash
-bg city with fade
 ```
-
-- Also supports: `vpunch`, `hpunch`, `shake`
 
 ### 2.3 ATL Transforms (Screens)
 
 ```
 show screen quick_menu with slideawayleft
-show screen inventory with fade
 hide screen settings with slideawayright
 ```
 
 ---
 
-## Sprint 3: Text & UI
+## Phase 3: Text & UI
 
 ### 3.1 Text Markup
 
@@ -121,11 +335,8 @@ hide screen settings with slideawayright
 say alice "{b}Bold{/b}"
 say bob "{i}Italic{/i}"
 say cathy "{color=ff0000}Red{/color}"
-say dave "Click to continue.{nw}"
-say eve "{cps=30}Slow{/cps}"
+say dave "{cps=30}Slow{/cps}"
 ```
-
-- Bonus: `{var}` already implemented ✅
 
 ### 3.2 Screen System Core
 
@@ -133,228 +344,87 @@ say eve "{cps=30}Slow{/cps}"
 screen settings:
     frame:
         align (0.5, 0.5)
-        padding 20
-
         vbox:
             label "Settings"
-
-            hbox:
-                text "BGM"
-                slider value Preference("bgm_volume")
-
-            hbox:
-                text "Voice"
-                slider value Preference("voice_volume")
-
-screen confirm(message):
-    frame:
-        text message
-        textbutton "Yes" action Return(True)
-        textbutton "No" action Return(False)
+            slider value Preference("bgm_volume")
 ```
 
 ### 3.3 Screen Widgets
 
-- `frame` — bordered container
-- `vbox` — vertical layout
-- `hbox` — horizontal layout
-- `label` — styled text
-- `textbutton` — clickable text
-- `slider` — volume/value slider
-- `toggle` — on/off checkbox
-- `text` — plain text
+- `frame`, `vbox`, `hbox`, `label`, `textbutton`, `slider`, `toggle`, `text`
 
-### 3.4 Screen Layout
+### 3.4 Built-in Screens
 
-```
-align (0.5, 0.5)     ; center
-xpos 100              ; pixels
-ypos 0.3              ; or 30%
-padding 20
-spacing 10
-```
-
-### 3.5 Screen Actions
-
-```crka
-; Navigation
-ShowScreen("settings")
-HideScreen("quick_menu")
-Jump("scene_b")
-Call("scene_b")
-Return()
-
-; Settings
-SetVolume("bgm", 0.5)
-ToggleSetting("skip_unseen")
-SetPreference("text_speed", 60)
-
-; Save/Load
-SaveGame(1)
-LoadGame(1)
-QuickSave()
-QuickLoad()
-
-; Flow
-Pause()
-Quit()
-Skip()
-Rollback()
-
-; Custom
-action UnlockGallery("beach_scene")
-```
-
-### 3.6 Screen State Binding
-
-```
-slider value Preference("bgm_volume")
-toggle value Preference("auto_forward")
-```
-
-- Auto-syncs with engine preferences
-- React-like state binding
-
-### 3.7 Screen Events
-
-```
-textbutton "Save":
-    action ShowScreen("save")
-    hovered PlaySound("hover.wav")
-    clicked PlaySound("click.wav")
-```
+- `quick_menu`, `settings`, `history`, `save`, `load`
 
 ---
 
-## Sprint 4: UI Components
+## Phase 4: Polish
 
-### 4.1 textbutton Customization
-
-```
-; Default works out of box
-textbutton "Save" action ShowScreen("save")
-
-; Override allowed
-textbutton PlayButton:
-    y_pos 0.9
-    text_size 24
-    idle_image "button_idle.png"
-    hover_image "button_hover.png"
-    hover_sound "hover.wav"
-    click_sound "click.wav"
-```
-
-### 4.2 Built-in: quick_menu
-
-```
-; Default auto-available
-show screen quick_menu
-
-; Auto-shows during dialogue
-; Default buttons: Save, Load, Settings, History
-; User can override screen definition
-```
-
-### 4.3 Built-in: settings
-
-```
-; Default auto-available
-show screen settings
-
-; Default controls:
-; - BGM volume slider
-; - Voice volume slider
-; - SFX volume slider
-; - Text speed slider
-; - Auto-forward toggle
-; - Skip unseen toggle
-```
-
-### 4.4 Built-in: history
-
-```
-; Default auto-available
-show screen history
-
-; Scrollable dialogue log
-; Shows past dialogue with character names
-```
-
-### 4.5 Built-in: save/load
-
-```
-; Default auto-available
-show screen save
-show screen load
-
-; 10 slots
-; Thumbnails
-; Timestamp display
-```
-
----
-
-## Sprint 5: Polish
-
-### 5.1 Rollback
+### 4.1 Rollback
 
 - Click dialogue history to rewind state
-- Restores: pc, variables, bg, characters, text position
-- Essential player expectation
+- Restores: pc, variables, bg, characters
 
-### 5.2 wait/pause
+### 4.2 Skip Mode
 
 ```
-wait 2.0              ; wait N seconds
-wait for voice        ; wait for voice line to finish
+skip_mode                 ; skip seen dialogue
+skip_mode all            ; skip all (including unseen)
 ```
 
-### 5.3 Subpositions
+### 4.3 Auto-Forward
+
+```
+ui auto_delay 3.0         ; seconds between advancing
+```
+
+### 4.4 Subpositions
 
 ```
 char eileen center at 0.3
 char alice left at 0.1
-char bob right at 0.9
 ```
-
-- Arbitrary x position (0.0 to 1.0)
-- Not just left/center/right
 
 ---
 
-## Ticket Index
+## Current Status
 
-### High Priority
+### Completed
 
-| #   | Ticket                          | Status  |
-| --- | ------------------------------- | ------- |
-| 1   | Variables: Numeric + arithmetic | ✅ Done |
-| 2   | Audio: 4-channel mixer          | 🔜 Next |
-| 3   | Audio: Fade in/out              | Pending |
-| 4   | Voice lines                     | Pending |
-| 5   | ATL transforms (chars)          | Pending |
-| 6   | ATL transforms (bg)             | Pending |
-| 7   | ATL transforms (screens)        | Pending |
-| 8   | Text markup                     | Pending |
-| 9   | Screen system core              | Pending |
-| 10  | Screen widgets                  | Pending |
-| 11  | Screen layout                   | Pending |
-| 12  | Screen actions                  | Pending |
-| 13  | Screen state binding            | Pending |
-| 14  | Screen events                   | Pending |
-| 15  | textbutton customization        | Pending |
-| 16  | Built-in quick_menu             | Pending |
-| 17  | Built-in settings               | Pending |
-| 18  | Built-in history                | Pending |
-| 19  | Built-in save/load              | Pending |
+| # | Feature |
+|---|---------|
+| ✅ | Variables: Numeric + arithmetic |
+| ✅ | advance_keys configuration |
+| ✅ | Window close handling (Quit state) |
+| ✅ | BGM looping |
 
-### Medium Priority
+### In Progress
 
-| #   | Ticket       | Status  |
-| --- | ------------ | ------- |
-| 20  | Rollback     | Pending |
-| 21  | wait/pause   | Pending |
-| 22  | Subpositions | Pending |
+| # | Feature |
+|---|---------|
+| 🔄 | Phase 0: Config System Refactor |
+
+### Pending
+
+| # | Feature |
+|---|---------|
+| ⏳ | Audio: 4-channel mixer |
+| ⏳ | Audio: Fade in/out |
+| ⏳ | Voice lines |
+| ⏳ | wait/pause |
+| ⏳ | State Machine Refactor |
+| ⏳ | Testing Framework |
+| ⏳ | Component Split |
+| ⏳ | Event Bus |
+| ⏳ | Platform Abstraction |
+| ⏳ | ATL transforms |
+| ⏳ | Text markup |
+| ⏳ | Screen system |
+| ⏳ | Built-in screens |
+| ⏳ | Rollback |
+| ⏳ | Skip mode |
+| ⏳ | Auto-forward |
 
 ---
 
@@ -362,7 +432,15 @@ char bob right at 0.9
 
 ### Implementation Order
 
-~~Variables~~ → Audio → Voice → ATL core → Text markup → Screens → Built-ins → Rollback
+```
+Phase 0 (Foundation) → Phase 1 (Audio) → Phase 2 (ATL) → Phase 3 (UI) → Phase 4 (Polish)
+```
+
+### Lua Compiler Strategy
+
+- **Current**: Embedded in binary at build time
+- **Rationale**: Simple, single binary, protected scripts
+- **Future**: Optional pre-compilation to bytecode for performance (when needed)
 
 ### Screen Rendering
 
