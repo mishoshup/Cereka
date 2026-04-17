@@ -143,6 +143,61 @@ entry      = assets/scripts/main.crka
     return loadProject(projectPath);
 }
 
+bool ProjectManager::initProject(const fs::path &path)
+{
+    std::error_code ec;
+    fs::create_directories(path / "assets/scripts", ec);
+    fs::create_directories(path / "assets/bg", ec);
+    fs::create_directories(path / "assets/characters", ec);
+    fs::create_directories(path / "assets/fonts", ec);
+    fs::create_directories(path / "assets/sounds", ec);
+    fs::create_directories(path / "assets/ui", ec);
+
+    std::string name = path.filename().string();
+
+    fs::path cfgPath = path / "game.cfg";
+    if (!fs::exists(cfgPath)) {
+        std::ofstream f(cfgPath);
+        f << "title      = " << name << "\n"
+          << "width      = 1280\n"
+          << "height     = 720\n"
+          << "fullscreen = false\n"
+          << "entry      = assets/scripts/main.crka\n";
+    }
+
+    fs::path mainScript = path / "assets/scripts/main.crka";
+    if (!fs::exists(mainScript)) {
+        std::ofstream f(mainScript);
+        f << kMainScriptTemplate;
+    }
+    fs::path uiScript = path / "assets/scripts/ui.crka";
+    if (!fs::exists(uiScript)) {
+        std::ofstream f(uiScript);
+        f << kUiScriptTemplate;
+    }
+    fs::path sceneTwo = path / "assets/scripts/scene_two.crka";
+    if (!fs::exists(sceneTwo)) {
+        std::ofstream f(sceneTwo);
+        f << kSceneTwoTemplate;
+    }
+
+    auto writeIfMissing = [](const fs::path &dest,
+                             const unsigned char *data,
+                             unsigned int len) {
+        if (!fs::exists(dest))
+            writeAsset(dest, data, len);
+    };
+    writeIfMissing(path / "assets/bg/placeholder_bg.png", kBgPng, kBgPng_len);
+    writeIfMissing(
+        path / "assets/characters/placeholder_char.png", kCharPng, kCharPng_len);
+    writeIfMissing(path / "assets/sounds/placeholder_sfx.wav", kSfxWav, kSfxWav_len);
+    writeIfMissing(path / "assets/sounds/placeholder_bgm.wav", kBgmWav, kBgmWav_len);
+    writeIfMissing(
+        path / "assets/fonts/Montserrat-Medium.ttf", kMontserratTtf, kMontserratTtf_len);
+
+    return loadProject(path);
+}
+
 bool ProjectManager::renameProject(const fs::path &oldPath,
                                    const std::string &newName)
 {
@@ -199,11 +254,15 @@ bool ProjectManager::loadProject(const fs::path &projectPath)
     m_currentTitle = projectPath.filename().string();
 
     fs::path cfgPath = projectPath / "game.cfg";
-    if (fs::exists(cfgPath)) {
+    if (fs::exists(cfgPath))
         loadGameCfg(cfgPath);
-    }
 
     return true;
+}
+
+bool ProjectManager::currentHasGameCfg() const
+{
+    return fs::exists(m_currentPath / "game.cfg");
 }
 
 void ProjectManager::loadGameCfg(const fs::path &cfgPath)

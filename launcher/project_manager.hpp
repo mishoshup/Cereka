@@ -18,9 +18,11 @@ class ProjectManager {
 
     std::vector<ProjectInfo> listProjects() const;
     bool createProject(const std::string &name);
+    bool initProject(const fs::path &path);
     bool renameProject(const fs::path &oldPath,
                        const std::string &newName);
     bool loadProject(const fs::path &projectPath);
+    bool currentHasGameCfg() const;
 
     std::string currentTitle() const
     {
