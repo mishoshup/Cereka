@@ -388,6 +388,168 @@ char alice left at 0.1
 
 ---
 
+## Phase 5: Mini-Games
+
+> **Vision**: Complex rendering under the hood, simple `.crka` scripting on top.
+> Game authors write scripts, engine handles the complexity.
+
+### 5.1 Philosophy
+
+- **Author-facing**: Pure `.crka` scripting, no C++ needed
+- **Engine-facing**: Sophisticated rendering/game systems
+- **Progressive complexity**: Start simple, add capabilities
+
+### 5.2 Mini-Game Types
+
+#### Simple (Stat-Based) - Already possible
+```
+; Stat management, branching narratives
+$health = $health - 10
+if $health <= 0 goto game_over
+```
+
+#### Turn-Based - Variables + Choices
+```
+; RPG combat
+menu
+    button "Attack" goto attack
+    button "Defend" goto defend
+    button "Use Item" goto use_item
+```
+
+#### Timing-Based - Requires timing system
+```
+; Rhythm/timing mini-game
+minigame timing
+    beats "beat1.ogg", "beat2.ogg", "beat3.ogg"
+    window 0.5
+    on_hit goto hit_success
+    on_miss goto hit_fail
+```
+
+#### Spatial - Requires canvas/position system
+```
+; Click/drag mini-game
+minigame spatial
+    targets item1, item2, item3
+    on_click item1 goto item1_clicked
+    on_drag item2 target_zone goto item2_success
+```
+
+#### Tile-Based - Requires tile system
+```
+; Puzzle matching
+minigame tiles
+    grid 4x4
+    tiles "red.png", "blue.png", "green.png"
+    match 3
+    on_match goto match_success
+```
+
+### 5.3 Script API (Proposed)
+
+```crka
+; Define a mini-game
+minigame my_game:
+    type timing           ; timing | spatial | tiles | turnbased
+    music "bgm.ogg"
+    difficulty 3          ; 1-5
+
+    ; Type-specific config
+    beats "beat1.ogg", "beat2.ogg"
+    window 0.5            ; timing window in seconds
+
+; Start mini-game
+start minigame my_game
+
+; Mini-game callbacks
+label hit_success
+narrate "Perfect!"
+jump continue_story
+
+label hit_fail
+narrate "Miss!"
+jump continue_story
+
+; Conditional mini-game (optional)
+minigame if $has_timing_game
+    type timing
+    beats "beat.ogg"
+end
+```
+
+### 5.4 Rendering Pipeline
+
+```
+MiniGameEngine
+├── Canvas (2D drawing API)
+│   ├── shapes (rect, circle, line)
+│   ├── sprites (animated)
+│   └── particles (effects)
+├── TileMap (grid-based)
+│   ├── tile layers
+│   ├── collision detection
+│   └── camera (pan/zoom)
+├── SpriteAnimator
+│   ├── sprite sheets
+│   ├── keyframe animations
+│   └── skeletal (future)
+└── Physics (lightweight)
+    ├── AABB collision
+    ├── velocity/acceleration
+    └── gravity (optional)
+```
+
+### 5.5 Implementation Order
+
+| # | Component | Description |
+|---|-----------|-------------|
+| 5.1 | Canvas API | Basic 2D drawing (shapes, sprites) |
+| 5.2 | MiniGame State | Integrate mini-game into state machine |
+| 5.3 | Timing System | Beat/timing mini-game support |
+| 5.4 | Spatial System | Click/drag mini-game support |
+| 5.5 | Tile Map | Grid-based puzzle support |
+| 5.6 | Physics | Basic physics (collision, velocity) |
+
+### 5.6 Example: Timing Mini-Game
+
+```crka
+; Simple rhythm game
+minigame rhythm_test:
+    type timing
+    music "rhythm.ogg"
+    difficulty 2
+
+    beats "beat1.wav", "beat2.wav", "beat3.wav", "beat4.wav"
+    window 0.3
+
+label start_rhythm
+narrate "Press when the beats align!"
+start minigame rhythm_test
+
+label perfect
+$score = $score + 100
+narrate "Perfect! Score: {$score}"
+jump start_rhythm
+
+label good
+$score = $score + 50
+narrate "Good! Score: {$score}"
+jump start_rhythm
+
+label miss
+$lives = $lives - 1
+if $lives <= 0 goto game_over
+narrate "Miss! Lives: {$lives}"
+jump start_rhythm
+
+label game_over
+narrate "Game Over! Final Score: {$score}"
+end
+```
+
+---
+
 ## Current Status
 
 ### Completed
@@ -425,6 +587,7 @@ char alice left at 0.1
 | ⏳ | Rollback |
 | ⏳ | Skip mode |
 | ⏳ | Auto-forward |
+| ⏳ | Phase 5: Mini-Games (Canvas API, Timing, Spatial, Tiles) |
 
 ---
 

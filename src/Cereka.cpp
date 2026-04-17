@@ -24,6 +24,7 @@ bool Impl::InitGame(const char *title,
         throw engine::error("All renderer attempts failed");
 
     LoadFont(uiCfg.fontSize);
+    InitConfigManager();
 
     if (!MIX_Init()) {
         std::cerr << "[CEREKA] MIX_Init failed: " << SDL_GetError() << "\n";

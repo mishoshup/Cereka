@@ -4,6 +4,7 @@
 
 #include "Cereka/Cereka.hpp"
 #include "Cereka/exceptions.hpp"
+#include "config/config_manager.hpp"
 #include "text_renderer.hpp"
 #include "ui_config.hpp"
 #include "video.hpp"
@@ -97,6 +98,7 @@ class CerekaImpl {
 
     // --- UI theme ---
     UiConfig uiCfg;
+    config::ConfigManager configManager;
 
     // -----------------------------------------------------------------------
     // Methods — defined across the engine .cpp files
@@ -157,6 +159,7 @@ class CerekaImpl {
     // ui_config.cpp
     void ApplyUiSet(const std::string &key,
                     const std::string &val);
+    void InitConfigManager();
     void LoadFont(int size);
 };
 
