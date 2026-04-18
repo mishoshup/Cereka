@@ -4,6 +4,7 @@
 
 #include "Cereka/Cereka.hpp"
 #include "Cereka/exceptions.hpp"
+#include "audio_manager.hpp"
 #include "config/config_manager.hpp"
 #include "text_renderer.hpp"
 #include "ui_config.hpp"
@@ -11,7 +12,6 @@
 
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
-#include <SDL3_mixer/SDL_mixer.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <filesystem>
 #include <iostream>
@@ -48,12 +48,7 @@ class CerekaImpl {
     std::unordered_map<std::string, std::string> charPaths;  // id → filename (for save/load)
 
     // --- Audio ---
-    bool audioInitialized = false;
-    MIX_Mixer *mixer = nullptr;
-    MIX_Audio *bgmAudio = nullptr;
-    MIX_Track *bgmTrack = nullptr;
-    std::string bgmPath;  // filename passed to PlayBGM (for save/load)
-    std::unordered_map<std::string, MIX_Audio *> sfxCache;
+    AudioManager audio;
 
     // --- Script VM ---
     sol::state lua;
@@ -144,11 +139,6 @@ class CerekaImpl {
 
     // draw.cpp
     void Draw();
-
-    // audio.cpp
-    void PlayBGM(const std::string &filename);
-    void StopBGM();
-    void PlaySFX(const std::string &filename);
 
     // save.cpp
     bool SaveGame(int slot);

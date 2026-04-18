@@ -1,13 +1,43 @@
-// audio.cpp — BGM and SFX playback
+#include "audio_manager.hpp"
 
-#include "engine_impl.hpp"
+#include <SDL3/SDL.h>
+#include <iostream>
 
-void Impl::PlayBGM(const std::string &filename)
+namespace cereka {
+
+bool AudioManager::Init()
 {
-    if (!audioInitialized)
-        return;
+    if (!MIX_Init()) {
+        std::cerr << "[CEREKA] MIX_Init failed: " << SDL_GetError() << "\n";
+        return false;
+    }
+    mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
+    if (!mixer) {
+        std::cerr << "[CEREKA] MIX_CreateMixerDevice failed: " << SDL_GetError() << "\n";
+        MIX_Quit();
+        return false;
+    }
+    initialized = true;
+    return true;
+}
 
-    bgmPath = filename;
+void AudioManager::Shutdown()
+{
+    if (!initialized)
+        return;
+    destroyBgmHandles();
+    bgmPath.clear();
+    for (auto &[name, audio] : sfxCache)
+        MIX_DestroyAudio(audio);
+    sfxCache.clear();
+    MIX_DestroyMixer(mixer);
+    mixer = nullptr;
+    MIX_Quit();
+    initialized = false;
+}
+
+void AudioManager::destroyBgmHandles()
+{
     if (bgmTrack) {
         MIX_StopTrack(bgmTrack, 0);
         MIX_DestroyTrack(bgmTrack);
@@ -17,9 +47,18 @@ void Impl::PlayBGM(const std::string &filename)
         MIX_DestroyAudio(bgmAudio);
         bgmAudio = nullptr;
     }
+}
+
+void AudioManager::PlayBGM(const std::string &filename)
+{
+    if (!initialized)
+        return;
+
+    destroyBgmHandles();
+    bgmPath = filename;
 
     std::string path = "assets/sounds/" + filename;
-    bgmAudio = MIX_LoadAudio(mixer, path.c_str(), true);  // pre-decode for looping support
+    bgmAudio = MIX_LoadAudio(mixer, path.c_str(), true);  // pre-decode for looping
     if (!bgmAudio) {
         std::cerr << "[CEREKA] Failed to load BGM: " << path << " — " << SDL_GetError() << "\n";
         return;
@@ -41,31 +80,23 @@ void Impl::PlayBGM(const std::string &filename)
     SDL_DestroyProperties(props);
 }
 
-void Impl::StopBGM()
+void AudioManager::StopBGM()
 {
-    if (!audioInitialized)
+    if (!initialized)
         return;
+    destroyBgmHandles();
     bgmPath.clear();
-    if (bgmTrack) {
-        MIX_StopTrack(bgmTrack, 0);
-        MIX_DestroyTrack(bgmTrack);
-        bgmTrack = nullptr;
-    }
-    if (bgmAudio) {
-        MIX_DestroyAudio(bgmAudio);
-        bgmAudio = nullptr;
-    }
 }
 
-void Impl::PlaySFX(const std::string &filename)
+void AudioManager::PlaySFX(const std::string &filename)
 {
-    if (!audioInitialized)
+    if (!initialized)
         return;
 
     auto it = sfxCache.find(filename);
     if (it == sfxCache.end()) {
         std::string path = "assets/sounds/" + filename;
-        MIX_Audio *audio = MIX_LoadAudio(mixer, path.c_str(), true);  // pre-decode SFX
+        MIX_Audio *audio = MIX_LoadAudio(mixer, path.c_str(), true);
         if (!audio) {
             std::cerr << "[CEREKA] Failed to load SFX: " << path << " — " << SDL_GetError()
                       << "\n";
@@ -77,3 +108,5 @@ void Impl::PlaySFX(const std::string &filename)
 
     MIX_PlayAudio(mixer, it->second);  // fire and forget
 }
+
+}  // namespace cereka

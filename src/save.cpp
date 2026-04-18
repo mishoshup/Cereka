@@ -77,7 +77,7 @@ bool Impl::SaveGame(int slot)
         f << "char." << id << "=" << filename << ":" << xNormToPos(xn) << "\n";
     }
 
-    f << "bgm=" << bgmPath << "\n";
+    f << "bgm=" << audio.BgmPath() << "\n";
     f << "state=" << (int)stateBeforeSaveMenu << "\n";
     f << "speaker=" << currentSpeaker << "\n";
     f << "name=" << currentName << "\n";
@@ -109,16 +109,7 @@ bool Impl::LoadGame(int slot)
         SDL_DestroyTexture(entry.tex);
     characters.clear();
     charPaths.clear();
-    if (bgmTrack) {
-        MIX_StopTrack(bgmTrack, 0);
-        MIX_DestroyTrack(bgmTrack);
-        bgmTrack = nullptr;
-    }
-    if (bgmAudio) {
-        MIX_DestroyAudio(bgmAudio);
-        bgmAudio = nullptr;
-    }
-    bgmPath.clear();
+    audio.StopBGM();
     variables.clear();
     numVariables.clear();
     callStack.clear();
@@ -175,7 +166,7 @@ bool Impl::LoadGame(int slot)
         }
         else if (key == "bgm") {
             if (!val.empty())
-                PlayBGM(val);
+                audio.PlayBGM(val);
         }
         else if (key == "state") {
             state = (CerekaState)std::stoi(val);

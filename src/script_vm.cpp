@@ -479,17 +479,17 @@ void Impl::TickScript()
                 continue;
 
             case scenario::Op::PLAY_BGM:
-                PlayBGM(ins.a);
+                audio.PlayBGM(ins.a);
                 pc++;
                 continue;
 
             case scenario::Op::STOP_BGM:
-                StopBGM();
+                audio.StopBGM();
                 pc++;
                 continue;
 
             case scenario::Op::PLAY_SFX:
-                PlaySFX(ins.a);
+                audio.PlaySFX(ins.a);
                 pc++;
                 continue;
 

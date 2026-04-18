@@ -26,20 +26,7 @@ bool Impl::InitGame(const char *title,
     LoadFont(uiCfg.fontSize);
     InitConfigManager();
 
-    if (!MIX_Init()) {
-        std::cerr << "[CEREKA] MIX_Init failed: " << SDL_GetError() << "\n";
-    }
-    else {
-        mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
-        if (!mixer) {
-            std::cerr << "[CEREKA] MIX_CreateMixerDevice failed: " << SDL_GetError() << "\n";
-            MIX_Quit();
-        }
-        else {
-            audioInitialized = true;
-        }
-    }
-
+    audio.Init();
     return true;
 }
 
@@ -76,24 +63,7 @@ void Impl::ShutDown()
         window = nullptr;
     }
 
-    if (audioInitialized) {
-        if (bgmTrack) {
-            MIX_StopTrack(bgmTrack, 0);
-            MIX_DestroyTrack(bgmTrack);
-            bgmTrack = nullptr;
-        }
-        if (bgmAudio) {
-            MIX_DestroyAudio(bgmAudio);
-            bgmAudio = nullptr;
-        }
-        for (auto &[name, audio] : sfxCache)
-            MIX_DestroyAudio(audio);
-        sfxCache.clear();
-        MIX_DestroyMixer(mixer);
-        mixer = nullptr;
-        MIX_Quit();
-        audioInitialized = false;
-    }
+    audio.Shutdown();
 
     TTF_Quit();
     SDL_Quit();
