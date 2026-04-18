@@ -197,11 +197,7 @@ void Impl::Say(const std::string &speaker,
                const std::string &name,
                const std::string &text)
 {
-    currentSpeaker = speaker;
-    currentName = name;
-    currentText = SubstituteVariables(text);
-    displayedChars = 0;
-    typewriterTimer = 0.0f;
+    dialogue.Show(speaker, name, SubstituteVariables(text));
 }
 
 void Impl::Narrate(const std::string &text)
@@ -378,7 +374,7 @@ bool cereka::CerekaEngine::InMenu() const
 }
 const std::string &cereka::CerekaEngine::CurrentText() const
 {
-    return pImplementation->currentText;
+    return pImplementation->dialogue.Text();
 }
 size_t cereka::CerekaEngine::ButtonCount() const
 {

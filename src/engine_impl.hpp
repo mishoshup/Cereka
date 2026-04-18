@@ -6,6 +6,7 @@
 #include "Cereka/exceptions.hpp"
 #include "audio_manager.hpp"
 #include "config/config_manager.hpp"
+#include "dialogue_system.hpp"
 #include "text_renderer.hpp"
 #include "ui_config.hpp"
 #include "video.hpp"
@@ -66,12 +67,7 @@ class CerekaImpl {
     int skipDepth = 0;
 
     // --- Dialogue ---
-    std::string currentSpeaker;
-    std::string currentName;
-    std::string currentText;
-    float typewriterTimer = 0.0f;
-    int displayedChars = 0;
-    static constexpr float CHARS_PER_SECOND = 60.0f;
+    DialogueSystem dialogue;
 
     // --- Fade transition ---
     enum class FadePhase { None, Out, In };

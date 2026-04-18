@@ -80,7 +80,7 @@ void Impl::Draw()
         return;
 
     // --- Dialogue box ---
-    if (!currentText.empty()) {
+    if (!dialogue.Text().empty()) {
         float tbY = uiCfg.textbox.y.resolve((float)screenHeight);
         float tbH = uiCfg.textbox.h.resolve((float)screenHeight);
         float tbW = (float)screenWidth;
@@ -101,7 +101,7 @@ void Impl::Draw()
         }
 
         // Name box
-        if (!currentSpeaker.empty()) {
+        if (!dialogue.Speaker().empty()) {
             float nbY = tbY + uiCfg.namebox.yOffset;
             SDL_FRect nb{uiCfg.namebox.x, nbY, uiCfg.namebox.w, uiCfg.namebox.h};
 
@@ -118,7 +118,7 @@ void Impl::Draw()
                 SDL_RenderFillRect(renderer, &nb);
             }
 
-            auto nameTex = RenderText(currentName, uiCfg.namebox.textColor);
+            auto nameTex = RenderText(dialogue.Name(), uiCfg.namebox.textColor);
             if (nameTex) {
                 float nw, nh;
                 SDL_GetTextureSize(nameTex, &nw, &nh);
@@ -130,7 +130,7 @@ void Impl::Draw()
         }
 
         // Dialogue text with word wrap
-        std::string visible = currentText.substr(0, displayedChars);
+        std::string visible = dialogue.Text().substr(0, dialogue.DisplayedChars());
         auto textTex = RenderText(visible, uiCfg.textbox.textColor);
         if (textTex) {
             float tw, th;

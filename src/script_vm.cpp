@@ -164,11 +164,7 @@ void Impl::LoadScript(const std::string &filename)
 
 void Impl::Reset()
 {
-    currentText.clear();
-    displayedChars = 0;
-    typewriterTimer = 0.0f;
-    currentSpeaker.clear();
-    currentName.clear();
+    dialogue.Clear();
     if (background) {
         SDL_DestroyTexture(background);
         background = nullptr;
@@ -182,17 +178,7 @@ void Impl::Reset()
 
 void Impl::Update(float dt)
 {
-    // Typewriter
-    if (!currentText.empty() && displayedChars < (int)currentText.length()) {
-        typewriterTimer += dt;
-        int charsToAdd = (int)(typewriterTimer * CHARS_PER_SECOND);
-        if (charsToAdd > 0) {
-            displayedChars += charsToAdd;
-            typewriterTimer -= charsToAdd / CHARS_PER_SECOND;
-            if (displayedChars > (int)currentText.length())
-                displayedChars = (int)currentText.length();
-        }
-    }
+    dialogue.Tick(dt);
 
     // Fade transition
     if (state == CerekaState::Fading) {

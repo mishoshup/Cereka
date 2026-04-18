@@ -79,10 +79,10 @@ bool Impl::SaveGame(int slot)
 
     f << "bgm=" << audio.BgmPath() << "\n";
     f << "state=" << (int)stateBeforeSaveMenu << "\n";
-    f << "speaker=" << currentSpeaker << "\n";
-    f << "name=" << currentName << "\n";
-    f << "text=" << currentText << "\n";
-    f << "displayedChars=" << displayedChars << "\n";
+    f << "speaker=" << dialogue.Speaker() << "\n";
+    f << "name=" << dialogue.Name() << "\n";
+    f << "text=" << dialogue.Text() << "\n";
+    f << "displayedChars=" << dialogue.DisplayedChars() << "\n";
     f << "skipMode=" << (skipMode ? 1 : 0) << "\n";
     f << "skipDepth=" << skipDepth << "\n";
 
@@ -113,11 +113,7 @@ bool Impl::LoadGame(int slot)
     variables.clear();
     numVariables.clear();
     callStack.clear();
-    currentSpeaker.clear();
-    currentName.clear();
-    currentText.clear();
-    displayedChars = 0;
-    typewriterTimer = 0.0f;
+    dialogue.Clear();
     skipMode = false;
     skipDepth = 0;
 
@@ -172,16 +168,16 @@ bool Impl::LoadGame(int slot)
             state = (CerekaState)std::stoi(val);
         }
         else if (key == "speaker") {
-            currentSpeaker = val;
+            dialogue.SetSpeaker(val);
         }
         else if (key == "name") {
-            currentName = val;
+            dialogue.SetName(val);
         }
         else if (key == "text") {
-            currentText = val;
+            dialogue.SetText(val);
         }
         else if (key == "displayedChars") {
-            displayedChars = std::stoi(val);
+            dialogue.SetDisplayedChars(std::stoi(val));
         }
         else if (key == "skipMode") {
             skipMode = (val == "1");
