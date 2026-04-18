@@ -1,0 +1,26 @@
+a=flag_met_alice b=yes col=1 line=1 op=SET_VAR
+a=greeting b=hello col=1 line=2 op=SET_VAR
+a=gold b== c=100 col=1 line=3 op=SET_VAR_NUM
+a=gold b=+ c=50 col=1 line=4 op=SET_VAR_NUM
+a=gold b=- c=10 col=1 line=5 op=SET_VAR_NUM
+a=multiplier b== c=2 col=1 line=6 op=SET_VAR_NUM
+a=bonus b== c=999 col=1 line=7 op=SET_VAR_NUM
+a=flag_met_alice b=yes col=1 line=9 op=IF_EQ
+b=You already met Alice. col=5 line=10 op=NARRATE
+col=1 line=11 op=ENDIF
+a=greeting b=goodbye col=1 line=13 op=IF_NEQ
+b=A warm welcome. col=5 line=14 op=NARRATE
+col=1 line=15 op=ENDIF
+a=gold b=50 col=1 line=17 op=IF_GT
+b=Rich. col=5 line=18 op=NARRATE
+col=1 line=19 op=ENDIF
+a=gold b=1000 col=1 line=21 op=IF_LT
+b=Not that rich. col=5 line=22 op=NARRATE
+col=1 line=23 op=ENDIF
+a=gold b=100 col=1 line=25 op=IF_GE
+b=Hundred or more. col=5 line=26 op=NARRATE
+col=1 line=27 op=ENDIF
+a=gold b=200 col=1 line=29 op=IF_LE
+b=Two hundred or less. col=5 line=30 op=NARRATE
+col=1 line=31 op=ENDIF
+col=1 line=33 op=END

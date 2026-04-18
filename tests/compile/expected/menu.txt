@@ -1,0 +1,13 @@
+b=Pick a path. col=1 line=1 op=NARRATE
+col=1 line=2 op=MENU
+a=crossroads.png col=5 line=3 op=BG
+a=mountain.png b=0.75 col=5 line=4 op=FADE
+a=Go north b=north col=5 exit_button=false line=5 op=BUTTON
+a=Go south b=south col=5 exit_button=false line=6 op=BUTTON
+a=Stay here b= col=5 exit_button=true line=7 op=BUTTON
+a=north col=1 line=9 op=LABEL
+b=Cold wind. col=5 line=10 op=NARRATE
+col=5 line=11 op=END
+a=south col=1 line=13 op=LABEL
+b=Warm sand. col=5 line=14 op=NARRATE
+col=5 line=15 op=END

@@ -1,0 +1,23 @@
+a=textbox.color b=20 20 20 220 col=5 line=2 op=UI_SET
+a=textbox.y b=75% col=5 line=3 op=UI_SET
+a=textbox.h b=25% col=5 line=4 op=UI_SET
+a=textbox.text_margin_x b=40 col=5 line=5 op=UI_SET
+a=textbox.text_color b=255 255 255 255 col=5 line=6 op=UI_SET
+a=textbox.image b=assets/ui/textbox.png col=5 line=7 op=UI_SET
+a=namebox.color b=40 40 40 255 col=5 line=10 op=UI_SET
+a=namebox.x b=50 col=5 line=11 op=UI_SET
+a=namebox.y_offset b=-40 col=5 line=12 op=UI_SET
+a=namebox.w b=200 col=5 line=13 op=UI_SET
+a=namebox.h b=40 col=5 line=14 op=UI_SET
+a=namebox.text_color b=255 220 80 255 col=5 line=15 op=UI_SET
+a=namebox.image b=assets/ui/namebox.png col=5 line=16 op=UI_SET
+a=button.color b=60 60 80 240 col=5 line=19 op=UI_SET
+a=button.w b=600 col=5 line=20 op=UI_SET
+a=button.h b=60 col=5 line=21 op=UI_SET
+a=button.text_color b=240 240 240 255 col=5 line=22 op=UI_SET
+a=button.image b=assets/ui/button_idle.png col=5 line=23 op=UI_SET
+a=button.hover_image b=assets/ui/button_hover.png col=5 line=24 op=UI_SET
+a=font.size b=28 col=5 line=27 op=UI_SET
+a=advance_keys b=space enter col=1 line=29 op=UI_SET
+a=advance_keys b=space enter mouse1 col=1 line=30 op=UI_SET
+col=1 line=32 op=END

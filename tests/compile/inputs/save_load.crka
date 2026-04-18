@@ -1,0 +1,6 @@
+save_menu
+load_menu
+save 1
+save 10
+load 3
+end

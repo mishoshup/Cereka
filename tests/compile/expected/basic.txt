@@ -1,0 +1,11 @@
+a=forest.png col=1 line=2 op=BG
+a=beach.png b=1.5 col=1 line=3 op=FADE
+a=alice b=alice_happy.png c=center col=1 line=4 op=CHAR
+a=bob b=bob_sad.png c=left col=1 line=5 op=CHAR
+a=eve b=eve_smile.png c=right col=1 line=6 op=CHAR
+a=cathy b=cathy.png c=center col=1 line=7 op=CHAR
+b=Somewhere in a forest. col=1 line=8 op=NARRATE
+a=alice b=Hello there. col=1 line=9 op=SAY
+a=bob b=Goodbye. col=1 line=10 op=SAY
+a=alice col=1 line=11 op=HIDE_CHAR
+col=1 line=12 op=END

@@ -27,6 +27,7 @@ enum class Op {
     IF_GE,
     IF_LE,
     ENDIF,
+    ELSE,
     FADE,
     INCLUDE,
     CALL,
@@ -50,6 +51,11 @@ struct Instruction {
     std::string c;  // aux field (char position: left|center|right)
     bool exit_button = false;
     std::vector<ChoiceOption> choices;
+
+    // Source location in the originating .crka file. 0 means "unknown"
+    // (e.g. instructions synthesized by include/call expansion).
+    int srcLine = 0;
+    int srcCol = 0;
 };
 
 std::vector<Instruction> CompileVNScript(const std::string &filename);

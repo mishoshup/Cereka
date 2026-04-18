@@ -1,0 +1,6 @@
+col=1 line=1 op=SAVE_MENU
+col=1 line=2 op=LOAD_MENU
+a=1 col=1 line=3 op=SAVE
+a=10 col=1 line=4 op=SAVE
+a=3 col=1 line=5 op=LOAD
+col=1 line=6 op=END

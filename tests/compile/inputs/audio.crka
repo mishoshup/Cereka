@@ -1,0 +1,6 @@
+bgm theme.ogg
+sfx door_open.wav
+stop_bgm
+bgm battle.ogg
+sfx sword.wav
+end

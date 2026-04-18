@@ -1,0 +1,3 @@
+a=title.png col=1 line=4 op=BG
+a=narrator b=Start. col=1 line=7 op=SAY
+col=1 line=10 op=END

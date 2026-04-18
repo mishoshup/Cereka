@@ -1,0 +1,10 @@
+label start
+jump middle
+
+label middle
+call subroutine.crka
+include shared.crka
+jump done
+
+label done
+end

@@ -1,0 +1,32 @@
+ui textbox
+    color 20 20 20 220
+    y 75%
+    h 25%
+    text_margin_x 40
+    text_color 255 255 255 255
+    image assets/ui/textbox.png
+
+ui namebox
+    color 40 40 40 255
+    x 50
+    y_offset -40
+    w 200
+    h 40
+    text_color 255 220 80 255
+    image assets/ui/namebox.png
+
+ui button
+    color 60 60 80 240
+    w 600
+    h 60
+    text_color 240 240 240 255
+    image assets/ui/button_idle.png
+    hover_image assets/ui/button_hover.png
+
+ui font
+    size 28
+
+ui advance_keys
+ui advance_keys space enter mouse1
+
+end

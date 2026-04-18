@@ -1,0 +1,33 @@
+set flag_met_alice "yes"
+set greeting hello
+$ gold = 100
+$ gold += 50
+$ gold -= 10
+$ multiplier = 2
+$ bonus = 999
+
+if flag_met_alice == "yes"
+    narrate "You already met Alice."
+endif
+
+if greeting != goodbye
+    narrate "A warm welcome."
+endif
+
+if gold > 50
+    narrate "Rich."
+endif
+
+if gold < 1000
+    narrate "Not that rich."
+endif
+
+if gold >= 100
+    narrate "Hundred or more."
+endif
+
+if gold <= 200
+    narrate "Two hundred or less."
+endif
+
+end

@@ -1,0 +1,15 @@
+narrate "Pick a path."
+menu
+    bg crossroads.png
+    bg mountain.png fade 0.75
+    button "Go north" goto north
+    button "Go south" goto south
+    button "Stay here" exit
+
+label north
+    narrate "Cold wind."
+    end
+
+label south
+    narrate "Warm sand."
+    end

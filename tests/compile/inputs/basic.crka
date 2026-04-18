@@ -1,0 +1,12 @@
+; basic scene commands
+bg forest.png
+bg beach.png fade 1.5
+char alice alice_happy.png
+char bob left bob_sad.png
+char eve right eve_smile.png
+char cathy center cathy.png
+narrate "Somewhere in a forest."
+say alice "Hello there."
+say bob "Goodbye."
+hide char alice
+end

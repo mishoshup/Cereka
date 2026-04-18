@@ -113,6 +113,8 @@ static std::vector<Instruction> RunLuaCompiler(const std::string &scriptText)
             ins.op = Op::IF_LE;
         else if (op == "ENDIF")
             ins.op = Op::ENDIF;
+        else if (op == "ELSE")
+            ins.op = Op::ELSE;
         else if (op == "FADE")
             ins.op = Op::FADE;
         else if (op == "INCLUDE")
@@ -138,6 +140,8 @@ static std::vector<Instruction> RunLuaCompiler(const std::string &scriptText)
         ins.b = t["b"].get_or<std::string>("");
         ins.c = t["c"].get_or<std::string>("");
         ins.exit_button = t["exit_button"].get_or(false);
+        ins.srcLine = t["line"].get_or(0);
+        ins.srcCol = t["col"].get_or(0);
 
         if (t["choices"].valid()) {
             sol::table choices = t["choices"];

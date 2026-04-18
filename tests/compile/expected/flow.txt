@@ -1,0 +1,8 @@
+a=start col=1 line=1 op=LABEL
+a=middle col=1 line=2 op=JUMP
+a=middle col=1 line=4 op=LABEL
+a=subroutine.crka col=1 line=5 op=CALL
+a=shared.crka col=1 line=6 op=INCLUDE
+a=done col=1 line=7 op=JUMP
+a=done col=1 line=9 op=LABEL
+col=1 line=10 op=END

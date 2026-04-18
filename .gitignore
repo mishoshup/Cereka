@@ -1,5 +1,5 @@
-build
-build-win
+/build
+/build-win
 .cache
 cereka-*.tar.gz
 cereka-*.zip

@@ -1,0 +1,6 @@
+a=theme.ogg col=1 line=1 op=PLAY_BGM
+a=door_open.wav col=1 line=2 op=PLAY_SFX
+col=1 line=3 op=STOP_BGM
+a=battle.ogg col=1 line=4 op=PLAY_BGM
+a=sword.wav col=1 line=5 op=PLAY_SFX
+col=1 line=6 op=END

@@ -139,6 +139,8 @@ class CerekaImpl {
     void LoadCompiledScript(const std::vector<scenario::Instruction> &compiled);
     void LoadScript(const std::string &filename);
     void Reset();
+    float LookupNumVar(const std::string &name) const;
+    float EvalExpr(const std::string &expr) const;
 
     // draw.cpp
     void Draw();

@@ -1,0 +1,10 @@
+; top-level comment
+; another
+
+bg title.png
+
+; comment between statements
+say narrator "Start."
+
+; comment at end of block
+end

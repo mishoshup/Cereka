@@ -20,19 +20,14 @@ FetchContent_MakeAvailable(googletest)
 # Enable testing
 enable_testing()
 
-# Test executable - use console subsystem on Windows for GoogleTest
+add_executable(cereka_test
+    config_test.cpp
+    save_data_test.cpp
+    main.cpp
+)
+
 if(WIN32)
-    add_executable(cereka_test
-        config_test.cpp
-        save_data_test.cpp
-        main.cpp
-    )
     target_link_options(cereka_test PRIVATE "-Wl,--subsystem,console" "-municode")
-else()
-    add_executable(cereka_test
-        config_test.cpp
-        save_data_test.cpp
-    )
 endif()
 
 target_include_directories(cereka_test PRIVATE

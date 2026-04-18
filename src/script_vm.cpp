@@ -2,6 +2,132 @@
 
 #include "engine_impl.hpp"
 #include <algorithm>
+#include <cctype>
+
+// ---------------------------------------------------------------------------
+// Expression evaluation for $ arithmetic and if-comparisons.
+// Grammar: term (('+'|'-') term)*
+//          term    = factor (('*'|'/') factor)*
+//          factor  = NUMBER | IDENT
+// IDENT is resolved via numVariables (fallback to variables parsed as float).
+// ---------------------------------------------------------------------------
+
+float Impl::LookupNumVar(const std::string &name) const
+{
+    auto it = numVariables.find(name);
+    if (it != numVariables.end())
+        return it->second;
+    auto sit = variables.find(name);
+    if (sit != variables.end()) {
+        try {
+            return std::stof(sit->second);
+        }
+        catch (...) {
+        }
+    }
+    return 0.0f;
+}
+
+namespace {
+
+struct ExprParser {
+    const std::string &src;
+    size_t i = 0;
+    const cereka::CerekaImpl &vm;
+
+    ExprParser(const std::string &s, const cereka::CerekaImpl &v) : src(s), vm(v) {}
+
+    void skipWs()
+    {
+        while (i < src.size() && std::isspace((unsigned char)src[i]))
+            ++i;
+    }
+
+    float parseFactor()
+    {
+        skipWs();
+        if (i >= src.size())
+            return 0.0f;
+        char c = src[i];
+        if (c == '(') {
+            ++i;
+            float v = parseExpr();
+            skipWs();
+            if (i < src.size() && src[i] == ')')
+                ++i;
+            return v;
+        }
+        if (c == '-') {
+            ++i;
+            return -parseFactor();
+        }
+        if (std::isdigit((unsigned char)c) || c == '.') {
+            size_t start = i;
+            while (i < src.size() && (std::isdigit((unsigned char)src[i]) || src[i] == '.'))
+                ++i;
+            try {
+                return std::stof(src.substr(start, i - start));
+            }
+            catch (...) {
+                return 0.0f;
+            }
+        }
+        if (std::isalpha((unsigned char)c) || c == '_') {
+            size_t start = i;
+            while (i < src.size() &&
+                   (std::isalnum((unsigned char)src[i]) || src[i] == '_'))
+                ++i;
+            return vm.LookupNumVar(src.substr(start, i - start));
+        }
+        ++i;  // skip unknown
+        return 0.0f;
+    }
+
+    float parseTerm()
+    {
+        float lhs = parseFactor();
+        while (true) {
+            skipWs();
+            if (i >= src.size())
+                break;
+            char c = src[i];
+            if (c != '*' && c != '/')
+                break;
+            ++i;
+            float rhs = parseFactor();
+            if (c == '*')
+                lhs = lhs * rhs;
+            else
+                lhs = (rhs != 0.0f) ? (lhs / rhs) : 0.0f;
+        }
+        return lhs;
+    }
+
+    float parseExpr()
+    {
+        float lhs = parseTerm();
+        while (true) {
+            skipWs();
+            if (i >= src.size())
+                break;
+            char c = src[i];
+            if (c != '+' && c != '-')
+                break;
+            ++i;
+            float rhs = parseTerm();
+            lhs = (c == '+') ? (lhs + rhs) : (lhs - rhs);
+        }
+        return lhs;
+    }
+};
+
+}  // namespace
+
+float Impl::EvalExpr(const std::string &expr) const
+{
+    ExprParser p(expr, *this);
+    return p.parseExpr();
+}
 
 // ---------------------------------------------------------------------------
 // Script loading
@@ -176,6 +302,11 @@ void Impl::TickScript()
                 ins.op == scenario::Op::IF_GT || ins.op == scenario::Op::IF_LT ||
                 ins.op == scenario::Op::IF_GE || ins.op == scenario::Op::IF_LE)
                 skipDepth++;
+            else if (ins.op == scenario::Op::ELSE) {
+                // Already skipping due to false IF - entering else block, restore execution
+                skipMode = false;
+                skipDepth = 0;
+            }
             else if (ins.op == scenario::Op::ENDIF) {
                 skipDepth--;
                 if (skipDepth == 0)
@@ -265,28 +396,8 @@ void Impl::TickScript()
                 continue;
 
             case scenario::Op::SET_VAR_NUM: {
-                float lhs = 0.0f;
-                auto it = numVariables.find(ins.a);
-                if (it != numVariables.end())
-                    lhs = it->second;
-                else {
-                    auto sit = variables.find(ins.a);
-                    if (sit != variables.end()) {
-                        try {
-                            lhs = std::stof(sit->second);
-                        }
-                        catch (...) {
-                        }
-                    }
-                }
-
-                float rhs = 0.0f;
-                try {
-                    rhs = std::stof(ins.c);
-                }
-                catch (...) {
-                }
-
+                float lhs = LookupNumVar(ins.a);
+                float rhs = EvalExpr(ins.c);
                 float result = 0.0f;
                 if (ins.b == "+")
                     result = lhs + rhs;
@@ -297,12 +408,9 @@ void Impl::TickScript()
                 else if (ins.b == "/")
                     result = (rhs != 0.0f) ? (lhs / rhs) : 0.0f;
                 else
-                    result = rhs;
-
+                    result = rhs;  // "=" plain assignment
                 numVariables[ins.a] = result;
                 variables[ins.a] = std::to_string(result);
-                std::cerr << "[CEREKA] NUM: $" << ins.a << " (" << lhs << " " << ins.b << " "
-                          << rhs << ") = " << result << "\n";
                 pc++;
                 continue;
             }
@@ -329,126 +437,20 @@ void Impl::TickScript()
                 continue;
             }
 
-            case scenario::Op::IF_GT: {
-                float lhs = 0.0f;
-                auto it = numVariables.find(ins.a);
-                if (it != numVariables.end())
-                    lhs = it->second;
-                else {
-                    auto sit = variables.find(ins.a);
-                    if (sit != variables.end()) {
-                        try {
-                            lhs = std::stof(sit->second);
-                        }
-                        catch (...) {
-                        }
-                    }
-                }
-                float rhs = 0.0f;
-                try {
-                    rhs = std::stof(ins.b);
-                }
-                catch (...) {
-                }
-                bool cond = lhs > rhs;
-                std::cerr << "[CEREKA] IF: $" << ins.a << " (" << lhs << ") > " << ins.b << " ("
-                          << rhs << ") = " << (cond ? "true" : "false") << "\n";
-                if (!cond) {
-                    skipMode = true;
-                    skipDepth = 1;
-                }
-                pc++;
-                continue;
-            }
-
-            case scenario::Op::IF_LT: {
-                float lhs = 0.0f;
-                auto it = numVariables.find(ins.a);
-                if (it != numVariables.end())
-                    lhs = it->second;
-                else {
-                    auto sit = variables.find(ins.a);
-                    if (sit != variables.end()) {
-                        try {
-                            lhs = std::stof(sit->second);
-                        }
-                        catch (...) {
-                        }
-                    }
-                }
-                float rhs = 0.0f;
-                try {
-                    rhs = std::stof(ins.b);
-                }
-                catch (...) {
-                }
-                bool cond = lhs < rhs;
-                std::cerr << "[CEREKA] IF: $" << ins.a << " (" << lhs << ") < " << ins.b << " ("
-                          << rhs << ") = " << (cond ? "true" : "false") << "\n";
-                if (!cond) {
-                    skipMode = true;
-                    skipDepth = 1;
-                }
-                pc++;
-                continue;
-            }
-
-            case scenario::Op::IF_GE: {
-                float lhs = 0.0f;
-                auto it = numVariables.find(ins.a);
-                if (it != numVariables.end())
-                    lhs = it->second;
-                else {
-                    auto sit = variables.find(ins.a);
-                    if (sit != variables.end()) {
-                        try {
-                            lhs = std::stof(sit->second);
-                        }
-                        catch (...) {
-                        }
-                    }
-                }
-                float rhs = 0.0f;
-                try {
-                    rhs = std::stof(ins.b);
-                }
-                catch (...) {
-                }
-                bool cond = lhs >= rhs;
-                std::cerr << "[CEREKA] IF: $" << ins.a << " (" << lhs << ") >= " << ins.b << " ("
-                          << rhs << ") = " << (cond ? "true" : "false") << "\n";
-                if (!cond) {
-                    skipMode = true;
-                    skipDepth = 1;
-                }
-                pc++;
-                continue;
-            }
-
+            case scenario::Op::IF_GT:
+            case scenario::Op::IF_LT:
+            case scenario::Op::IF_GE:
             case scenario::Op::IF_LE: {
-                float lhs = 0.0f;
-                auto it = numVariables.find(ins.a);
-                if (it != numVariables.end())
-                    lhs = it->second;
-                else {
-                    auto sit = variables.find(ins.a);
-                    if (sit != variables.end()) {
-                        try {
-                            lhs = std::stof(sit->second);
-                        }
-                        catch (...) {
-                        }
-                    }
+                float lhs = LookupNumVar(ins.a);
+                float rhs = EvalExpr(ins.b);
+                bool cond = false;
+                switch (ins.op) {
+                    case scenario::Op::IF_GT: cond = lhs > rhs; break;
+                    case scenario::Op::IF_LT: cond = lhs < rhs; break;
+                    case scenario::Op::IF_GE: cond = lhs >= rhs; break;
+                    case scenario::Op::IF_LE: cond = lhs <= rhs; break;
+                    default: break;
                 }
-                float rhs = 0.0f;
-                try {
-                    rhs = std::stof(ins.b);
-                }
-                catch (...) {
-                }
-                bool cond = lhs <= rhs;
-                std::cerr << "[CEREKA] IF: $" << ins.a << " (" << lhs << ") <= " << ins.b << " ("
-                          << rhs << ") = " << (cond ? "true" : "false") << "\n";
                 if (!cond) {
                     skipMode = true;
                     skipDepth = 1;
@@ -458,6 +460,21 @@ void Impl::TickScript()
             }
 
             case scenario::Op::ENDIF:
+                pc++;
+                continue;
+
+            case scenario::Op::ELSE:
+                if (skipMode) {
+                    // Already skipping from false if-condition: enter else block, stop skipping
+                    // skipDepth already = 1 (from the IF that was false)
+                    skipMode = false;
+                    skipDepth = 0;
+                }
+                else {
+                    // If condition was true - skip the else block
+                    skipMode = true;
+                    skipDepth = 1;
+                }
                 pc++;
                 continue;
 
