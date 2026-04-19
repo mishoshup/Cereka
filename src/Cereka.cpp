@@ -26,6 +26,7 @@ bool Impl::InitGame(const char *title,
     LoadFont(uiCfg.fontSize);
     InitConfigManager();
 
+    scene.Init(renderer);
     audio.Init();
     return true;
 }
@@ -39,16 +40,12 @@ void Impl::ShutDown()
         }
     };
 
-    destroyTex(background);
-    destroyTex(pendingBg);
     destroyTex(uiCfg.textbox.image);
     destroyTex(uiCfg.namebox.image);
     destroyTex(uiCfg.button.image);
     destroyTex(uiCfg.button.hoverImage);
 
-    for (auto &[id, entry] : characters)
-        SDL_DestroyTexture(entry.tex);
-    characters.clear();
+    scene.Shutdown();
 
     if (font) {
         TTF_CloseFont(font);
@@ -123,14 +120,6 @@ SDL_Renderer *Impl::CreateBestRenderer(SDL_Window *win)
     return SDL_CreateRenderer(win, nullptr);
 }
 
-SDL_Texture *Impl::LoadTexture(const std::string &filename)
-{
-    SDL_Texture *tex = IMG_LoadTexture(renderer, ("assets/bg/" + filename).c_str());
-    if (!tex)
-        std::cerr << "[CEREKA] Failed to load bg: " << filename << " — " << SDL_GetError() << '\n';
-    return tex;
-}
-
 SDL_Texture *Impl::RenderText(const std::string &text,
                               SDL_Color color)
 {
@@ -142,55 +131,6 @@ SDL_Texture *Impl::RenderText(const std::string &text,
     SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surf);
     SDL_DestroySurface(surf);
     return tex;
-}
-
-// ---------------------------------------------------------------------------
-// Scene helpers
-// ---------------------------------------------------------------------------
-
-void Impl::ShowBackground(const std::string &filename)
-{
-    bgPath = filename;
-    if (background)
-        SDL_DestroyTexture(background);
-    background = LoadTexture(filename);
-}
-
-float Impl::posToXNorm(const std::string &pos)
-{
-    if (pos == "left")
-        return 0.2f;
-    if (pos == "right")
-        return 0.8f;
-    return 0.5f;
-}
-
-void Impl::ShowCharacter(const std::string &id,
-                         const std::string &filename,
-                         const std::string &pos)
-{
-    HideCharacter(id);
-    charPaths[id] = filename;
-    std::string path = "assets/characters/" + filename;
-    SDL_Texture *tex = IMG_LoadTexture(renderer, path.c_str());
-    if (!tex) {
-        std::cerr << "[CEREKA] Failed to load character: " << path << " — " << SDL_GetError()
-                  << "\n";
-        charPaths.erase(id);
-        return;
-    }
-    SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
-    characters[id] = {tex, posToXNorm(pos)};
-}
-
-void Impl::HideCharacter(const std::string &id)
-{
-    charPaths.erase(id);
-    auto it = characters.find(id);
-    if (it != characters.end()) {
-        SDL_DestroyTexture(it->second.tex);
-        characters.erase(it);
-    }
 }
 
 void Impl::Say(const std::string &speaker,
@@ -249,7 +189,7 @@ void Impl::EnterMenu()
 
         if (ins.op == scenario::Op::BG || ins.op == scenario::Op::FADE) {
             // Instant swap inside menu — no game loop available to animate
-            ShowBackground(ins.a);
+            scene.ShowBackground(ins.a);
             scan++;
         }
         else if (ins.op == scenario::Op::BUTTON) {

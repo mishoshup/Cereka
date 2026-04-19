@@ -165,11 +165,7 @@ void Impl::LoadScript(const std::string &filename)
 void Impl::Reset()
 {
     dialogue.Clear();
-    if (background) {
-        SDL_DestroyTexture(background);
-        background = nullptr;
-    }
-    characters.clear();
+    scene.Clear();
 }
 
 // ---------------------------------------------------------------------------
@@ -180,25 +176,8 @@ void Impl::Update(float dt)
 {
     dialogue.Tick(dt);
 
-    // Fade transition
-    if (state == CerekaState::Fading) {
-        fadeTimer += dt;
-        if (fadePhase == FadePhase::Out && fadeTimer >= fadePhaseDuration) {
-            if (background) {
-                SDL_DestroyTexture(background);
-                background = nullptr;
-            }
-            background = pendingBg;
-            pendingBg = nullptr;
-            fadePhase = FadePhase::In;
-            fadeTimer = 0.0f;
-        }
-        else if (fadePhase == FadePhase::In && fadeTimer >= fadePhaseDuration) {
-            fadePhase = FadePhase::None;
-            fadeTimer = 0.0f;
-            state = CerekaState::Running;
-        }
-    }
+    if (state == CerekaState::Fading && scene.TickFade(dt))
+        state = CerekaState::Running;
 }
 
 // ---------------------------------------------------------------------------
@@ -307,7 +286,7 @@ void Impl::TickScript()
         switch (ins.op) {
 
             case scenario::Op::BG:
-                ShowBackground(ins.a);
+                scene.ShowBackground(ins.a);
                 pc++;
                 continue;
 
@@ -320,24 +299,19 @@ void Impl::TickScript()
                     catch (...) {
                     }
                 }
-                fadePhaseDuration = totalDur * 0.5f;
-                fadeTimer = 0.0f;
-                fadePhase = FadePhase::Out;
-                if (pendingBg)
-                    SDL_DestroyTexture(pendingBg);
-                pendingBg = LoadTexture(ins.a);
+                scene.StartFade(ins.a, totalDur);
                 state = CerekaState::Fading;
                 pc++;
                 return;
             }
 
             case scenario::Op::CHAR:
-                ShowCharacter(ins.a, ins.b, ins.c);
+                scene.ShowCharacter(ins.a, ins.b, ins.c);
                 pc++;
                 continue;
 
             case scenario::Op::HIDE_CHAR:
-                HideCharacter(ins.a);
+                scene.HideCharacter(ins.a);
                 pc++;
                 continue;
 

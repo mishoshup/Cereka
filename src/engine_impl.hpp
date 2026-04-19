@@ -8,6 +8,7 @@
 #include "config/config_manager.hpp"
 #include "dialogue_system.hpp"
 #include "menu_system.hpp"
+#include "scene_manager.hpp"
 #include "text_renderer.hpp"
 #include "ui_config.hpp"
 #include "video.hpp"
@@ -39,15 +40,7 @@ class CerekaImpl {
     std::string fontPath;  // path of the loaded font file (for reloading on size change)
 
     // --- Scene state ---
-    SDL_Texture *background = nullptr;
-    std::string bgPath;  // filename passed to ShowBackground (for save/load)
-
-    struct CharacterEntry {
-        SDL_Texture *tex;
-        float xNorm;  // 0.0–1.0 horizontal centre
-    };
-    std::unordered_map<std::string, CharacterEntry> characters;
-    std::unordered_map<std::string, std::string> charPaths;  // id → filename (for save/load)
+    SceneManager scene;
 
     // --- Audio ---
     AudioManager audio;
@@ -69,13 +62,6 @@ class CerekaImpl {
 
     // --- Dialogue ---
     DialogueSystem dialogue;
-
-    // --- Fade transition ---
-    enum class FadePhase { None, Out, In };
-    FadePhase fadePhase = FadePhase::None;
-    float fadePhaseDuration = 0.25f;  // seconds per half-phase
-    float fadeTimer = 0.0f;
-    SDL_Texture *pendingBg = nullptr;
 
     // --- Menu ---
     MenuSystem menu;
@@ -101,14 +87,8 @@ class CerekaImpl {
     bool PollEvent(CerekaEvent &e);
     void Present();
     SDL_Renderer *CreateBestRenderer(SDL_Window *win);
-    SDL_Texture *LoadTexture(const std::string &filename);
     SDL_Texture *RenderText(const std::string &text,
                             SDL_Color color);
-    void ShowBackground(const std::string &filename);
-    void ShowCharacter(const std::string &id,
-                       const std::string &filename,
-                       const std::string &pos);
-    void HideCharacter(const std::string &id);
     void Say(const std::string &speaker,
              const std::string &name,
              const std::string &text);
@@ -116,7 +96,6 @@ class CerekaImpl {
     std::string SubstituteVariables(const std::string &text);
     void EnterMenu();
     void ExitMenu();
-    static float posToXNorm(const std::string &pos);
     void HandleEvent(const CerekaEvent &e);
 
     // script_vm.cpp

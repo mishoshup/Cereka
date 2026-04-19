@@ -69,11 +69,12 @@ bool Impl::SaveGame(int slot)
     for (auto &[k, v] : variables)
         f << "var." << k << "=" << v << "\n";
 
-    f << "bg=" << bgPath << "\n";
+    f << "bg=" << scene.BgPath() << "\n";
 
-    for (auto &[id, filename] : charPaths) {
-        auto it = characters.find(id);
-        float xn = (it != characters.end()) ? it->second.xNorm : 0.5f;
+    for (auto &[id, filename] : scene.CharPaths()) {
+        const auto &chars = scene.Characters();
+        auto it = chars.find(id);
+        float xn = (it != chars.end()) ? it->second.xNorm : 0.5f;
         f << "char." << id << "=" << filename << ":" << xNormToPos(xn) << "\n";
     }
 
@@ -100,15 +101,7 @@ bool Impl::LoadGame(int slot)
         return false;
 
     // Tear down current visual/audio state
-    if (background) {
-        SDL_DestroyTexture(background);
-        background = nullptr;
-    }
-    bgPath.clear();
-    for (auto &[id, entry] : characters)
-        SDL_DestroyTexture(entry.tex);
-    characters.clear();
-    charPaths.clear();
+    scene.Clear();
     audio.StopBGM();
     variables.clear();
     numVariables.clear();
@@ -148,7 +141,7 @@ bool Impl::LoadGame(int slot)
         }
         else if (key == "bg") {
             if (!val.empty())
-                ShowBackground(val);
+                scene.ShowBackground(val);
         }
         else if (key.size() > 5 && key.substr(0, 5) == "char.") {
             std::string id = key.substr(5);
@@ -157,7 +150,7 @@ bool Impl::LoadGame(int slot)
             if (colon != std::string::npos) {
                 std::string fname = val.substr(0, colon);
                 std::string pos = val.substr(colon + 1);
-                ShowCharacter(id, fname, pos);
+                scene.ShowCharacter(id, fname, pos);
             }
         }
         else if (key == "bgm") {

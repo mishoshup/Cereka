@@ -9,20 +9,20 @@ void Impl::Draw()
     SDL_RenderClear(renderer);
 
     // --- Background ---
-    if (background)
-        SDL_RenderTexture(renderer, background, nullptr, nullptr);
+    if (scene.Background())
+        SDL_RenderTexture(renderer, scene.Background(), nullptr, nullptr);
 
     // --- Fade overlay (black rect with animated alpha) ---
-    if (fadePhase != FadePhase::None) {
-        float t = std::min(fadeTimer / fadePhaseDuration, 1.0f);
-        float alpha = (fadePhase == FadePhase::Out) ? t : (1.0f - t);
+    if (scene.Phase() != SceneManager::FadePhase::None) {
+        float t = std::min(scene.FadeTimer() / scene.FadePhaseDuration(), 1.0f);
+        float alpha = (scene.Phase() == SceneManager::FadePhase::Out) ? t : (1.0f - t);
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, (Uint8)(alpha * 255.0f));
         SDL_RenderFillRect(renderer, nullptr);
     }
 
     // --- Characters ---
-    for (const auto &[id, entry] : characters) {
+    for (const auto &[id, entry] : scene.Characters()) {
         float tw = 0, th = 0;
         SDL_GetTextureSize(entry.tex, &tw, &th);
         float scale = (screenHeight * 0.8f) / th;
