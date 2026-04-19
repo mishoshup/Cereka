@@ -155,8 +155,8 @@ std::string Impl::SubstituteVariables(const std::string &text)
             break;
         std::string varName = result.substr(pos + 1, end - pos - 1);
         std::string replacement;
-        auto it = numVariables.find(varName);
-        if (it != numVariables.end()) {
+        auto it = scriptInterpreter.numVariables.find(varName);
+        if (it != scriptInterpreter.numVariables.end()) {
             int intVal = (int)it->second;
             if (it->second == intVal)
                 replacement = std::to_string(intVal);
@@ -164,8 +164,8 @@ std::string Impl::SubstituteVariables(const std::string &text)
                 replacement = std::to_string(it->second);
         }
         else {
-            auto sit = variables.find(varName);
-            if (sit != variables.end())
+            auto sit = scriptInterpreter.variables.find(varName);
+            if (sit != scriptInterpreter.variables.end())
                 replacement = sit->second;
         }
         result.replace(pos, end - pos + 1, replacement);
@@ -183,9 +183,9 @@ void Impl::EnterMenu()
     std::vector<std::string> texts, targets;
     std::vector<bool> exits;
 
-    size_t scan = pc + 1;
-    while (scan < program.size()) {
-        const auto &ins = program[scan];
+    size_t scan = scriptInterpreter.pc + 1;
+    while (scan < scriptInterpreter.program.size()) {
+        const auto &ins = scriptInterpreter.program[scan];
 
         if (ins.op == scenario::Op::BG || ins.op == scenario::Op::FADE) {
             // Instant swap inside menu — no game loop available to animate
@@ -297,7 +297,7 @@ size_t cereka::CerekaEngine::ButtonCount() const
 }
 size_t cereka::CerekaEngine::ProgramCounter() const
 {
-    return pImplementation->pc;
+    return pImplementation->scriptInterpreter.pc;
 }
 
 bool cereka::CerekaEngine::IsGameFinished() const
@@ -313,7 +313,7 @@ bool cereka::CerekaEngine::IsGameQuit() const
 
 bool cereka::CerekaEngine::IsFinished() const
 {
-    return pImplementation->scriptFinished;
+    return pImplementation->scriptInterpreter.scriptFinished;
 }
 
 bool cereka::CerekaEngine::SaveGame(int slot)

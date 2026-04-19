@@ -9,6 +9,7 @@
 #include "dialogue_system.hpp"
 #include "menu_system.hpp"
 #include "scene_manager.hpp"
+#include "script_interpreter.hpp"
 #include "text_renderer.hpp"
 #include "ui_config.hpp"
 #include "video.hpp"
@@ -18,7 +19,6 @@
 #include <SDL3_ttf/SDL_ttf.h>
 #include <filesystem>
 #include <iostream>
-#include <sol/sol.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -45,20 +45,8 @@ class CerekaImpl {
     // --- Audio ---
     AudioManager audio;
 
-    // --- Script VM ---
-    sol::state lua;
-    sol::coroutine script;
-    std::vector<scenario::Instruction> program;
-    std::unordered_map<std::string, size_t> labelMap;
-    std::unordered_map<std::string, std::string> variables;
-    std::unordered_map<std::string, float> numVariables;
-    std::vector<size_t> callStack;  // for CALL / RETURN subroutines
-    size_t pc = 0;
-    bool scriptFinished = false;
-
-    // Skip-mode: inside a false if/endif block
-    bool skipMode = false;
-    int skipDepth = 0;
+    // --- Script interpreter ---
+    ScriptInterpreter scriptInterpreter;
 
     // --- Dialogue ---
     DialogueSystem dialogue;
@@ -104,8 +92,6 @@ class CerekaImpl {
     void LoadCompiledScript(const std::vector<scenario::Instruction> &compiled);
     void LoadScript(const std::string &filename);
     void Reset();
-    float LookupNumVar(const std::string &name) const;
-    float EvalExpr(const std::string &expr) const;
 
     // draw.cpp
     void Draw();

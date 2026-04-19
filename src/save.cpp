@@ -56,17 +56,17 @@ bool Impl::SaveGame(int slot)
     strftime(tsBuf, sizeof(tsBuf), "%Y-%m-%d %H:%M", &tmInfo);
     f << "timestamp=" << tsBuf << "\n";
 
-    f << "pc=" << pc << "\n";
+    f << "pc=" << scriptInterpreter.pc << "\n";
 
     f << "callstack=";
-    for (size_t i = 0; i < callStack.size(); ++i) {
+    for (size_t i = 0; i < scriptInterpreter.callStack.size(); ++i) {
         if (i)
             f << ",";
-        f << callStack[i];
+        f << scriptInterpreter.callStack[i];
     }
     f << "\n";
 
-    for (auto &[k, v] : variables)
+    for (auto &[k, v] : scriptInterpreter.variables)
         f << "var." << k << "=" << v << "\n";
 
     f << "bg=" << scene.BgPath() << "\n";
@@ -84,8 +84,8 @@ bool Impl::SaveGame(int slot)
     f << "name=" << dialogue.Name() << "\n";
     f << "text=" << dialogue.Text() << "\n";
     f << "displayedChars=" << dialogue.DisplayedChars() << "\n";
-    f << "skipMode=" << (skipMode ? 1 : 0) << "\n";
-    f << "skipDepth=" << skipDepth << "\n";
+    f << "skipMode=" << (scriptInterpreter.skipMode ? 1 : 0) << "\n";
+    f << "skipDepth=" << scriptInterpreter.skipDepth << "\n";
 
     return true;
 }
@@ -103,12 +103,12 @@ bool Impl::LoadGame(int slot)
     // Tear down current visual/audio state
     scene.Clear();
     audio.StopBGM();
-    variables.clear();
-    numVariables.clear();
-    callStack.clear();
+    scriptInterpreter.variables.clear();
+    scriptInterpreter.numVariables.clear();
+    scriptInterpreter.callStack.clear();
     dialogue.Clear();
-    skipMode = false;
-    skipDepth = 0;
+    scriptInterpreter.skipMode = false;
+    scriptInterpreter.skipDepth = 0;
 
     std::string line;
     while (std::getline(f, line)) {
@@ -119,7 +119,7 @@ bool Impl::LoadGame(int slot)
         std::string val = line.substr(eq + 1);
 
         if (key == "pc") {
-            pc = (size_t)std::stoull(val);
+            scriptInterpreter.pc = (size_t)std::stoull(val);
         }
         else if (key == "callstack") {
             if (!val.empty()) {
@@ -127,14 +127,14 @@ bool Impl::LoadGame(int slot)
                 std::string tok;
                 while (std::getline(ss, tok, ','))
                     if (!tok.empty())
-                        callStack.push_back((size_t)std::stoull(tok));
+                        scriptInterpreter.callStack.push_back((size_t)std::stoull(tok));
             }
         }
         else if (key.size() > 4 && key.substr(0, 4) == "var.") {
             std::string varkey = key.substr(4);
-            variables[varkey] = val;
+            scriptInterpreter.variables[varkey] = val;
             try {
-                numVariables[varkey] = std::stof(val);
+                scriptInterpreter.numVariables[varkey] = std::stof(val);
             }
             catch (...) {
             }
@@ -173,10 +173,10 @@ bool Impl::LoadGame(int slot)
             dialogue.SetDisplayedChars(std::stoi(val));
         }
         else if (key == "skipMode") {
-            skipMode = (val == "1");
+            scriptInterpreter.skipMode = (val == "1");
         }
         else if (key == "skipDepth") {
-            skipDepth = std::stoi(val);
+            scriptInterpreter.skipDepth = std::stoi(val);
         }
     }
 
