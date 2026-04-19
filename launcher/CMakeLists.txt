@@ -61,5 +61,11 @@ set_target_properties(CerekaLauncher PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
+add_custom_command(TARGET CerekaLauncher POST_BUILD
+    COMMAND Qt6::windeployqt
+    ARGS $<TARGET_FILE:CerekaLauncher>
+    COMMENT "Bundling Qt6 DLLs for distribution"
+)
+
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/template_assets
      DESTINATION ${CMAKE_BINARY_DIR})
