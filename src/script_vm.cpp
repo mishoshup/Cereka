@@ -254,17 +254,19 @@ void Impl::HandleEvent(const CerekaEvent &e)
     }
 
     if (state == CerekaState::InMenu && e.type == CerekaEvent::MouseDown) {
-        int idx = HitTestButton(e.mouseX, e.mouseY);
+        int idx = menu.HitTest(
+            e.mouseX, e.mouseY, screenWidth, screenHeight, uiCfg.button.w, uiCfg.button.h);
         if (idx < 0)
             return;
 
-        if (buttonExits[idx]) {
+        if (menu.IsExit(idx)) {
             ExitMenu();
             state = CerekaState::Finished;
             return;
         }
 
-        pc = buttonTargets[idx].empty() ? menuEndPC : labelMap[buttonTargets[idx]];
+        const std::string &target = menu.Target(idx);
+        pc = target.empty() ? menu.EndPC() : labelMap[target];
         ExitMenu();
         state = CerekaState::Running;
     }

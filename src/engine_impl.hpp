@@ -7,6 +7,7 @@
 #include "audio_manager.hpp"
 #include "config/config_manager.hpp"
 #include "dialogue_system.hpp"
+#include "menu_system.hpp"
 #include "text_renderer.hpp"
 #include "ui_config.hpp"
 #include "video.hpp"
@@ -77,11 +78,7 @@ class CerekaImpl {
     SDL_Texture *pendingBg = nullptr;
 
     // --- Menu ---
-    bool inMenu = false;
-    std::vector<std::string> buttonTexts;
-    std::vector<std::string> buttonTargets;
-    std::vector<bool> buttonExits;
-    size_t menuEndPC = 0;
+    MenuSystem menu;
 
     // --- State machine ---
     CerekaState state = CerekaState::Running;
@@ -119,8 +116,6 @@ class CerekaImpl {
     std::string SubstituteVariables(const std::string &text);
     void EnterMenu();
     void ExitMenu();
-    int HitTestButton(int mx,
-                      int my);
     static float posToXNorm(const std::string &pos);
     void HandleEvent(const CerekaEvent &e);
 

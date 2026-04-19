@@ -240,27 +240,22 @@ std::string Impl::SubstituteVariables(const std::string &text)
 
 void Impl::EnterMenu()
 {
-    buttonTexts.clear();
-    buttonTargets.clear();
-    buttonExits.clear();
+    std::vector<std::string> texts, targets;
+    std::vector<bool> exits;
 
     size_t scan = pc + 1;
     while (scan < program.size()) {
         const auto &ins = program[scan];
 
-        if (ins.op == scenario::Op::BG) {
-            ShowBackground(ins.a);
-            scan++;
-        }
-        else if (ins.op == scenario::Op::FADE) {
+        if (ins.op == scenario::Op::BG || ins.op == scenario::Op::FADE) {
             // Instant swap inside menu — no game loop available to animate
             ShowBackground(ins.a);
             scan++;
         }
         else if (ins.op == scenario::Op::BUTTON) {
-            buttonTexts.push_back(ins.a);
-            buttonTargets.push_back(ins.b);
-            buttonExits.push_back(ins.exit_button);
+            texts.push_back(ins.a);
+            targets.push_back(ins.b);
+            exits.push_back(ins.exit_button);
             scan++;
         }
         else {
@@ -268,32 +263,12 @@ void Impl::EnterMenu()
         }
     }
 
-    inMenu = true;
-    menuEndPC = scan;
+    menu.Open(std::move(texts), std::move(targets), std::move(exits), scan);
 }
 
 void Impl::ExitMenu()
 {
-    inMenu = false;
-    buttonTexts.clear();
-    buttonTargets.clear();
-    buttonExits.clear();
-}
-
-int Impl::HitTestButton(int mx,
-                        int my)
-{
-    const float bw = uiCfg.button.w;
-    const float bh = uiCfg.button.h;
-    float y = screenHeight * 0.4f;
-    float x = (float)screenWidth / 2.0f - bw / 2.0f;
-
-    for (size_t i = 0; i < buttonTexts.size(); ++i) {
-        if (mx >= x && mx <= x + bw && my >= y && my <= y + bh)
-            return (int)i;
-        y += bh + 20.0f;
-    }
-    return -1;
+    menu.Close();
 }
 
 // ---------------------------------------------------------------------------
@@ -370,7 +345,7 @@ void cereka::CerekaEngine::Draw()
 
 bool cereka::CerekaEngine::InMenu() const
 {
-    return pImplementation->inMenu;
+    return pImplementation->menu.IsOpen();
 }
 const std::string &cereka::CerekaEngine::CurrentText() const
 {
@@ -378,7 +353,7 @@ const std::string &cereka::CerekaEngine::CurrentText() const
 }
 size_t cereka::CerekaEngine::ButtonCount() const
 {
-    return pImplementation->buttonTexts.size();
+    return pImplementation->menu.ButtonCount();
 }
 size_t cereka::CerekaEngine::ProgramCounter() const
 {

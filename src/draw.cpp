@@ -35,11 +35,12 @@ void Impl::Draw()
     }
 
     // --- Menu buttons ---
-    if (inMenu) {
+    if (menu.IsOpen()) {
         const float bw = uiCfg.button.w;
         const float bh = uiCfg.button.h;
         const float spacing = 20.0f;
         float y = screenHeight * 0.4f;
+        const auto &buttonTexts = menu.Texts();
 
         for (size_t i = 0; i < buttonTexts.size(); ++i) {
             SDL_FRect btn{(float)screenWidth / 2.0f - bw / 2.0f, y, bw, bh};
