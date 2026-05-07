@@ -43,6 +43,28 @@ void UIManager::drawTexturedRect(ITexture *tex, float x, float y, float w, float
 }
 
 // ============================================================================
+// UIManager::DrawSceneGraph
+// ============================================================================
+
+void UIManager::DrawSceneGraph()
+{
+    m_sceneGraph.updateTransforms();
+    m_renderCtx->SetBlendMode(true);
+    m_sceneGraph.visit([this](const SceneNode &node) {
+        if (!node.texture)
+            return;
+        int sw = m_renderCtx->Width();
+        int sh = m_renderCtx->Height();
+        float sx = node.world.x * sw;
+        float sy = node.world.y * sh;
+        float w = node.texture->Width() * node.world.scaleX;
+        float h = node.texture->Height() * node.world.scaleY;
+        Rect dst{sx - w / 2.0f, sy - h / 2.0f, w, h};
+        m_renderCtx->DrawTexture(*node.texture, nullptr, &dst);
+    });
+}
+
+// ============================================================================
 // UIManager::DrawBackground
 // ============================================================================
 

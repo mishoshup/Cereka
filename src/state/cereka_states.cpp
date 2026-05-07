@@ -203,6 +203,21 @@ void DialogueState::update(float dt,
                 si.pc++;
                 continue;
 
+            case compiler::Op::SG_CREATE:
+                impl.ui.GetSceneGraph().createNode(ins.a);
+                si.pc++;
+                continue;
+
+            case compiler::Op::SG_SET:
+                impl.ui.GetSceneGraph().setTransform(ins.a, ins.b);
+                si.pc++;
+                continue;
+
+            case compiler::Op::SG_REMOVE:
+                impl.ui.GetSceneGraph().removeNode(ins.a);
+                si.pc++;
+                continue;
+
             case compiler::Op::UI_SET:
                 impl.ApplyUiSet(ins.a, ins.b);
                 si.pc++;

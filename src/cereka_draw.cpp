@@ -8,6 +8,7 @@ void Impl::Draw()
 
     ui.DrawBackground(scene);
     ui.DrawCharacters(scene);
+    ui.DrawSceneGraph();
 
     m_stateMachine.draw();
 

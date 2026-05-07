@@ -7,6 +7,7 @@
 // a stateless rendering orchestrator.
 
 #include "renderer/irender_context.hpp"
+#include "scene_graph.hpp"
 #include <string>
 
 struct TTF_Font;
@@ -40,12 +41,17 @@ public:
                              const std::string (&timestamps)[10],
                              const UiConfig &uiCfg);
 
+    // Scene graph access and drawing
+    SceneGraph &GetSceneGraph() { return m_sceneGraph; }
+    void DrawSceneGraph();
+
     // Hit testing for save slots (layout math shared with draw)
     int HitTestSaveSlot(int mx, int my, int screenW, int screenH);
 
 private:
     IRenderContext *m_renderCtx = nullptr;
     TTF_Font *m_font = nullptr;
+    SceneGraph m_sceneGraph;
 
     struct SaveOverlayLayout {
         float panelX, panelY, panelW, panelH, slotH;
