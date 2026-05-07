@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Cereka Launcher
+Exec=CerekaLauncher
+Icon=cereka-launcher
+Categories=Development;Game;
+Comment=Visual novel engine — project manager and packager

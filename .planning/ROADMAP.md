@@ -38,13 +38,14 @@ Plans:
 
 **Status:** in-progress
 
-**Plans:** 4 plans
+**Plans:** 5 plans
 
 Plans:
 - [x] 02-01-PLAN.md — CI Infrastructure (Linux/macOS/Windows) + Local verification scripts
 - [x] 02-02-PLAN.md — Fix nested if/else VM bug + Implement themeable word-wrap
 - [x] 02-03-PLAN.md — State Machine "Big Bang" migration (CerekaImpl decoupling)
 - [x] 02-04-PLAN.md — Modern Save System (Glaze JSON + versioning)
+- [ ] 02-05-PLAN.md — Branding & Naming Conventions (SDL-style cereka_ prefix, type/namespace renames, docs rebrand)
 
 ---
 
