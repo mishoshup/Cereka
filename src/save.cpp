@@ -1,12 +1,14 @@
 // save.cpp — save/load game state and save/load UI overlay
+//
+// Uses Glaze JSON format for portable, versioned save files.
+// Save schema defined in save_data.hpp — add fields there, not here.
 
 #include "engine_impl.hpp"
+#include "save_data.hpp"
 
 #include <chrono>
 #include <ctime>
 #include <filesystem>
-#include <fstream>
-#include <sstream>
 #include <string>
 
 namespace fs = std::filesystem;
@@ -15,12 +17,43 @@ namespace fs = std::filesystem;
 // Internal helpers
 // ---------------------------------------------------------------------------
 
+using cereka::CerekaState;
+
 static std::string savePath(int slot)
 {
-    return "saves/slot" + std::to_string(slot) + ".sav";
+    return "saves/slot" + std::to_string(slot) + ".json";
 }
 
-// Reverse xNorm to position string for serialization
+// Human-readable state labels mirroring CerekaStateMachine::stateLabel().
+static std::string stateToString(CerekaState s)
+{
+    switch (s) {
+        case CerekaState::Running:         return "Running";
+        case CerekaState::WaitingForInput: return "WaitingForInput";
+        case CerekaState::InMenu:          return "InMenu";
+        case CerekaState::Fading:          return "Fading";
+        case CerekaState::Finished:        return "Finished";
+        case CerekaState::Quit:            return "Quit";
+        case CerekaState::SaveMenuState:   return "SaveMenu";
+        case CerekaState::LoadMenuState:   return "LoadMenu";
+    }
+    return "Running";
+}
+
+static CerekaState parseState(const std::string &label)
+{
+    if (label == "Running") return CerekaState::Running;
+    if (label == "WaitingForInput") return CerekaState::WaitingForInput;
+    if (label == "InMenu") return CerekaState::InMenu;
+    if (label == "Fading") return CerekaState::Fading;
+    if (label == "Finished") return CerekaState::Finished;
+    if (label == "Quit") return CerekaState::Quit;
+    if (label == "SaveMenu") return CerekaState::SaveMenuState;
+    if (label == "LoadMenu") return CerekaState::LoadMenuState;
+    return CerekaState::Running;
+}
+
+// Reverse xNorm to position string for serialization.
 static std::string xNormToPos(float xNorm)
 {
     if (xNorm < 0.35f)
@@ -39,11 +72,10 @@ bool Impl::SaveGame(int slot)
     std::error_code ec;
     fs::create_directories("saves", ec);
 
-    std::ofstream f(savePath(slot));
-    if (!f)
-        return false;
+    SerializableSaveData data;
+    data.version = 1;
 
-    // Timestamp line (read back by GetSlotTimestamp for the UI)
+    // Timestamp
     auto now = std::chrono::system_clock::now();
     std::time_t t = std::chrono::system_clock::to_time_t(now);
     char tsBuf[32] = {};
@@ -54,40 +86,47 @@ bool Impl::SaveGame(int slot)
     localtime_r(&t, &tmInfo);
 #endif
     strftime(tsBuf, sizeof(tsBuf), "%Y-%m-%d %H:%M", &tmInfo);
-    f << "timestamp=" << tsBuf << "\n";
+    data.timestamp = tsBuf;
 
-    f << "pc=" << scriptInterpreter.pc << "\n";
+    // Script state
+    data.programCounter = scriptInterpreter.pc;
+    data.callStack = scriptInterpreter.callStack;
+    data.variables = scriptInterpreter.variables;
+    data.numVariables = scriptInterpreter.numVariables;
 
-    f << "callstack=";
-    for (size_t i = 0; i < scriptInterpreter.callStack.size(); ++i) {
-        if (i)
-            f << ",";
-        f << scriptInterpreter.callStack[i];
-    }
-    f << "\n";
-
-    for (auto &[k, v] : scriptInterpreter.variables)
-        f << "var." << k << "=" << v << "\n";
-
-    f << "bg=" << scene.BgPath() << "\n";
-
+    // Scene state
+    data.background = scene.BgPath();
     for (auto &[id, filename] : scene.CharPaths()) {
+        SerializableCharacter ch;
+        ch.id = id;
+        ch.file = filename;
         const auto &chars = scene.Characters();
         auto it = chars.find(id);
         float xn = (it != chars.end()) ? it->second.xNorm : 0.5f;
-        f << "char." << id << "=" << filename << ":" << xNormToPos(xn) << "\n";
+        ch.position = xNormToPos(xn);
+        data.characters.push_back(std::move(ch));
     }
 
-    f << "bgm=" << audio.BgmPath() << "\n";
-    f << "state=" << (int)stateBeforeSaveMenu << "\n";
-    f << "speaker=" << dialogue.Speaker() << "\n";
-    f << "name=" << dialogue.Name() << "\n";
-    f << "text=" << dialogue.Text() << "\n";
-    f << "displayedChars=" << dialogue.DisplayedChars() << "\n";
-    f << "skipMode=" << (scriptInterpreter.skipMode ? 1 : 0) << "\n";
-    f << "skipDepth=" << scriptInterpreter.skipDepth << "\n";
+    // Audio
+    data.bgm = audio.BgmPath();
 
-    return true;
+    // State machine — save the state before we entered the save menu overlay
+    data.state = stateToString(stateBeforeSaveMenu);
+
+    // Dialogue state
+    data.speaker = dialogue.Speaker();
+    data.name = dialogue.Name();
+    data.text = dialogue.Text();
+    data.displayedChars = dialogue.DisplayedChars();
+
+    // Skip mode
+    data.skipMode = scriptInterpreter.skipMode;
+    data.skipDepth = scriptInterpreter.skipDepth;
+
+    // Write JSON to file
+    std::string buffer;
+    auto result = glz::write_file_json(data, savePath(slot), buffer);
+    return !result;  // error_ctx::operator bool returns true on error
 }
 
 // ---------------------------------------------------------------------------
@@ -96,9 +135,19 @@ bool Impl::SaveGame(int slot)
 
 bool Impl::LoadGame(int slot)
 {
-    std::ifstream f(savePath(slot));
-    if (!f)
+    // Read JSON from file
+    SerializableSaveData data;
+    std::string buffer;
+    auto result = glz::read_file_json(data, savePath(slot), buffer);
+    if (result) {
+        // Glaze error — malformed JSON, missing file, or schema mismatch
         return false;
+    }
+
+    // Validate version (graceful: v1 is the only version in alpha)
+    if (data.version < 1 || data.version > 1) {
+        // Unknown version — attempt best-effort load anyway
+    }
 
     // Tear down current visual/audio state
     scene.Clear();
@@ -110,95 +159,50 @@ bool Impl::LoadGame(int slot)
     scriptInterpreter.skipMode = false;
     scriptInterpreter.skipDepth = 0;
 
-    std::string line;
-    while (std::getline(f, line)) {
-        auto eq = line.find('=');
-        if (eq == std::string::npos)
-            continue;
-        std::string key = line.substr(0, eq);
-        std::string val = line.substr(eq + 1);
+    // Restore script state
+    scriptInterpreter.pc = data.programCounter;
+    scriptInterpreter.callStack = data.callStack;
+    scriptInterpreter.variables = data.variables;
+    scriptInterpreter.numVariables = data.numVariables;
 
-        if (key == "pc") {
-            scriptInterpreter.pc = (size_t)std::stoull(val);
-        }
-        else if (key == "callstack") {
-            if (!val.empty()) {
-                std::istringstream ss(val);
-                std::string tok;
-                while (std::getline(ss, tok, ','))
-                    if (!tok.empty())
-                        scriptInterpreter.callStack.push_back((size_t)std::stoull(tok));
-            }
-        }
-        else if (key.size() > 4 && key.substr(0, 4) == "var.") {
-            std::string varkey = key.substr(4);
-            scriptInterpreter.variables[varkey] = val;
-            try {
-                scriptInterpreter.numVariables[varkey] = std::stof(val);
-            }
-            catch (...) {
-            }
-        }
-        else if (key == "bg") {
-            if (!val.empty())
-                scene.ShowBackground(val);
-        }
-        else if (key.size() > 5 && key.substr(0, 5) == "char.") {
-            std::string id = key.substr(5);
-            // val = "filename.png:left|center|right"
-            auto colon = val.rfind(':');
-            if (colon != std::string::npos) {
-                std::string fname = val.substr(0, colon);
-                std::string pos = val.substr(colon + 1);
-                scene.ShowCharacter(id, fname, pos);
-            }
-        }
-        else if (key == "bgm") {
-            if (!val.empty())
-                audio.PlayBGM(val);
-        }
-        else if (key == "state") {
-            state = (CerekaState)std::stoi(val);
-        }
-        else if (key == "speaker") {
-            dialogue.SetSpeaker(val);
-        }
-        else if (key == "name") {
-            dialogue.SetName(val);
-        }
-        else if (key == "text") {
-            dialogue.SetText(val);
-        }
-        else if (key == "displayedChars") {
-            dialogue.SetDisplayedChars(std::stoi(val));
-        }
-        else if (key == "skipMode") {
-            scriptInterpreter.skipMode = (val == "1");
-        }
-        else if (key == "skipDepth") {
-            scriptInterpreter.skipDepth = std::stoi(val);
-        }
-    }
+    // Restore scene state
+    if (!data.background.empty())
+        scene.ShowBackground(data.background);
+    for (auto &ch : data.characters)
+        scene.ShowCharacter(ch.id, ch.file, ch.position);
+
+    // Restore audio
+    if (!data.bgm.empty())
+        audio.PlayBGM(data.bgm);
+
+    // Restore state machine
+    state = parseState(data.state);
+
+    // Restore dialogue state
+    dialogue.SetSpeaker(data.speaker);
+    dialogue.SetName(data.name);
+    dialogue.SetText(data.text);
+    dialogue.SetDisplayedChars(data.displayedChars);
+
+    // Restore skip mode
+    scriptInterpreter.skipMode = data.skipMode;
+    scriptInterpreter.skipDepth = data.skipDepth;
 
     return true;
 }
 
 // ---------------------------------------------------------------------------
-// GetSlotTimestamp — reads just the first line of a save file
+// GetSlotTimestamp — reads just the timestamp from a save file
 // ---------------------------------------------------------------------------
 
 std::string Impl::GetSlotTimestamp(int slot)
 {
-    std::ifstream f(savePath(slot));
-    if (!f)
+    SerializableSaveData data;
+    std::string buffer;
+    auto result = glz::read_file_json(data, savePath(slot), buffer);
+    if (result)
         return "";
-    std::string line;
-    if (std::getline(f, line)) {
-        auto eq = line.find('=');
-        if (eq != std::string::npos && line.substr(0, eq) == "timestamp")
-            return line.substr(eq + 1);
-    }
-    return "???";
+    return data.timestamp;
 }
 
 // ---------------------------------------------------------------------------
