@@ -647,21 +647,21 @@ void HistoryState::handleEvent(const CerekaEvent &event,
 | A4 | TTF_SetFontStyle's algorithmic bold/italic produces acceptable visual quality | Rich Text | For fonts without bold/italic variants, algorithmic rendering may look poor. Authors can provide separate font files for best results — not blocked on this. |
 | A5 | MIX_CreateTrack allows two simultaneous BGM tracks for crossfade | Audio Fade | If SDL3_mixer limits to one active track, crossfade design changes. Verification needed in implementation. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **SDL3_mixer: Does crossfade work with two simultaneous tracks on same mixer?**
+1. **SDL3_mixer: Does crossfade work with two simultaneous tracks on same mixer?** — RESOLVED
    - What we know: MIX_CreateTrack allocates a track. The current implementation uses one track for BGM. Crossfade creates a second track while the first is still playing.
-   - What's unclear: Will two tracks playing different audio simultaneously cause clipping, contention, or driver-level issues?
+   - Resolution: Plan 04-03 implements dual-track crossfade using two MIX_Track objects. If runtime issues arise, fallback to pre-mixing at load time.
    - Recommendation: Prototype dual-track playback early in implementation. If problematic, crossfade can mix the two audios into a single track by pre-mixing at load time.
 
-2. **Rollback + resource lifecycle: BGM path stored in snapshot, but SceneManager bg is also there. What about preloaded-but-not-displayed resources?**
+2. **Rollback + resource lifecycle: BGM path stored in snapshot, but SceneManager bg is also there. What about preloaded-but-not-displayed resources?** — RESOLVED
    - What we know: SerializableSaveData captures loaded resources by path (bgm filename, bg path, character files). Textures are recreated on restore.
-   - What's unclear: Are there engine-internal cached resources that snapshots miss?
+   - Resolution: Plan 04-04 explicitly enumerates all snapshot fields in its design. The rollback restore path follows the same pattern as LoadGame (already audited in Phase 3).
    - Recommendation: Audit `Impl` for any non-serialized state that affects visible output. Add fields to SerializableSaveData as needed.
 
-3. **Text markup custom tag API: How does a .crka author register a handler?**
+3. **Text markup custom tag API: How does a .crka author register a handler?** — RESOLVED (DEFERRED)
    - What we know: User wants `define_tag <mytag> ... </mytag>` in .crka scripts.
-   - What's unclear: Should custom handlers run Lua code or just map to existing formatting? If Lua, how does the handler get invoked during rendering (which happens in C++ via IRenderContext)?
+   - Resolution: Custom tags deferred to a follow-up phase as recommended. Plan 04-02 ships built-in tags only.
    - Recommendation: Defer custom tags to a follow-up. Ship with built-in tags only in Phase 4. Custom tags go in Phase 5.
 
 ## Validation Architecture
