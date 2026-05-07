@@ -860,6 +860,28 @@ private:
                                     fs::perms::owner_exec | fs::perms::group_exec |
                                         fs::perms::others_exec,
                                     fs::perm_options::add, ec);
+                    // Bundle SDL shared libraries alongside the binary.
+                    // The binary's $ORIGIN RPATH (set in runner/CMakeLists.txt) resolves
+                    // .so files from the same directory — so they must be in the archive.
+                    static const char *soLibs[] = {
+                        "libSDL3.so.0", "libSDL3_image.so.0",
+                        "libSDL3_ttf.so.0", "libSDL3_mixer.so.0"};
+                    for (auto *lib : soLibs) {
+                        fs::path src = runtimeDir("linux") / lib;
+                        if (fs::exists(src)) {
+                            fs::copy_file(src, stagingDir / lib,
+                                          fs::copy_options::overwrite_existing, ec);
+                            if (ec)
+                                appendLog("[ERROR] Cannot copy " + std::string(lib) +
+                                          ": " + ec.message());
+                            else
+                                appendLog("Copied " + std::string(lib));
+                        } else {
+                            appendLog("[WARN] Not found, skipping: " + std::string(lib));
+                        }
+                    }
+                    QMetaObject::invokeMethod(this, [this]() { updateLog(); },
+                                             Qt::QueuedConnection);
                 } else {
                     for (auto &e : fs::directory_iterator(runtimeDir("windows"), ec)) {
                         if (e.path().extension() == ".dll") {
