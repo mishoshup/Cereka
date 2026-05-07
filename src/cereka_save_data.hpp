@@ -44,6 +44,27 @@ struct SerializableSaveData {
     int displayedChars = 0;
     bool skipMode = false;
     int skipDepth = 0;
+
+    struct glaze {
+        using T = SerializableSaveData;
+        static constexpr auto value = glz::object(
+            "version", &T::version,
+            "timestamp", &T::timestamp,
+            "programCounter", &T::programCounter,
+            "callStack", &T::callStack,
+            "variables", &T::variables,
+            "numVariables", &T::numVariables,
+            "background", &T::background,
+            "characters", &T::characters,
+            "bgm", &T::bgm,
+            "state", &T::state,
+            "speaker", &T::speaker,
+            "name", &T::name,
+            "text", &T::text,
+            "displayedChars", &T::displayedChars,
+            "skipMode", &T::skipMode,
+            "skipDepth", &T::skipDepth);
+    };
 };
 
 // ============================================================================
@@ -85,27 +106,6 @@ struct SerializableSaveData {
 template<> struct glz::meta<cereka::SerializableCharacter> {
     using T = cereka::SerializableCharacter;
     static constexpr auto value = object(&T::id, &T::file, &T::position);
-};
-
-template<> struct glz::meta<cereka::SerializableSaveData> {
-    using T = cereka::SerializableSaveData;
-    static constexpr auto value = object(
-        &T::version,
-        &T::timestamp,
-        &T::programCounter,
-        &T::callStack,
-        &T::variables,
-        &T::numVariables,
-        &T::background,
-        &T::characters,
-        &T::bgm,
-        &T::state,
-        &T::speaker,
-        &T::name,
-        &T::text,
-        &T::displayedChars,
-        &T::skipMode,
-        &T::skipDepth);
 };
 
 #endif  // CEREKA_SAVE_DATA_HPP
