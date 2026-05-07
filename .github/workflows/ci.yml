@@ -36,6 +36,7 @@ jobs:
             libxss-dev \
             libxkbcommon-dev \
             libxtst-dev \
+            qt6-base-dev \
             libwayland-dev \
             libegl1-mesa-dev \
             libgl1-mesa-dev \
@@ -53,9 +54,7 @@ jobs:
         run: cmake --build build
 
       - name: Run tests
-        run: |
-          cd build
-          ctest --output-on-failure
+        run: ./build/tests/cereka_test
 
   windows:
     name: Windows (Cross-compile)
@@ -112,6 +111,4 @@ jobs:
         run: cmake --build build
 
       - name: Run tests
-        run: |
-          cd build
-          ctest --output-on-failure
+        run: ./build/tests/cereka_test
