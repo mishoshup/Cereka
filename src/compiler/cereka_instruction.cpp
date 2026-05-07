@@ -17,7 +17,7 @@ static std::vector<Instruction> CompileFile(const fs::path &path,
                                             int depth);
 
 // ---------------------------------------------------------------------------
-// Run compiler.lua on script_text, return raw instruction list
+// Run cereka_compiler.lua on script_text, return raw instruction list
 // ---------------------------------------------------------------------------
 static std::vector<Instruction> RunLuaCompiler(const std::string &scriptText)
 {
