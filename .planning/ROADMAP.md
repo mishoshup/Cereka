@@ -71,8 +71,16 @@ Plans:
 ## Phase 4 — Engine Features
 **Goal:** Feature parity with Ren'Py baseline.
 - Scene graph + transform tree (prerequisite for ATL: dissolve/zoom/rotate)
-- Text markup (`{b}`, color spans)
+- Text markup (`<b>`, color spans)
 - Audio fade in/out
 - Rollback + dialogue history
 
-**Status:** backlog
+**Status:** in-progress
+
+**Plans:** 4 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Scene Graph (SceneNode tree, compiler ops, UIManager draw)
+- [ ] 04-02-PLAN.md — Text Markup (tag parser, rich text renderer, IRenderContext integration)
+- [ ] 04-03-PLAN.md — Audio Fade (timer-based volume ramping, fade curve math, crossfade)
+- [ ] 04-04-PLAN.md — Rollback + Dialogue History (ring buffer, HistoryState overlay)
