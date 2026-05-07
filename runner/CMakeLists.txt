@@ -11,5 +11,7 @@ if(WIN32)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/runtimes/windows")
 else()
     set_target_properties(CerekaGame PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/runtimes/linux")
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/runtimes/linux"
+        INSTALL_RPATH             "$ORIGIN"
+        BUILD_WITH_INSTALL_RPATH  ON)
 endif()
