@@ -1,10 +1,10 @@
 file(GLOB_RECURSE SRC CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 
-set(COMPILER_LUA       "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/compiler.lua")
+set(COMPILER_LUA       "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/cereka_compiler.lua")
 set(COMPILER_LUA_EMBED "${CMAKE_CURRENT_BINARY_DIR}/compiler_lua_embed.hpp")
 
-# Re-embed compiler.lua at build time whenever the .lua file changes.
+# Re-embed cereka_compiler.lua at build time whenever the .lua file changes.
 add_custom_command(
     OUTPUT  "${COMPILER_LUA_EMBED}"
     COMMAND ${CMAKE_COMMAND}
@@ -12,7 +12,7 @@ add_custom_command(
             -DDST="${COMPILER_LUA_EMBED}"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/compiler/embed_lua.cmake"
     DEPENDS "${COMPILER_LUA}"
-    COMMENT "Embedding scripts/compiler.lua"
+    COMMENT "Embedding scripts/cereka_compiler.lua"
 )
 
 add_library(Cereka STATIC ${SRC} "${COMPILER_LUA_EMBED}")
