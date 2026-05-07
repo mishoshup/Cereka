@@ -146,18 +146,16 @@ void Impl::TickScript()
         if (si.skipMode) {
             if (ins.op == scenario::Op::IF_EQ || ins.op == scenario::Op::IF_NEQ ||
                 ins.op == scenario::Op::IF_GT || ins.op == scenario::Op::IF_LT ||
-                ins.op == scenario::Op::IF_GE || ins.op == scenario::Op::IF_LE)
+                ins.op == scenario::Op::IF_GE || ins.op == scenario::Op::IF_LE) {
                 si.skipDepth++;
-            else if (ins.op == scenario::Op::ELSE) {
-                // Already skipping due to false IF - entering else block, restore execution
-                si.skipMode = false;
-                si.skipDepth = 0;
-            }
-            else if (ins.op == scenario::Op::ENDIF) {
+            } else if (ins.op == scenario::Op::ENDIF) {
                 si.skipDepth--;
                 if (si.skipDepth == 0)
                     si.skipMode = false;
             }
+            // ELSE is silently skipped while in skipMode — it belongs to a conditional
+            // whose condition we never evaluated, so we must skip its block too.
+            // Only ENDIF can exit skipMode (when skipDepth returns to 0).
             si.pc++;
             continue;
         }
@@ -305,17 +303,10 @@ void Impl::TickScript()
                 continue;
 
             case scenario::Op::ELSE:
-                if (si.skipMode) {
-                    // Already skipping from false if-condition: enter else block, stop skipping
-                    // skipDepth already = 1 (from the IF that was false)
-                    si.skipMode = false;
-                    si.skipDepth = 0;
-                }
-                else {
-                    // If condition was true - skip the else block
-                    si.skipMode = true;
-                    si.skipDepth = 1;
-                }
+                // If we reach here, skipMode was false, meaning the IF branch was executed.
+                // So we must skip the ELSE branch.
+                si.skipMode = true;
+                si.skipDepth = 1;
                 si.pc++;
                 continue;
 
