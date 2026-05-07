@@ -32,9 +32,9 @@ TEST_F(VMTest, NestedIfElseBug) {
         {Op::END}
     };
 
-    engine.LoadCompiledScript(program);
+    engine.LoadCompiledCerekaScript(program);
 
-    // Set variables AFTER LoadCompiledScript (which clears them)
+    // Set variables AFTER LoadCompiledCerekaScript (which clears them)
     engine.scriptInterpreter.variables["var"] = "0";
     engine.scriptInterpreter.variables["var2"] = "2";
 
@@ -48,7 +48,7 @@ TEST_F(VMTest, NestedIfElseBug) {
     //   ENDIF → skipDepth=0, skipMode=false
     //   SAY "after" → executed
 
-    engine.TickScript();
+    engine.CerekaScriptTick();
 
     EXPECT_EQ(engine.state, CerekaState::WaitingForInput);
     EXPECT_EQ(engine.dialogue.Text(), "after");
@@ -65,15 +65,15 @@ TEST_F(VMTest, IfTrueElseSkipped) {
         {Op::END}
     };
 
-    engine.LoadCompiledScript(program);
+    engine.LoadCompiledCerekaScript(program);
 
-    // Set variables AFTER LoadCompiledScript (which clears them)
+    // Set variables AFTER LoadCompiledCerekaScript (which clears them)
     engine.scriptInterpreter.variables["var"] = "1";
 
     engine.state = CerekaState::Running;
 
     // Tick 1: IF is true → execute SAY "inside if", return WaitingForInput
-    engine.TickScript();
+    engine.CerekaScriptTick();
     EXPECT_EQ(engine.dialogue.Text(), "inside if");
 
     // Tick 2: ELSE → skipMode=true (IF branch was taken, skip ELSE block)
@@ -81,7 +81,7 @@ TEST_F(VMTest, IfTrueElseSkipped) {
     //   ENDIF → skipMode=false
     //   SAY "after" → executed
     engine.state = CerekaState::Running;
-    engine.TickScript();
+    engine.CerekaScriptTick();
     EXPECT_EQ(engine.dialogue.Text(), "after");
 }
 
@@ -106,13 +106,13 @@ TEST_F(VMTest, DeeplyNestedIfElse) {
         {Op::END}
     };
 
-    engine.LoadCompiledScript(program);
+    engine.LoadCompiledCerekaScript(program);
     engine.scriptInterpreter.variables["outer"] = "no";
     engine.scriptInterpreter.variables["mid"] = "yes";
     engine.scriptInterpreter.variables["inner"] = "yes";
     engine.state = CerekaState::Running;
 
-    engine.TickScript();
+    engine.CerekaScriptTick();
 
     EXPECT_EQ(engine.state, CerekaState::WaitingForInput);
     EXPECT_EQ(engine.dialogue.Text(), "after all");

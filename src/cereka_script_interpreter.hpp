@@ -13,7 +13,7 @@ namespace cereka {
 // Holds the execution state of a running .crka script — the program,
 // program counter, call stack, variables, labels, and skip-mode flags —
 // and knows how to evaluate expressions against those variables.
-// TickScript dispatch lives on CerekaImpl (see script_vm.cpp); this class
+// CerekaScriptTick dispatch lives on CerekaImpl (see script_vm.cpp); this class
 // is the bag of state that dispatch operates on, so rollback and save can
 // snapshot it as a unit.
 class ScriptInterpreter {

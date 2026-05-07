@@ -12,10 +12,10 @@ namespace cereka {
 // ============================================================================
 
 void DialogueState::update(float dt,
-                           IVNStateContext &ctx)
+                           ICerekaStateContext &ctx)
 {
     auto &impl = static_cast<Impl &>(ctx);
-    impl.TickScript();
+    impl.CerekaScriptTick();
 }
 
 // ============================================================================
@@ -23,12 +23,12 @@ void DialogueState::update(float dt,
 // ============================================================================
 
 void MenuState::update(float dt,
-                       IVNStateContext & /*ctx*/)
+                       ICerekaStateContext & /*ctx*/)
 {
 }
 
 void MenuState::handleEvent(const CerekaEvent &event,
-                            IVNStateContext &ctx)
+                            ICerekaStateContext &ctx)
 {
     if (event.type != CerekaEvent::MouseDown)
         return;
@@ -53,7 +53,7 @@ void MenuState::handleEvent(const CerekaEvent &event,
     ctx.changeState(CerekaState::Running);
 }
 
-void MenuState::draw(IVNStateContext &ctx) const
+void MenuState::draw(ICerekaStateContext &ctx) const
 {
     auto &impl = static_cast<Impl &>(ctx);
     if (!impl.menu.IsOpen())
@@ -98,17 +98,17 @@ void MenuState::draw(IVNStateContext &ctx) const
 // FadeState — Background fade transitions
 // ============================================================================
 
-void FadeState::onEnter(IVNStateContext & /*ctx*/) {}
+void FadeState::onEnter(ICerekaStateContext & /*ctx*/) {}
 
 void FadeState::update(float dt,
-                       IVNStateContext &ctx)
+                       ICerekaStateContext &ctx)
 {
     auto &impl = static_cast<Impl &>(ctx);
     if (impl.scene.TickFade(dt))
         ctx.changeState(CerekaState::Running);
 }
 
-void FadeState::draw(IVNStateContext &ctx) const
+void FadeState::draw(ICerekaStateContext &ctx) const
 {
     auto &impl = static_cast<Impl &>(ctx);
     if (impl.scene.Phase() == SceneManager::FadePhase::None)
@@ -126,7 +126,7 @@ void FadeState::draw(IVNStateContext &ctx) const
 // ============================================================================
 
 void SaveMenuState::handleEvent(const CerekaEvent &event,
-                                IVNStateContext &ctx)
+                                ICerekaStateContext &ctx)
 {
     auto &impl = static_cast<Impl &>(ctx);
     if (event.type == CerekaEvent::KeyDown && event.key == SDLK_ESCAPE) {
@@ -142,7 +142,7 @@ void SaveMenuState::handleEvent(const CerekaEvent &event,
     }
 }
 
-void SaveMenuState::draw(IVNStateContext &ctx) const
+void SaveMenuState::draw(ICerekaStateContext &ctx) const
 {
     auto &impl = static_cast<Impl &>(ctx);
     impl.DrawSaveLoadOverlay(true);
@@ -153,7 +153,7 @@ void SaveMenuState::draw(IVNStateContext &ctx) const
 // ============================================================================
 
 void LoadMenuState::handleEvent(const CerekaEvent &event,
-                                IVNStateContext &ctx)
+                                ICerekaStateContext &ctx)
 {
     auto &impl = static_cast<Impl &>(ctx);
     if (event.type == CerekaEvent::KeyDown && event.key == SDLK_ESCAPE) {
@@ -172,7 +172,7 @@ void LoadMenuState::handleEvent(const CerekaEvent &event,
     }
 }
 
-void LoadMenuState::draw(IVNStateContext &ctx) const
+void LoadMenuState::draw(ICerekaStateContext &ctx) const
 {
     auto &impl = static_cast<Impl &>(ctx);
     impl.DrawSaveLoadOverlay(false);

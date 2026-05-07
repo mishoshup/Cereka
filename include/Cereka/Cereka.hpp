@@ -45,9 +45,9 @@ class CerekaEngine {
     int Width() const;
     int Height() const;
 
-    void LoadCompiledScript(const std::vector<scenario::Instruction> &compiled);
-    void LoadScript(const std::string &filename);
-    void TickScript();
+    void LoadCompiledCerekaScript(const std::vector<scenario::Instruction> &compiled);
+    void LoadCerekaScript(const std::string &filename);
+    void CerekaScriptTick();
 
     void Reset();
     void HandleEvent(const CerekaEvent &e);

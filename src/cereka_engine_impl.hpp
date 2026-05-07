@@ -28,7 +28,7 @@ namespace fs = std::filesystem;
 
 namespace cereka {
 
-class CerekaImpl : public IVNStateContext {
+class CerekaImpl : public ICerekaStateContext {
    public:
     // --- Window / renderer ---
     SDL_Window *window = nullptr;
@@ -65,7 +65,7 @@ class CerekaImpl : public IVNStateContext {
     config::ConfigManager configManager;
 
     // -----------------------------------------------------------------------
-    // IVNStateContext — state machine interface
+    // ICerekaStateContext — state machine interface
     // -----------------------------------------------------------------------
     void changeState(CerekaState newState) override;
     void pushOverlay(CerekaState overlayState) override;
@@ -101,10 +101,10 @@ class CerekaImpl : public IVNStateContext {
     void HandleEvent(const CerekaEvent &e);
 
     // script_vm.cpp
-    void TickScript();
+    void CerekaScriptTick();
     void Update(float dt);
-    void LoadCompiledScript(const std::vector<scenario::Instruction> &compiled);
-    void LoadScript(const std::string &filename);
+    void LoadCompiledCerekaScript(const std::vector<scenario::Instruction> &compiled);
+    void LoadCerekaScript(const std::string &filename);
     void Reset();
 
     // draw.cpp

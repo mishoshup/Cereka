@@ -237,7 +237,7 @@ static std::vector<Instruction> CompileFile(const fs::path &path,
 // ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
-std::vector<Instruction> CompileVNScript(const std::string &filename)
+std::vector<Instruction> CompileCerekaScript(const std::string &filename)
 {
     return CompileFile(fs::absolute(filename), 0);
 }

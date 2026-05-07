@@ -11,8 +11,8 @@
 // - Self-documenting code
 //
 // State hierarchy:
-//   IVNState (interface)
-//     └── VNState<T> (CRTP base)
+//   ICerekaState (interface)
+//     └── CerekaState<T> (CRTP base)
 //           └── Concrete states (DialogueState, MenuState, etc.)
 //
 // Usage:
@@ -37,7 +37,7 @@
 namespace cereka {
 
 // ============================================================================
-// IVNStateContext — Interface for state → engine communication
+// ICerekaStateContext — Interface for state → engine communication
 // ============================================================================
 
 /**
@@ -46,9 +46,9 @@ namespace cereka {
  * States should never directly manipulate engine state. They request
  * changes through this interface, enabling loose coupling and testability.
  */
-class IVNStateContext {
+class ICerekaStateContext {
    public:
-    virtual ~IVNStateContext() = default;
+    virtual ~ICerekaStateContext() = default;
 
     virtual void changeState(CerekaState newState) = 0;
     virtual void pushOverlay(CerekaState overlayState) = 0;
@@ -58,7 +58,7 @@ class IVNStateContext {
 };
 
 // ============================================================================
-// IVNState — Abstract base for all VN game states
+// ICerekaState — Abstract base for all VN game states
 // ============================================================================
 
 /**
@@ -71,38 +71,38 @@ class IVNStateContext {
  * - handleEvent: Input event processing
  * - draw: Per-frame rendering
  */
-class IVNState {
+class ICerekaState {
    public:
-    virtual ~IVNState() = default;
+    virtual ~ICerekaState() = default;
 
     [[nodiscard]] virtual CerekaState type() const = 0;
 
-    virtual void onEnter(IVNStateContext &) {}
-    virtual void onExit(IVNStateContext &) {}
+    virtual void onEnter(ICerekaStateContext &) {}
+    virtual void onExit(ICerekaStateContext &) {}
     virtual void update(float dt,
-                        IVNStateContext &)
+                        ICerekaStateContext &)
     {
     }
-    virtual void draw(IVNStateContext &) const {}
+    virtual void draw(ICerekaStateContext &) const {}
     virtual void handleEvent(const CerekaEvent &event,
-                             IVNStateContext &)
+                             ICerekaStateContext &)
     {
     }
 };
 
 // ============================================================================
-// VNState — CRTP template for simple states
+// CerekaState — CRTP template for simple states
 // ============================================================================
 
 /**
  * @brief CRTP base class for states with compile-time type dispatch.
  *
  * Usage:
- *   class DialogueState : public VNState<CerekaState::Dialogue> {
- *       void onEnter(IVNStateContext& ctx) override { ... }
+ *   class DialogueState : public CerekaStateBase<CerekaState::Dialogue> {
+ *       void onEnter(ICerekaStateContext& ctx) override { ... }
  *   };
  */
-template<CerekaState T> class VNState : public IVNState {
+template<CerekaState T> class CerekaStateBase : public ICerekaState {
    public:
     [[nodiscard]] CerekaState type() const override
     {
@@ -134,14 +134,14 @@ class CerekaStateMachine {
         return "?";
     }
 
-    void setContext(IVNStateContext &ctx)
+    void setContext(ICerekaStateContext &ctx)
     {
         ctx_ = &ctx;
     }
 
     template<typename StateT> void registerState()
     {
-        static_assert(std::is_base_of_v<IVNState, StateT>, "StateT must derive from IVNState");
+        static_assert(std::is_base_of_v<ICerekaState, StateT>, "StateT must derive from ICerekaState");
         auto state = std::make_unique<StateT>();
         CerekaState type = state->type();
         states_[type] = std::move(state);
@@ -259,11 +259,11 @@ class CerekaStateMachine {
     }
 
    private:
-    IVNStateContext *ctx_ = nullptr;
+    ICerekaStateContext *ctx_ = nullptr;
     CerekaState currentType_ = CerekaState::Running;
-    IVNState *currentState_ = nullptr;
-    std::unordered_map<CerekaState, std::unique_ptr<IVNState>> states_;
-    std::vector<std::pair<CerekaState, IVNState *>> overlayStack_;
+    ICerekaState *currentState_ = nullptr;
+    std::unordered_map<CerekaState, std::unique_ptr<ICerekaState>> states_;
+    std::vector<std::pair<CerekaState, ICerekaState *>> overlayStack_;
 };
 
 }  // namespace cereka

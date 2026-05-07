@@ -79,7 +79,7 @@ void Impl::ShutDown()
 }
 
 // ---------------------------------------------------------------------------
-// IVNStateContext — state machine interface
+// ICerekaStateContext — state machine interface
 // ---------------------------------------------------------------------------
 
 void Impl::changeState(CerekaState newState)
@@ -347,19 +347,19 @@ int cereka::CerekaEngine::Height() const
     return pImplementation->screenHeight;
 }
 
-void cereka::CerekaEngine::LoadCompiledScript(const std::vector<scenario::Instruction> &compiled)
+void cereka::CerekaEngine::LoadCompiledCerekaScript(const std::vector<scenario::Instruction> &compiled)
 {
-    pImplementation->LoadCompiledScript(compiled);
+    pImplementation->LoadCompiledCerekaScript(compiled);
 }
 
-void cereka::CerekaEngine::LoadScript(const std::string &filename)
+void cereka::CerekaEngine::LoadCerekaScript(const std::string &filename)
 {
-    pImplementation->LoadScript(filename);
+    pImplementation->LoadCerekaScript(filename);
 }
 
-void cereka::CerekaEngine::TickScript()
+void cereka::CerekaEngine::CerekaScriptTick()
 {
-    pImplementation->TickScript();
+    pImplementation->CerekaScriptTick();
 }
 void cereka::CerekaEngine::Reset()
 {

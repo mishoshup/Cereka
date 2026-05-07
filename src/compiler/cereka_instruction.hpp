@@ -58,6 +58,6 @@ struct Instruction {
     int srcCol = 0;
 };
 
-std::vector<Instruction> CompileVNScript(const std::string &filename);
+std::vector<Instruction> CompileCerekaScript(const std::string &filename);
 
 }  // namespace cereka::scenario

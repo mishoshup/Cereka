@@ -1,4 +1,4 @@
-// script_vm.cpp — CerekaImpl script VM methods: TickScript, Update,
+// script_vm.cpp — CerekaImpl script VM methods: CerekaScriptTick, Update,
 // HandleEvent, script loading. Expression evaluation and the variable
 // state container live in script_interpreter.{hpp,cpp}.
 
@@ -9,7 +9,7 @@
 // Script loading
 // ---------------------------------------------------------------------------
 
-void Impl::LoadCompiledScript(const std::vector<scenario::Instruction> &compiled)
+void Impl::LoadCompiledCerekaScript(const std::vector<scenario::Instruction> &compiled)
 {
     scriptInterpreter.program = compiled;
     scriptInterpreter.pc = 0;
@@ -26,7 +26,7 @@ void Impl::LoadCompiledScript(const std::vector<scenario::Instruction> &compiled
             scriptInterpreter.labelMap[scriptInterpreter.program[i].a] = i;
 }
 
-void Impl::LoadScript(const std::string &filename)
+void Impl::LoadCerekaScript(const std::string &filename)
 {
     sol::load_result chunk = scriptInterpreter.lua.load_file(filename);
     if (!chunk.valid()) {
@@ -54,10 +54,10 @@ void Impl::Update(float dt)
 }
 
 // ---------------------------------------------------------------------------
-// TickScript — main VM dispatch loop
+// CerekaScriptTick — main VM dispatch loop
 // ---------------------------------------------------------------------------
 
-void Impl::TickScript()
+void Impl::CerekaScriptTick()
 {
     if (state != CerekaState::Running)
         return;
