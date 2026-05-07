@@ -11,7 +11,7 @@ if(WIN32)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/runtimes/windows")
 else()
     set_target_properties(CerekaGame PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/runtimes/linux"
-        INSTALL_RPATH             "$ORIGIN"
-        BUILD_WITH_INSTALL_RPATH  ON)
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/runtimes/linux")
+    set_property(TARGET CerekaGame APPEND PROPERTY
+        BUILD_RPATH "$<IF:$<PLATFORM_ID:Darwin>,@loader_path,$ORIGIN>")
 endif()
