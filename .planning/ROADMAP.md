@@ -54,9 +54,17 @@ Plans:
 - Wire `CerekaStateMachine` overlay push/pop as the single source of truth
 - Extract UIManager from CerekaImpl
 - Renderer abstraction (stop leaking SDL types into engine logic)
-- Fix crash/safety risks (unguarded stoi, UB enum cast, unbounded CALL stack)
+- Fix crash/safety risks (unguarded stoi, unbounded CALL stack, and adjacent)
 
-**Status:** backlog
+**Status:** planned
+
+**Plans:** 4 plans
+
+Plans:
+- [x] 03-01-PLAN.md — CI Fix + Crash Safety (D-01, D-05)
+- [ ] 03-02-PLAN.md — IRenderContext Abstraction (D-04)
+- [ ] 03-03-PLAN.md — UIManager Extraction (D-03)
+- [ ] 03-04-PLAN.md — State Machine Unification (D-02)
 
 ---
 
