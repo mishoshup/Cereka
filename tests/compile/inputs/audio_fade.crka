@@ -1,0 +1,6 @@
+; audio_fade.crka — audio fade instructions
+bgm theme.ogg fade(2.0)
+stop_bgm fade(1.5)
+bgm next.ogg crossfade(1.0)
+bgm instant.ogg
+stop_bgm

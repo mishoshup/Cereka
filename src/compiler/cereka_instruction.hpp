@@ -41,6 +41,9 @@ enum class Op {
     SG_CREATE,
     SG_SET,
     SG_REMOVE,
+    PLAY_BGM_FADE,
+    STOP_BGM_FADE,
+    BGM_CROSSFADE,
 };
 
 struct ChoiceOption {

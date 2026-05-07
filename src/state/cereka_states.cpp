@@ -193,10 +193,43 @@ void DialogueState::update(float dt,
                 si.pc++;
                 continue;
 
+            case compiler::Op::PLAY_BGM_FADE: {
+                float dur = 0.0f;
+                if (!ins.b.empty()) {
+                    auto parsed = safe_stof(ins.b);
+                    if (parsed) dur = *parsed;
+                }
+                impl.audio.PlayBGM(ins.a, dur);
+                si.pc++;
+                continue;
+            }
+
             case compiler::Op::STOP_BGM:
                 impl.audio.StopBGM();
                 si.pc++;
                 continue;
+
+            case compiler::Op::STOP_BGM_FADE: {
+                float dur = 0.0f;
+                if (!ins.b.empty()) {
+                    auto parsed = safe_stof(ins.b);
+                    if (parsed) dur = *parsed;
+                }
+                impl.audio.StopBGM(dur);
+                si.pc++;
+                continue;
+            }
+
+            case compiler::Op::BGM_CROSSFADE: {
+                float dur = 1.0f;
+                if (!ins.b.empty()) {
+                    auto parsed = safe_stof(ins.b);
+                    if (parsed) dur = *parsed;
+                }
+                impl.audio.CrossfadeBGM(ins.a, dur);
+                si.pc++;
+                continue;
+            }
 
             case compiler::Op::PLAY_SFX:
                 impl.audio.PlaySFX(ins.a);

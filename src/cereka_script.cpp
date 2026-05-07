@@ -51,6 +51,7 @@ void Impl::Reset()
 
 void Impl::Update(float dt)
 {
+    audio.Update(dt);
     m_stateMachine.update(dt);
 }
 

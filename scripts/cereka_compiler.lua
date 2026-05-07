@@ -344,10 +344,62 @@ local function parse_single_keyword(kind)
     end
 end
 
+local function parse_filename(ctx)
+    local t = peek(ctx)
+    if not t then die(-1, -1, "expected filename") end
+    if t.type == "STRING" then
+        take(ctx)
+        return t.value
+    end
+    return expect(ctx, "IDENT", nil, "expected filename").value
+end
+
 local function parse_bgm(ctx)
     local kw = take(ctx)
-    local f = expect(ctx, "IDENT", nil, "expected filename after 'bgm'")
-    return { kind = "PlayBgm", file = f.value, line = kw.lineno, col = kw.col }
+    local file = parse_filename(ctx)
+    local node = { kind = "PlayBgm", file = file, line = kw.lineno, col = kw.col }
+
+    if not eof(ctx) then
+        local nxt = peek(ctx)
+        if nxt and nxt.type == "IDENT" then
+            if nxt.value == "fade" then
+                take(ctx)
+                local rest = rest_text(ctx)
+                local dur = rest:match("^%(([%d.]+)%)$")
+                if not dur then die(kw.lineno, kw.col, "expected fade(<seconds>)") end
+                node.kind = "PlayBgmFade"
+                node.duration = dur
+            elseif nxt.value == "crossfade" then
+                take(ctx)
+                local rest = rest_text(ctx)
+                local dur = rest:match("^%(([%d.]+)%)$")
+                if not dur then die(kw.lineno, kw.col, "expected crossfade(<seconds>)") end
+                node.kind = "BgmCrossfade"
+                node.duration = dur
+            end
+        end
+    end
+
+    return node
+end
+
+local function parse_stop_bgm(ctx)
+    local kw = take(ctx)
+    local node = { kind = "StopBgm", line = kw.lineno, col = kw.col }
+
+    if not eof(ctx) then
+        local nxt = peek(ctx)
+        if nxt and nxt.type == "IDENT" and nxt.value == "fade" then
+            take(ctx)
+            local rest = rest_text(ctx)
+            local dur = rest:match("^%(([%d.]+)%)$")
+            if not dur then die(kw.lineno, kw.col, "expected fade(<seconds>)") end
+            node.kind = "StopBgmFade"
+            node.duration = dur
+        end
+    end
+
+    return node
 end
 
 local function parse_scene_graph(ctx)
@@ -425,7 +477,7 @@ local STMT_HANDLERS = {
     ["else"]  = parse_single_keyword("Else"),
     endif     = parse_single_keyword("Endif"),
     bgm       = parse_bgm,
-    stop_bgm  = parse_single_keyword("StopBgm"),
+    stop_bgm  = parse_stop_bgm,
     sfx       = parse_sfx,
     ["end"]   = parse_single_keyword("End"),
     save_menu = parse_single_keyword("SaveMenu"),
@@ -653,6 +705,15 @@ LOWERERS = {
     end,
     StopBgm = function(n, out)
         emit(out, { op = "STOP_BGM", line = n.line, col = n.col })
+    end,
+    PlayBgmFade = function(n, out)
+        emit(out, { op = "PLAY_BGM_FADE", a = n.file, b = n.duration, line = n.line, col = n.col })
+    end,
+    BgmCrossfade = function(n, out)
+        emit(out, { op = "BGM_CROSSFADE", a = n.file, b = n.duration, line = n.line, col = n.col })
+    end,
+    StopBgmFade = function(n, out)
+        emit(out, { op = "STOP_BGM_FADE", b = n.duration, line = n.line, col = n.col })
     end,
     PlaySfx = function(n, out)
         emit(out, { op = "PLAY_SFX", a = n.file, line = n.line, col = n.col })
