@@ -28,10 +28,12 @@ struct SerializableCharacter {
 // ============================================================================
 
 struct SerializableSaveData {
+    int version = 1;  // schema version for future migration
     std::string timestamp;
     size_t programCounter = 0;
     std::vector<size_t> callStack;
     std::unordered_map<std::string, std::string> variables;
+    std::unordered_map<std::string, float> numVariables;
     std::string background;
     std::vector<SerializableCharacter> characters;
     std::string bgm;
@@ -87,10 +89,12 @@ template<> struct glz::meta<cereka::SerializableCharacter> {
 
 template<> struct glz::meta<cereka::SerializableSaveData> {
     using T = cereka::SerializableSaveData;
-    static constexpr auto value = object("timestamp",
+    static constexpr auto value = object("version",
+                                         "timestamp",
                                          "programCounter",
                                          "callStack",
                                          "variables",
+                                         "numVariables",
                                          "background",
                                          "characters",
                                          "bgm",
