@@ -1,7 +1,7 @@
 -- Cereka .crka compiler
 -- Pipeline: source text -> lines -> tokens -> AST -> Instruction[]
 --
--- Output contract (consumed by src/compiler/vn_instruction.cpp):
+-- Output contract (consumed by src/compiler/cereka_instruction.cpp):
 --   return { instructions = { {op=<str>, a=?, b=?, c=?, exit_button=?, line=?, col=?}, ... } }
 --
 -- Errors are raised with `error("line L col C: message")`. sol2 surfaces this
