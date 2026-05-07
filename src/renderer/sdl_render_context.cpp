@@ -88,7 +88,7 @@ void SdlRenderContext::DrawTexture(ITexture &tex,
         dstPtr = &dst;
     }
 
-    SDL_RenderTexture(m_renderer, sdlTex.m_tex, srcPtr, dstPtr);
+    SDL_RenderTexture(m_renderer, sdlTex.RawTexture(), srcPtr, dstPtr);
 }
 
 std::unique_ptr<ITexture> SdlRenderContext::CreateTexture(const std::string &filepath)

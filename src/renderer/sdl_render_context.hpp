@@ -40,13 +40,17 @@ public:
     SDL_Renderer *NativeRenderer() override { return m_renderer; }
 
 private:
-    // Inner class that wraps an SDL_Texture* behind ITexture
+    // Inner class that wraps an SDL_Texture* behind ITexture.
+    // Members are public since this is a private inner class (only
+    // SdlRenderContext accesses it, and C++ has no special access
+    // relationship between enclosing and nested classes).
     class SdlTexture : public ITexture {
     public:
         explicit SdlTexture(SDL_Texture *tex);
         ~SdlTexture() override;
         float Width() const override { return m_width; }
         float Height() const override { return m_height; }
+        SDL_Texture *RawTexture() const override { return m_tex; }
     private:
         SDL_Texture *m_tex;
         float m_width = 0.0f;

@@ -131,7 +131,7 @@ TEST_F(ConfigManagerTest,
     pv.type = PropType::Color;
     pv.serialized = "255 128 64 200";
 
-    SDL_Color color = pv.asColor();
+    auto color = pv.asColor();
     EXPECT_EQ(color.r, 255);
     EXPECT_EQ(color.g, 128);
     EXPECT_EQ(color.b, 64);

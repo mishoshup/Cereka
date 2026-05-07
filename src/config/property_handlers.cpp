@@ -6,6 +6,8 @@
 
 #include "cereka_safe_parse.hpp"
 #include "property_types.hpp"
+#include "renderer/irender_context.hpp"
+#include "renderer/irecture.hpp"
 #include <cstdio>
 #include <sstream>
 
@@ -86,7 +88,7 @@ ApplyValue parseColor(const std::string &str)
 
     int r = 255, g = 255, b = 255, a = 255;
     std::sscanf(str.c_str(), "%d %d %d %d", &r, &g, &b, &a);
-    v.colorVal = {(Uint8)r, (Uint8)g, (Uint8)b, (Uint8)a};
+    v.colorVal = {(uint8_t)r, (uint8_t)g, (uint8_t)b, (uint8_t)a};
     return v;
 }
 
@@ -170,7 +172,7 @@ std::string serializeBool(bool val)
     return val ? "true" : "false";
 }
 
-std::string serializeColor(const SDL_Color &val)
+std::string serializeColor(const Color &val)
 {
     std::ostringstream oss;
     oss << (int)val.r << " " << (int)val.g << " " << (int)val.b << " " << (int)val.a;
@@ -247,8 +249,9 @@ void applyBool(ApplyContext &ctx,
 
 void applyColor(ApplyContext &ctx,
                 ApplyValue &val,
-                SDL_Color *target)
+                Color *target)
 {
+    (void)ctx;
     if (target) {
         *target = val.colorVal;
     }
@@ -274,7 +277,7 @@ void applyKeyList(ApplyContext &ctx,
 
 void applyTexture(ApplyContext &ctx,
                   ApplyValue &val,
-                  SDL_Texture *&targetTex,
+                  ITexture *&targetTex,
                   std::string &targetPath)
 {
     if (!ctx.loadTexture)

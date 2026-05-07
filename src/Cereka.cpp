@@ -1,12 +1,16 @@
 // Cereka.cpp — engine init/shutdown, event handling, SDL helpers, public API wrapper
 
 #include "cereka_engine_impl.hpp"
+#include "renderer/sdl_render_context.hpp"
 #include "state/cereka_states.hpp"
 
 using namespace cereka::compiler;
 using namespace cereka::video;
 using namespace cereka::text_renderer;
 using namespace cereka::engine;
+
+// Forward declaration for static helper used in InitGame
+static SDL_Renderer *CreateBestRenderer(SDL_Window *win);
 
 // ---------------------------------------------------------------------------
 // Init / Shutdown
@@ -25,14 +29,17 @@ bool Impl::InitGame(const char *title,
 
     text_renderer::init_ttf();
 
-    renderer = CreateBestRenderer(window);
-    if (!renderer)
+    auto *sdlRenderer = CreateBestRenderer(window);
+    if (!sdlRenderer)
         throw engine::error("All renderer attempts failed");
+
+    m_renderCtx = std::make_unique<SdlRenderContext>(sdlRenderer, screenWidth, screenHeight);
+    renderer = sdlRenderer;  // backwards compat for existing draw code
 
     LoadFont(uiCfg.fontSize);
     InitConfigManager();
 
-    scene.Init(renderer);
+    scene.Init(*m_renderCtx);
     audio.Init();
 
     // --- State machine ---
@@ -50,11 +57,9 @@ bool Impl::InitGame(const char *title,
 
 void Impl::ShutDown()
 {
-    auto destroyTex = [](SDL_Texture *&t) {
-        if (t) {
-            SDL_DestroyTexture(t);
-            t = nullptr;
-        }
+    auto destroyTex = [](ITexture *&t) {
+        delete t;
+        t = nullptr;
     };
 
     destroyTex(uiCfg.textbox.image);
@@ -68,10 +73,13 @@ void Impl::ShutDown()
         TTF_CloseFont(font);
         font = nullptr;
     }
-    if (renderer) {
-        SDL_DestroyRenderer(renderer);
-        renderer = nullptr;
+    if (m_renderCtx) {
+        auto *r = m_renderCtx->NativeRenderer();
+        if (r)
+            SDL_DestroyRenderer(r);
+        m_renderCtx.reset();
     }
+    renderer = nullptr;  // same pointer, already destroyed via NativeRenderer path
     if (window) {
         SDL_DestroyWindow(window);
         window = nullptr;
@@ -163,14 +171,14 @@ bool Impl::PollEvent(cereka::CerekaEvent &e)
 
 void Impl::Present()
 {
-    SDL_RenderPresent(renderer);
+    m_renderCtx->Present();
 }
 
 // ---------------------------------------------------------------------------
 // SDL helpers
 // ---------------------------------------------------------------------------
 
-SDL_Renderer *Impl::CreateBestRenderer(SDL_Window *win)
+static SDL_Renderer *CreateBestRenderer(SDL_Window *win)
 {
     const char *preferred[] = {"gpu", "vulkan", "opengl", "opengles2"};
     for (const char *name : preferred) {
@@ -185,17 +193,35 @@ SDL_Renderer *Impl::CreateBestRenderer(SDL_Window *win)
     return SDL_CreateRenderer(win, nullptr);
 }
 
+// Keep SDL_Texture* return for existing draw code (cereka_draw.cpp, states, save)
 SDL_Texture *Impl::RenderText(const std::string &text,
-                              SDL_Color color)
+                              Color color)
 {
-    return text_renderer::RenderText(font, renderer, text, color);
+    if (text.empty() || !font)
+        return nullptr;
+    SDL_Color sdlColor{color.r, color.g, color.b, color.a};
+    SDL_Surface *surf = TTF_RenderText_Blended(font, text.c_str(), text.size(), sdlColor);
+    if (!surf)
+        return nullptr;
+    SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surf);
+    SDL_DestroySurface(surf);
+    return tex;
 }
 
 SDL_Texture *Impl::RenderTextWrapped(const std::string &text,
-                                     SDL_Color color,
+                                     Color color,
                                      int wrapWidth)
 {
-    return text_renderer::RenderTextWrapped(font, renderer, text, color, wrapWidth);
+    if (text.empty() || !font)
+        return nullptr;
+    SDL_Color sdlColor{color.r, color.g, color.b, color.a};
+    SDL_Surface *surf = TTF_RenderText_Blended_Wrapped(
+        font, text.c_str(), text.size(), sdlColor, wrapWidth > 0 ? wrapWidth : 0);
+    if (!surf)
+        return nullptr;
+    SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surf);
+    SDL_DestroySurface(surf);
+    return tex;
 }
 
 void Impl::Say(const std::string &speaker,

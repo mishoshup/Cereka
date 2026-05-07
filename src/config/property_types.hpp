@@ -5,6 +5,7 @@
 // Type handlers provide the logic for each property type.
 
 #include "cereka_ui_config.hpp"
+#include "renderer/irender_context.hpp"
 #include <functional>
 #include <string>
 #include <vector>
@@ -27,8 +28,8 @@ enum class PropType {
     Dim,      // Dim (pixels or percentage)
     KeyList,  // std::vector<SDL_Keycode>
 
-    // Texture (special: requires renderer)
-    Texture,  // SDL_Texture* (loaded from path)
+    // Texture (special: requires render context)
+    Texture,  // ITexture* (loaded from path via IRenderContext)
 };
 
 // ============================================================================
@@ -46,7 +47,7 @@ struct PropertyDef {
 // ============================================================================
 
 struct ApplyContext {
-    SDL_Renderer *renderer = nullptr;
+    IRenderContext *renderCtx = nullptr;
 
     // Font path for font reloading
     std::string fontPath;
@@ -56,8 +57,8 @@ struct ApplyContext {
 
     // Callbacks for side effects
     std::function<void(int size)> reloadFont;
-    std::function<void(SDL_Texture *&tex, const std::string &path)> loadTexture;
-    std::function<void(SDL_Texture *&tex)> destroyTexture;
+    std::function<void(ITexture *&tex, const std::string &path)> loadTexture;
+    std::function<void(ITexture *&tex)> destroyTexture;
 };
 
 // ============================================================================
@@ -73,7 +74,7 @@ struct ApplyValue {
     int intVal = 0;
     std::string stringVal;
     bool boolVal = false;
-    SDL_Color colorVal = {255, 255, 255, 255};
+    Color colorVal = {255, 255, 255, 255};
     Dim dimVal;
     std::vector<SDL_Keycode> keyListVal;
 };
@@ -112,7 +113,7 @@ std::string serializeFloat(float val);
 std::string serializeInt(int val);
 std::string serializeString(const std::string &val);
 std::string serializeBool(bool val);
-std::string serializeColor(const SDL_Color &val);
+std::string serializeColor(const Color &val);
 std::string serializeDim(const Dim &val);
 std::string serializeKeyList(const std::vector<SDL_Keycode> &keys);
 std::string serializeTexture(const std::string &path);
@@ -135,7 +136,7 @@ void applyBool(ApplyContext &ctx,
                ApplyValue &val);
 void applyColor(ApplyContext &ctx,
                 ApplyValue &val,
-                SDL_Color *target);
+                Color *target);
 void applyDim(ApplyContext &ctx,
               ApplyValue &val,
               Dim *target);
@@ -143,7 +144,7 @@ void applyKeyList(ApplyContext &ctx,
                   ApplyValue &val);
 void applyTexture(ApplyContext &ctx,
                   ApplyValue &val,
-                  SDL_Texture *&targetTex,
+                  ITexture *&targetTex,
                   std::string &targetPath);
 
 }  // namespace handlers

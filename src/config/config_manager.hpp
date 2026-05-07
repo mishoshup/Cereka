@@ -40,7 +40,7 @@ struct PropertyValue {
     int asInt() const;
     std::string asString() const;
     bool asBool() const;
-    SDL_Color asColor() const;
+    Color asColor() const;
     Dim asDim() const;
     std::vector<SDL_Keycode> asKeyList() const;
 };

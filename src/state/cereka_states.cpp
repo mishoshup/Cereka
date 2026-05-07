@@ -69,7 +69,7 @@ void MenuState::draw(ICerekaStateContext &ctx) const
         SDL_FRect btn{(float)impl.screenWidth / 2.0f - bw / 2.0f, y, bw, bh};
 
         if (impl.uiCfg.button.image) {
-            SDL_RenderTexture(impl.renderer, impl.uiCfg.button.image, nullptr, &btn);
+            SDL_RenderTexture(impl.renderer, impl.uiCfg.button.image->RawTexture(), nullptr, &btn);
         }
         else {
             SDL_SetRenderDrawBlendMode(impl.renderer, SDL_BLENDMODE_BLEND);

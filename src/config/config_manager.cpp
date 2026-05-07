@@ -124,11 +124,11 @@ bool PropertyValue::asBool() const
     return serialized == "true" || serialized == "1" || serialized == "yes";
 }
 
-SDL_Color PropertyValue::asColor() const
+Color PropertyValue::asColor() const
 {
     int r = 255, g = 255, b = 255, a = 255;
     std::sscanf(serialized.c_str(), "%d %d %d %d", &r, &g, &b, &a);
-    return {(Uint8)r, (Uint8)g, (Uint8)b, (Uint8)a};
+    return {(uint8_t)r, (uint8_t)g, (uint8_t)b, (uint8_t)a};
 }
 
 Dim PropertyValue::asDim() const

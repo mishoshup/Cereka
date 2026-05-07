@@ -10,6 +10,7 @@
 #include "cereka_menu_system.hpp"
 #include "cereka_scene_manager.hpp"
 #include "cereka_script_interpreter.hpp"
+#include "renderer/irender_context.hpp"
 #include "state/cereka_state.hpp"
 #include "cereka_text_renderer.hpp"
 #include "cereka_ui_config.hpp"
@@ -20,6 +21,7 @@
 #include <SDL3_ttf/SDL_ttf.h>
 #include <filesystem>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -32,6 +34,8 @@ class CerekaImpl : public ICerekaStateContext {
    public:
     // --- Window / renderer ---
     SDL_Window *window = nullptr;
+    std::unique_ptr<IRenderContext> m_renderCtx;
+    // TODO(03-03): Remove renderer — kept for existing draw code migration
     SDL_Renderer *renderer = nullptr;
     int screenWidth = 0;
     int screenHeight = 0;
@@ -85,11 +89,11 @@ class CerekaImpl : public ICerekaStateContext {
     void ShutDown();
     bool PollEvent(CerekaEvent &e);
     void Present();
-    SDL_Renderer *CreateBestRenderer(SDL_Window *win);
+    // Returns SDL_Texture* for existing draw code — will change in 03-03
     SDL_Texture *RenderText(const std::string &text,
-                            SDL_Color color);
+                            Color color);
     SDL_Texture *RenderTextWrapped(const std::string &text,
-                                   SDL_Color color,
+                                   Color color,
                                    int wrapWidth);
     void Say(const std::string &speaker,
              const std::string &name,

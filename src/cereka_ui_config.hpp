@@ -1,5 +1,6 @@
 #pragma once
 #include "cereka_safe_parse.hpp"
+#include "renderer/irender_context.hpp"
 #include <SDL3/SDL.h>
 #include <string>
 #include <vector>
@@ -26,12 +27,12 @@ struct Dim {
             return {};
         Dim d;
         if (s.back() == '%') {
-            auto r = safe_stof(s);
+            auto r = cereka::safe_stof(s);
             d.value = r ? *r / 100.0f : 0.0f;
             d.relative = true;
         }
         else {
-            auto r = safe_stof(s);
+            auto r = cereka::safe_stof(s);
             d.value = r ? *r : 0.0f;
         }
         return d;
@@ -54,12 +55,12 @@ struct UiConfig {
 
     struct Textbox {
         std::string imagePath;
-        SDL_Texture *image = nullptr;
-        SDL_Color color = {0, 0, 0, 160};
+        cereka::ITexture *image = nullptr;
+        cereka::Color color = {0, 0, 0, 160};
         Dim y = {0.75f, true};
         Dim h = {0.25f, true};
         float textMarginX = 70.0f;
-        SDL_Color textColor = {255, 255, 255, 255};
+        cereka::Color textColor = {255, 255, 255, 255};
         // Word-wrap: max width for wrapped text (0 = auto: 90% of screen width).
         Dim wrapWidth = {0.0f, false};
         // Extra vertical spacing between wrapped lines (in pixels).
@@ -68,24 +69,24 @@ struct UiConfig {
 
     struct Namebox {
         std::string imagePath;
-        SDL_Texture *image = nullptr;
-        SDL_Color color = {0, 255, 0, 255};
+        cereka::ITexture *image = nullptr;
+        cereka::Color color = {0, 255, 0, 255};
         float x = 50.0f;
         float yOffset = -70.0f;  // pixels above the textbox top edge
         float w = 300.0f;
         float h = 60.0f;
-        SDL_Color textColor = {255, 255, 255, 255};
+        cereka::Color textColor = {255, 255, 255, 255};
     } namebox;
 
     struct Button {
         std::string imagePath;
-        SDL_Texture *image = nullptr;
+        cereka::ITexture *image = nullptr;
         std::string hoverImagePath;
-        SDL_Texture *hoverImage = nullptr;
-        SDL_Color color = {0, 255, 255, 255};
+        cereka::ITexture *hoverImage = nullptr;
+        cereka::Color color = {0, 255, 255, 255};
         float w = 600.0f;
         float h = 80.0f;
-        SDL_Color textColor = {255, 255, 255, 255};
+        cereka::Color textColor = {255, 255, 255, 255};
     } button;
 
     int fontSize = 36;

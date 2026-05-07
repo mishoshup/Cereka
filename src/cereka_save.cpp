@@ -232,7 +232,7 @@ void Impl::DrawSaveLoadOverlay(bool isSaving)
     SDL_RenderFillRect(renderer, &panel);
 
     // Title
-    SDL_Texture *titleTex = RenderText(isSaving ? "SAVE GAME" : "LOAD GAME", {180, 200, 255, 255});
+    SDL_Texture *titleTex = RenderText(isSaving ? "SAVE GAME" : "LOAD GAME", cereka::Color{180, 200, 255, 255});
     if (titleTex) {
         float tw, th;
         SDL_GetTextureSize(titleTex, &tw, &th);
@@ -253,7 +253,7 @@ void Impl::DrawSaveLoadOverlay(bool isSaving)
         std::string label = "Slot " + std::to_string(i) + "   " + (ts.empty() ? "Empty" : ts);
 
         SDL_Texture *slotTex = RenderText(
-            label, ts.empty() ? SDL_Color{100, 100, 100, 255} : SDL_Color{220, 220, 220, 255});
+            label, ts.empty() ? cereka::Color{100, 100, 100, 255} : cereka::Color{220, 220, 220, 255});
         if (slotTex) {
             float tw, th;
             SDL_GetTextureSize(slotTex, &tw, &th);

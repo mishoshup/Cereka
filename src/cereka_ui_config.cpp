@@ -43,23 +43,29 @@ void Impl::LoadFont(int size)
 void Impl::InitConfigManager()
 {
     cereka::config::ApplyContext ctx;
-    ctx.renderer = renderer;
+    ctx.renderCtx = m_renderCtx.get();
     ctx.fontPath = fontPath;
     ctx.uiCfg = &uiCfg;
 
     ctx.reloadFont = [this](int size) { LoadFont(size); };
 
-    ctx.loadTexture = [this](SDL_Texture *&tex, const std::string &path) {
+    ctx.loadTexture = [this](ITexture *&tex, const std::string &path) {
         if (tex) {
-            SDL_DestroyTexture(tex);
+            delete tex;
             tex = nullptr;
         }
         if (!path.empty()) {
-            tex = IMG_LoadTexture(renderer, path.c_str());
+            auto result = m_renderCtx->CreateTexture(path.c_str());
+            tex = result.release();
             if (!tex) {
                 std::cerr << "[CONFIG] Failed to load texture: " << path << "\n";
             }
         }
+    };
+
+    ctx.destroyTexture = [](ITexture *&tex) {
+        delete tex;
+        tex = nullptr;
     };
 
     configManager.setContext(ctx);

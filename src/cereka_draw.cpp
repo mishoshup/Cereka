@@ -10,19 +10,20 @@ void Impl::Draw()
 
     // --- Background ---
     if (scene.Background())
-        SDL_RenderTexture(renderer, scene.Background(), nullptr, nullptr);
+        SDL_RenderTexture(renderer, scene.Background()->RawTexture(), nullptr, nullptr);
 
     // --- Characters ---
     for (const auto &[id, entry] : scene.Characters()) {
-        float tw = 0, th = 0;
-        SDL_GetTextureSize(entry.tex, &tw, &th);
+        if (!entry.tex) continue;
+        float tw = entry.tex->Width();
+        float th = entry.tex->Height();
         float scale = (screenHeight * 0.8f) / th;
         float centreX = screenWidth * entry.xNorm;
         SDL_FRect dst{centreX - tw * scale * 0.5f,
                       screenHeight - th * scale - screenHeight * 0.1f,
                       tw * scale,
                       th * scale};
-        SDL_RenderTexture(renderer, entry.tex, nullptr, &dst);
+        SDL_RenderTexture(renderer, entry.tex->RawTexture(), nullptr, &dst);
     }
 
     // --- State-specific drawing (menus, fades, overlays) ---
@@ -40,7 +41,7 @@ void Impl::Draw()
 
         if (uiCfg.textbox.image) {
             SDL_FRect tb{0, tbY, tbW, tbH};
-            SDL_RenderTexture(renderer, uiCfg.textbox.image, nullptr, &tb);
+            SDL_RenderTexture(renderer, uiCfg.textbox.image->RawTexture(), nullptr, &tb);
         }
         else {
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
@@ -59,7 +60,7 @@ void Impl::Draw()
             SDL_FRect nb{uiCfg.namebox.x, nbY, uiCfg.namebox.w, uiCfg.namebox.h};
 
             if (uiCfg.namebox.image) {
-                SDL_RenderTexture(renderer, uiCfg.namebox.image, nullptr, &nb);
+                SDL_RenderTexture(renderer, uiCfg.namebox.image->RawTexture(), nullptr, &nb);
             }
             else {
                 SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
