@@ -5,6 +5,7 @@
 // through IRenderContext — no SDL calls directly.
 
 #include "ui_manager.hpp"
+#include "text/markup_parser.hpp"
 #include "cereka_scene_manager.hpp"
 #include "cereka_dialogue_system.hpp"
 #include "cereka_menu_system.hpp"
@@ -144,7 +145,7 @@ void UIManager::DrawDialogueBox(const DialogueSystem &dialogue,
         }
     }
 
-    // --- Dialogue text with word wrap ---
+    // --- Dialogue text with markup ---
     std::string visible = dialogue.Text().substr(0, dialogue.DisplayedChars());
 
     float effectiveWrapW = uiCfg.textbox.wrapWidth.resolve((float)screenW);
@@ -152,17 +153,11 @@ void UIManager::DrawDialogueBox(const DialogueSystem &dialogue,
         effectiveWrapW = (float)screenW * 0.9f;
 
     float textAreaW = effectiveWrapW - 2.0f * uiCfg.textbox.textMarginX;
-    int wrapPx = static_cast<int>(textAreaW);
+    float margin = uiCfg.textbox.textMarginX;
 
-    auto textTex = m_renderCtx->CreateTextTextureWrapped(
-        m_font, visible, uiCfg.textbox.textColor, wrapPx);
-    if (textTex) {
-        float tw = textTex->Width();
-        float th = textTex->Height();
-        float margin = uiCfg.textbox.textMarginX;
-        float lineH = th + uiCfg.textbox.lineSpacing;
-        Rect dst{margin, tbY + 40.0f, tw, lineH};
-        m_renderCtx->DrawTexture(*textTex, nullptr, &dst);
+    auto segments = cereka::text::ParseMarkup(visible);
+    if (!segments.empty()) {
+        m_renderCtx->DrawRichText(m_font, segments, margin, tbY + 40.0f, textAreaW);
     }
 }
 

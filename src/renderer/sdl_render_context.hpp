@@ -29,6 +29,11 @@ public:
     std::unique_ptr<ITexture> CreateTextTextureWrapped(
         TTF_Font *font, const std::string &text, Color color, int wrapWidth) override;
 
+    // --- Rich text ---
+    float DrawRichText(TTF_Font *baseFont,
+                       const std::vector<text::TextSegment> &segments,
+                       float x, float y, float maxWidth) override;
+
     // --- Blend mode ---
     void SetBlendMode(bool enabled) override;
 

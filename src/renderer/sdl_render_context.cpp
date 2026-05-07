@@ -5,6 +5,7 @@
 // handled here via SDL_Surface → SDL_Texture pipeline.
 
 #include "sdl_render_context.hpp"
+#include "text/markup_parser.hpp"
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <iostream>
@@ -145,6 +146,94 @@ void SdlRenderContext::SetBlendMode(bool enabled)
 {
     SDL_SetRenderDrawBlendMode(m_renderer,
                                enabled ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE);
+}
+
+float SdlRenderContext::DrawRichText(
+    TTF_Font *font,
+    const std::vector<text::TextSegment> &segments,
+    float x, float y, float maxWidth)
+{
+    if (segments.empty() || !font)
+        return 0.0f;
+
+    struct PlacedSegment {
+        const text::TextSegment *seg;
+        size_t startOffset;
+        size_t endOffset;
+        float lineX;
+        float lineY;
+    };
+    std::vector<PlacedSegment> placed;
+    float currentX = x;
+    float currentY = y;
+    float lineHeight = (float)TTF_GetFontHeight(font);
+
+    for (const auto &seg : segments) {
+        size_t offset = 0;
+        size_t textLen = seg.text.size();
+
+        while (offset < textLen) {
+            int measuredWidth = 0;
+            int extent = 0;
+            const char *textPtr = seg.text.c_str() + offset;
+            size_t remaining = textLen - offset;
+
+            size_t extentSz = 0;
+            if (!TTF_MeasureString(font, textPtr, remaining,
+                                   (int)(maxWidth - (currentX - x)),
+                                   &measuredWidth, &extentSz))
+                break;
+            extent = (int)extentSz;
+                break;
+
+            if (extent == 0) {
+                currentX = x;
+                currentY += lineHeight;
+                continue;
+            }
+
+            placed.push_back({&seg, offset, offset + (size_t)extent, currentX, currentY});
+            currentX += (float)measuredWidth;
+            offset += (size_t)extent;
+        }
+    }
+
+    if (placed.empty())
+        return 0.0f;
+
+    for (const auto &ps : placed) {
+        int style = 0;
+        if (ps.seg->style.bold)          style |= TTF_STYLE_BOLD;
+        if (ps.seg->style.italic)        style |= TTF_STYLE_ITALIC;
+        if (ps.seg->style.underline)     style |= TTF_STYLE_UNDERLINE;
+        if (ps.seg->style.strikethrough) style |= TTF_STYLE_STRIKETHROUGH;
+        TTF_SetFontStyle(font, style);
+
+        SDL_Color sdlColor{
+            ps.seg->style.color.r,
+            ps.seg->style.color.g,
+            ps.seg->style.color.b,
+            ps.seg->style.color.a
+        };
+
+        std::string subText = ps.seg->text.substr(ps.startOffset, ps.endOffset - ps.startOffset);
+        SDL_Surface *surf = TTF_RenderText_Blended(
+            font, subText.c_str(), subText.size(), sdlColor);
+        if (!surf) continue;
+
+        SDL_Texture *tex = SDL_CreateTextureFromSurface(m_renderer, surf);
+        float tw = (float)surf->w;
+        float th = (float)surf->h;
+        SDL_DestroySurface(surf);
+
+        if (tex) {
+            SDL_FRect dst{ps.lineX, ps.lineY, tw, th};
+            SDL_RenderTexture(m_renderer, tex, nullptr, &dst);
+            SDL_DestroyTexture(tex);
+        }
+    }
+
+    return (currentY - y) + lineHeight;
 }
 
 } // namespace cereka

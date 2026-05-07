@@ -13,9 +13,14 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 struct SDL_Renderer;  // forward declare for NativeRenderer escape hatch
 struct TTF_Font;
+
+namespace cereka::text {
+struct TextSegment;
+}
 
 namespace cereka {
 
@@ -65,6 +70,11 @@ public:
         TTF_Font *font, const std::string &text, Color color) = 0;
     virtual std::unique_ptr<ITexture> CreateTextTextureWrapped(
         TTF_Font *font, const std::string &text, Color color, int wrapWidth) = 0;
+
+    // --- Rich text — per-segment style rendering ---
+    virtual float DrawRichText(TTF_Font *baseFont,
+                               const std::vector<text::TextSegment> &segments,
+                               float x, float y, float maxWidth) = 0;
 
     // --- Blend mode ---
     virtual void SetBlendMode(bool enabled) = 0;
