@@ -37,6 +37,7 @@ static std::string stateToString(CerekaState s)
         case CerekaState::Quit:            return "Quit";
         case CerekaState::SaveMenuState:   return "SaveMenu";
         case CerekaState::LoadMenuState:   return "LoadMenu";
+        case CerekaState::HistoryState:    return "HistoryState";
     }
     return "Running";
 }

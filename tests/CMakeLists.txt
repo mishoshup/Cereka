@@ -23,6 +23,7 @@ enable_testing()
 add_executable(cereka_test
     audio_manager_test.cpp
     config_test.cpp
+    rollback_manager_test.cpp
     markup_parser_test.cpp
     save_data_test.cpp
     cereka_script_test.cpp

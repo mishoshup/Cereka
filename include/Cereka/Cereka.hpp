@@ -22,7 +22,8 @@ enum class CerekaState {
     Finished,
     Quit,
     SaveMenuState,
-    LoadMenuState
+    LoadMenuState,
+    HistoryState
 };
 
 // Forward-declared here; fully defined in src/engine_impl.hpp (private)
