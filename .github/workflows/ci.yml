@@ -91,6 +91,36 @@ jobs:
           export WINEDEBUG=-all
           wine build-win/tests/cereka_test.exe
 
+  windows-msys2:
+    name: Windows (MSYS2 UCRT64)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-freetype
+
+      - name: Configure CMake
+        run: cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Run tests
+        run: ./build/tests/cereka_test.exe
+
   macos:
     name: macOS
     runs-on: macos-latest

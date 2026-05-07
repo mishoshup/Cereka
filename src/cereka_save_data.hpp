@@ -89,22 +89,23 @@ template<> struct glz::meta<cereka::SerializableCharacter> {
 
 template<> struct glz::meta<cereka::SerializableSaveData> {
     using T = cereka::SerializableSaveData;
-    static constexpr auto value = object("version",
-                                         "timestamp",
-                                         "programCounter",
-                                         "callStack",
-                                         "variables",
-                                         "numVariables",
-                                         "background",
-                                         "characters",
-                                         "bgm",
-                                         "state",
-                                         "speaker",
-                                         "name",
-                                         "text",
-                                         "displayedChars",
-                                         "skipMode",
-                                         "skipDepth");
+    static constexpr auto value = object(
+        &T::version,
+        &T::timestamp,
+        &T::programCounter,
+        &T::callStack,
+        &T::variables,
+        &T::numVariables,
+        &T::background,
+        &T::characters,
+        &T::bgm,
+        &T::state,
+        &T::speaker,
+        &T::name,
+        &T::text,
+        &T::displayedChars,
+        &T::skipMode,
+        &T::skipDepth);
 };
 
 #endif  // CEREKA_SAVE_DATA_HPP
