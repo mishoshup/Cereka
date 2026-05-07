@@ -41,6 +41,9 @@ public:
                              const std::string (&timestamps)[10],
                              const UiConfig &uiCfg);
 
+    // History overlay
+    void DrawHistoryOverlay(const std::vector<std::string> &historyTexts);
+
     // Scene graph access and drawing
     SceneGraph &GetSceneGraph() { return m_sceneGraph; }
     void DrawSceneGraph();

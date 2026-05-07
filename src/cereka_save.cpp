@@ -184,6 +184,9 @@ bool Impl::LoadGame(int slot)
     m_stateMachine.clearOverlays();
     m_stateMachine.changeState(parseState(data.state));
 
+    // Rollback buffer is invalid after load
+    rollbackManager.clear();
+
     // Restore dialogue state
     dialogue.SetSpeaker(data.speaker);
     dialogue.SetName(data.name);

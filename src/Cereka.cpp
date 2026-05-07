@@ -51,6 +51,7 @@ bool Impl::InitGame(const char *title,
     m_stateMachine.registerState<FadeState>();
     m_stateMachine.registerState<SaveMenuState>();
     m_stateMachine.registerState<LoadMenuState>();
+    m_stateMachine.registerState<HistoryState>();
     m_stateMachine.registerState<FinishedState>();
     m_stateMachine.registerState<QuitState>();
     m_stateMachine.setInitialState(CerekaState::Running);
@@ -267,6 +268,15 @@ void Impl::HandleEvent(const CerekaEvent &e)
         }
     }
 
+    // H key opens dialogue history
+    if (e.type == CerekaEvent::KeyDown && e.key == SDLK_H && rollbackManager.canRollback()) {
+        auto cur = m_stateMachine.currentType();
+        if (cur == CerekaState::WaitingForInput || cur == CerekaState::Running) {
+            pushOverlay(CerekaState::HistoryState);
+            return;
+        }
+    }
+
     // Advance key: WaitingForInput → Running
     if (m_stateMachine.currentType() == CerekaState::WaitingForInput &&
         (e.type == CerekaEvent::MouseDown ||
@@ -277,6 +287,36 @@ void Impl::HandleEvent(const CerekaEvent &e)
         changeState(CerekaState::Running);
         return;
     }
+}
+
+int Impl::historyHitTest(int mx, int my)
+{
+    int screenW = m_renderCtx->Width();
+    int screenH = m_renderCtx->Height();
+
+    float panelX = screenW * 0.1f;
+    float panelY = screenH * 0.05f;
+    float panelW = screenW * 0.8f;
+    float panelH = screenH * 0.9f;
+    float margin = 10.0f;
+    float lineH = 40.0f;
+
+    auto texts = rollbackManager.historyTexts();
+    float entryY = panelY + 50.0f;
+
+    for (size_t i = 0; i < texts.size() && entryY + lineH < panelY + panelH - 10.0f; ++i) {
+        float ex = panelX + margin;
+        float ey = entryY;
+        float ew = panelW - 2.0f * margin;
+        float eh = lineH - 2.0f;
+
+        if ((float)mx >= ex && (float)mx <= ex + ew &&
+            (float)my >= ey && (float)my <= ey + eh)
+            return (int)i;
+
+        entryY += lineH;
+    }
+    return -1;
 }
 
 // ---------------------------------------------------------------------------

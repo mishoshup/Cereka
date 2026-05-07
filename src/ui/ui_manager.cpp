@@ -225,6 +225,65 @@ void UIManager::DrawFadeOverlay(const SceneManager &scene)
 // UIManager::DrawSaveLoadOverlay
 // ============================================================================
 
+void UIManager::DrawHistoryOverlay(const std::vector<std::string> &historyTexts)
+{
+    int screenW = m_renderCtx->Width();
+    int screenH = m_renderCtx->Height();
+
+    m_renderCtx->SetBlendMode(true);
+    m_renderCtx->FillScreen(Color{0, 0, 0, 160});
+
+    float panelX = screenW * 0.1f;
+    float panelY = screenH * 0.05f;
+    float panelW = screenW * 0.8f;
+    float panelH = screenH * 0.9f;
+
+    drawRect(panelX, panelY, panelW, panelH, Color{20, 22, 38, 230});
+
+    auto titleTex = m_renderCtx->CreateTextTexture(
+        m_font, "DIALOGUE HISTORY", Color{180, 200, 255, 255});
+    if (titleTex) {
+        float tw = titleTex->Width();
+        float th = titleTex->Height();
+        Rect dst{panelX + (panelW - tw) * 0.5f, panelY + 8.0f, tw, th};
+        m_renderCtx->DrawTexture(*titleTex, nullptr, &dst);
+    }
+
+    float entryY = panelY + 50.0f;
+    float lineH = 40.0f;
+    float margin = 10.0f;
+
+    for (size_t i = 0; i < historyTexts.size() && entryY + lineH < panelY + panelH - 10.0f; ++i) {
+        drawRect(panelX + margin, entryY, panelW - 2.0f * margin, lineH - 2.0f,
+                 Color{40, 44, 66, 210});
+
+        std::string display = historyTexts[i];
+        if (display.length() > 80)
+            display = display.substr(0, 77) + "...";
+        if (display.empty())
+            display = "(continue)";
+
+        auto entryTex = m_renderCtx->CreateTextTexture(
+            m_font, display, Color{200, 200, 200, 255});
+        if (entryTex) {
+            float tw = entryTex->Width();
+            float th = entryTex->Height();
+            Rect dst{panelX + margin + 8.0f, entryY + (lineH - th) * 0.5f, tw, th};
+            m_renderCtx->DrawTexture(*entryTex, nullptr, &dst);
+        }
+        entryY += lineH;
+    }
+
+    auto hintTex = m_renderCtx->CreateTextTexture(
+        m_font, "ESC to return | Click entry to rollback", Color{120, 120, 120, 255});
+    if (hintTex) {
+        float tw = hintTex->Width();
+        float th = hintTex->Height();
+        Rect dst{panelX + (panelW - tw) * 0.5f, panelY + panelH - th - 8.0f, tw, th};
+        m_renderCtx->DrawTexture(*hintTex, nullptr, &dst);
+    }
+}
+
 void UIManager::DrawSaveLoadOverlay(bool isSaving,
                                     const std::string (&timestamps)[10],
                                     const UiConfig &uiCfg)

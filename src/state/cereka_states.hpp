@@ -83,6 +83,17 @@ class LoadMenuState : public CerekaStateBase<CerekaState::LoadMenuState> {
 };
 
 // ============================================================================
+// HistoryState — Dialogue history overlay
+// ============================================================================
+
+class HistoryState : public CerekaStateBase<CerekaState::HistoryState> {
+public:
+    void handleEvent(const CerekaEvent &event,
+                     ICerekaStateContext &ctx) override;
+    void draw(ICerekaStateContext &ctx) const override;
+};
+
+// ============================================================================
 // FinishedState — Script ended (terminal)
 // ============================================================================
 

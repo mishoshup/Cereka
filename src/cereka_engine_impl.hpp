@@ -5,6 +5,7 @@
 #include "Cereka/Cereka.hpp"
 #include "Cereka/exceptions.hpp"
 #include "cereka_audio_manager.hpp"
+#include "cereka_rollback_manager.hpp"
 #include "config/config_manager.hpp"
 #include "ui/ui_manager.hpp"
 #include "cereka_dialogue_system.hpp"
@@ -64,6 +65,9 @@ class CerekaImpl : public ICerekaStateContext {
     // --- State machine ---
     CerekaStateMachine m_stateMachine;
 
+    // --- Rollback ---
+    RollbackManager rollbackManager;
+
     // --- UI theme ---
     UiConfig uiCfg;
     cereka::config::ConfigManager configManager;
@@ -112,6 +116,8 @@ class CerekaImpl : public ICerekaStateContext {
     void DrawSaveLoadOverlay(bool isSaving);
     int HitTestSaveSlot(int mx,
                         int my);
+    int historyHitTest(int mx,
+                       int my);
 
     // ui_config.cpp
     void ApplyUiSet(const std::string &key,

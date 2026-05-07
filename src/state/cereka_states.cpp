@@ -68,18 +68,21 @@ void DialogueState::update(float dt,
 
             case compiler::Op::SAY:
                 impl.Say(ins.a, ins.a, ins.b);
+                impl.rollbackManager.capture(impl);
                 ctx.changeState(CerekaState::WaitingForInput);
                 si.pc++;
                 return;
 
             case compiler::Op::NARRATE:
                 impl.Narrate(ins.b);
+                impl.rollbackManager.capture(impl);
                 ctx.changeState(CerekaState::WaitingForInput);
                 si.pc++;
                 return;
 
             case compiler::Op::MENU:
                 impl.EnterMenu();
+                impl.rollbackManager.capture(impl);
                 ctx.changeState(CerekaState::InMenu);
                 si.pc++;
                 return;
@@ -418,6 +421,33 @@ void LoadMenuState::draw(ICerekaStateContext &ctx) const
 {
     auto &impl = static_cast<Impl &>(ctx);
     impl.DrawSaveLoadOverlay(false);
+}
+
+// ============================================================================
+// HistoryState — Dialogue history overlay
+// ============================================================================
+
+void HistoryState::handleEvent(const CerekaEvent &event,
+                                ICerekaStateContext &ctx)
+{
+    auto &impl = static_cast<Impl &>(ctx);
+    if (event.type == CerekaEvent::KeyDown && event.key == SDLK_ESCAPE) {
+        ctx.popOverlay();
+        return;
+    }
+    if (event.type == CerekaEvent::MouseDown) {
+        int idx = impl.historyHitTest((int)event.mouseX, (int)event.mouseY);
+        if (idx >= 0) {
+            ctx.popOverlay();
+            impl.rollbackManager.goTo(impl, (size_t)idx);
+        }
+    }
+}
+
+void HistoryState::draw(ICerekaStateContext &ctx) const
+{
+    auto &impl = static_cast<Impl &>(ctx);
+    impl.ui.DrawHistoryOverlay(impl.rollbackManager.historyTexts());
 }
 
 }  // namespace cereka
