@@ -57,6 +57,10 @@ struct UiConfig {
         Dim h = {0.25f, true};
         float textMarginX = 70.0f;
         SDL_Color textColor = {255, 255, 255, 255};
+        // Word-wrap: max width for wrapped text (0 = auto: 90% of screen width).
+        Dim wrapWidth = {0.0f, false};
+        // Extra vertical spacing between wrapped lines (in pixels).
+        float lineSpacing = 4.0f;
     } textbox;
 
     struct Namebox {

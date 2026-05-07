@@ -123,14 +123,14 @@ SDL_Renderer *Impl::CreateBestRenderer(SDL_Window *win)
 SDL_Texture *Impl::RenderText(const std::string &text,
                               SDL_Color color)
 {
-    if (text.empty() || !font)
-        return nullptr;
-    SDL_Surface *surf = TTF_RenderText_Blended(font, text.c_str(), text.size(), color);
-    if (!surf)
-        return nullptr;
-    SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surf);
-    SDL_DestroySurface(surf);
-    return tex;
+    return text_renderer::RenderText(font, renderer, text, color);
+}
+
+SDL_Texture *Impl::RenderTextWrapped(const std::string &text,
+                                     SDL_Color color,
+                                     int wrapWidth)
+{
+    return text_renderer::RenderTextWrapped(font, renderer, text, color, wrapWidth);
 }
 
 void Impl::Say(const std::string &speaker,

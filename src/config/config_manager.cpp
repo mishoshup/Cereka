@@ -43,6 +43,8 @@ static const PropertyDef PROPERTY_TABLE[] = {
     {"textbox.h", PropType::Dim, "Textbox height (pixels or percentage%)"},
     {"textbox.text_margin_x", PropType::Float, "Text horizontal margin inside textbox"},
     {"textbox.text_color", PropType::Color, "Text color (r g b a)"},
+    {"textbox.wrap_width", PropType::Dim, "Max width for word-wrapped text (pixels or percentage%, 0=auto)"},
+    {"textbox.line_spacing", PropType::Float, "Extra vertical spacing between wrapped lines (pixels)"},
 
     // ------------------------------------------------------------------------
     // Namebox properties
@@ -188,6 +190,10 @@ std::string ConfigManager::getValue(const std::string &key) const
         return serializers::serializeFloat(ctx_.uiCfg->textbox.textMarginX);
     if (key == "textbox.text_color")
         return serializers::serializeColor(ctx_.uiCfg->textbox.textColor);
+    if (key == "textbox.wrap_width")
+        return serializeDim(ctx_.uiCfg->textbox.wrapWidth);
+    if (key == "textbox.line_spacing")
+        return serializers::serializeFloat(ctx_.uiCfg->textbox.lineSpacing);
 
     if (key == "namebox.image")
         return ctx_.uiCfg->namebox.imagePath;
@@ -260,6 +266,12 @@ void ConfigManager::apply(const std::string &key,
     }
     else if (key == "textbox.text_color") {
         handlers::applyColor(ctx_, parsed, &ctx_.uiCfg->textbox.textColor);
+    }
+    else if (key == "textbox.wrap_width") {
+        handlers::applyDim(ctx_, parsed, &ctx_.uiCfg->textbox.wrapWidth);
+    }
+    else if (key == "textbox.line_spacing") {
+        ctx_.uiCfg->textbox.lineSpacing = parsed.floatVal;
     }
 
     // ---- Namebox ----

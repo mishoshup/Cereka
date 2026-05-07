@@ -24,4 +24,36 @@ TTF_Font *OpenFont(const std::string &fontPath,
     return font;
 }
 
+SDL_Texture *RenderText(TTF_Font *font,
+                        SDL_Renderer *renderer,
+                        const std::string &text,
+                        SDL_Color color)
+{
+    if (text.empty() || !font)
+        return nullptr;
+    SDL_Surface *surf = TTF_RenderText_Blended(font, text.c_str(), text.size(), color);
+    if (!surf)
+        return nullptr;
+    SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surf);
+    SDL_DestroySurface(surf);
+    return tex;
+}
+
+SDL_Texture *RenderTextWrapped(TTF_Font *font,
+                               SDL_Renderer *renderer,
+                               const std::string &text,
+                               SDL_Color color,
+                               int wrapWidth)
+{
+    if (text.empty() || !font)
+        return nullptr;
+    SDL_Surface *surf = TTF_RenderText_Blended_Wrapped(
+        font, text.c_str(), text.size(), color, wrapWidth > 0 ? wrapWidth : 0);
+    if (!surf)
+        return nullptr;
+    SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surf);
+    SDL_DestroySurface(surf);
+    return tex;
+}
+
 }  // namespace cereka::text_renderer

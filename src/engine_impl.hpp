@@ -77,6 +77,9 @@ class CerekaImpl {
     SDL_Renderer *CreateBestRenderer(SDL_Window *win);
     SDL_Texture *RenderText(const std::string &text,
                             SDL_Color color);
+    SDL_Texture *RenderTextWrapped(const std::string &text,
+                                   SDL_Color color,
+                                   int wrapWidth);
     void Say(const std::string &speaker,
              const std::string &name,
              const std::string &text);

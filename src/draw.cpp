@@ -132,14 +132,23 @@ void Impl::Draw()
 
         // Dialogue text with word wrap
         std::string visible = dialogue.Text().substr(0, dialogue.DisplayedChars());
-        auto textTex = RenderText(visible, uiCfg.textbox.textColor);
+
+        // Resolve wrap width: use configured value, or default to 90% of textbox width
+        float effectiveWrapW = uiCfg.textbox.wrapWidth.resolve((float)screenWidth);
+        if (effectiveWrapW <= 0.0f) {
+            effectiveWrapW = (float)screenWidth * 0.9f;
+        }
+        // Subtract margins to get the actual text area width
+        float textAreaW = effectiveWrapW - 2.0f * uiCfg.textbox.textMarginX;
+        int wrapPx = static_cast<int>(textAreaW);
+
+        auto textTex = RenderTextWrapped(visible, uiCfg.textbox.textColor, wrapPx);
         if (textTex) {
             float tw, th;
             SDL_GetTextureSize(textTex, &tw, &th);
             float margin = uiCfg.textbox.textMarginX;
-            float maxW = (float)screenWidth - 2.0f * margin;
-            float scale = tw > maxW ? maxW / tw : 1.0f;
-            SDL_FRect dst{margin, tbY + 40.0f, tw * scale, th * scale};
+            float lineHeight = th + uiCfg.textbox.lineSpacing;
+            SDL_FRect dst{margin, tbY + 40.0f, tw, lineHeight};
             SDL_RenderTexture(renderer, textTex, nullptr, &dst);
             SDL_DestroyTexture(textTex);
         }
