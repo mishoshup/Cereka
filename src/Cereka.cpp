@@ -271,28 +271,6 @@ void Impl::HandleEvent(const CerekaEvent &e)
         return;
     }
 
-    // Save/Load overlay — handled at engine level until Task 2 moves this into states
-    if (state == CerekaState::SaveMenuState || state == CerekaState::LoadMenuState) {
-        bool isSaving = (state == CerekaState::SaveMenuState);
-        if (e.type == CerekaEvent::KeyDown && e.key == SDLK_ESCAPE) {
-            popOverlay();
-            return;
-        }
-        if (e.type == CerekaEvent::MouseDown) {
-            int slot = HitTestSaveSlot((int)e.mouseX, (int)e.mouseY);
-            if (slot >= 1 && slot <= 10) {
-                if (isSaving) {
-                    SaveGame(slot);
-                    popOverlay();
-                }
-                else {
-                    LoadGame(slot);  // restores state from file
-                }
-            }
-        }
-        return;
-    }
-
     // Escape during normal play opens save menu
     if (e.type == CerekaEvent::KeyDown && e.key == SDLK_ESCAPE) {
         if (state == CerekaState::WaitingForInput || state == CerekaState::Running) {
@@ -310,26 +288,6 @@ void Impl::HandleEvent(const CerekaEvent &e)
     {
         changeState(CerekaState::Running);
         return;
-    }
-
-    // Menu button clicks — handled at engine level until Task 2 moves this into states
-    if (state == CerekaState::InMenu && e.type == CerekaEvent::MouseDown) {
-        int idx = menu.HitTest(
-            e.mouseX, e.mouseY, screenWidth, screenHeight, uiCfg.button.w, uiCfg.button.h);
-        if (idx < 0)
-            return;
-
-        if (menu.IsExit(idx)) {
-            ExitMenu();
-            changeState(CerekaState::Finished);
-            return;
-        }
-
-        const std::string &target = menu.Target(idx);
-        scriptInterpreter.pc =
-            target.empty() ? menu.EndPC() : scriptInterpreter.labelMap[target];
-        ExitMenu();
-        changeState(CerekaState::Running);
     }
 }
 

@@ -51,9 +51,6 @@ void Impl::Reset()
 void Impl::Update(float dt)
 {
     m_stateMachine.update(dt);
-
-    if (state == CerekaState::Fading && scene.TickFade(dt))
-        changeState(CerekaState::Running);
 }
 
 // ---------------------------------------------------------------------------

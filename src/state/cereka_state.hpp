@@ -218,6 +218,14 @@ class CerekaStateMachine {
         return !overlayStack_.empty();
     }
 
+    void clearOverlays()
+    {
+        if (currentState_) {
+            currentState_->onExit(*ctx_);
+        }
+        overlayStack_.clear();
+    }
+
    private:
     IVNStateContext *ctx_ = nullptr;
     CerekaState currentType_ = CerekaState::Running;

@@ -25,8 +25,12 @@ void Impl::Draw()
         SDL_RenderTexture(renderer, entry.tex, nullptr, &dst);
     }
 
-    // --- State-specific drawing ---
+    // --- State-specific drawing (menus, fades, overlays) ---
     m_stateMachine.draw();
+
+    // Skip dialogue box when an overlay is active (save/load)
+    if (m_stateMachine.hasOverlays())
+        return;
 
     // --- Dialogue box (universal — drawn by engine, not by states) ---
     if (!dialogue.Text().empty()) {

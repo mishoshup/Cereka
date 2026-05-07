@@ -39,6 +39,7 @@ class MenuState : public VNState<CerekaState::InMenu> {
                 IVNStateContext &ctx) override;
     void handleEvent(const CerekaEvent &event,
                      IVNStateContext &ctx) override;
+    void draw(IVNStateContext &ctx) const override;
 };
 
 // ============================================================================
@@ -50,6 +51,7 @@ class FadeState : public VNState<CerekaState::Fading> {
     void onEnter(IVNStateContext &ctx) override;
     void update(float dt,
                 IVNStateContext &ctx) override;
+    void draw(IVNStateContext &ctx) const override;
 };
 
 // ============================================================================
@@ -60,6 +62,7 @@ class SaveMenuState : public VNState<CerekaState::SaveMenuState> {
    public:
     void handleEvent(const CerekaEvent &event,
                      IVNStateContext &ctx) override;
+    void draw(IVNStateContext &ctx) const override;
 };
 
 // ============================================================================
@@ -70,6 +73,7 @@ class LoadMenuState : public VNState<CerekaState::LoadMenuState> {
    public:
     void handleEvent(const CerekaEvent &event,
                      IVNStateContext &ctx) override;
+    void draw(IVNStateContext &ctx) const override;
 };
 
 // ============================================================================
