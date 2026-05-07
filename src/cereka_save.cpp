@@ -210,88 +210,22 @@ std::string Impl::GetSlotTimestamp(int slot)
 }
 
 // ---------------------------------------------------------------------------
-// DrawSaveLoadOverlay — SDL3-rendered overlay (no ImGui)
+// DrawSaveLoadOverlay — delegates to UIManager
 // ---------------------------------------------------------------------------
 
 void Impl::DrawSaveLoadOverlay(bool isSaving)
 {
-    const float panelW = screenWidth * 0.5f;
-    const float panelH = screenHeight * 0.8f;
-    const float panelX = (screenWidth - panelW) * 0.5f;
-    const float panelY = (screenHeight - panelH) * 0.5f;
-    const float slotH = (panelH - 60.0f) / 10.0f;
-
-    // Dim background
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 180);
-    SDL_RenderFillRect(renderer, nullptr);
-
-    // Panel background
-    SDL_SetRenderDrawColor(renderer, 20, 22, 38, 230);
-    SDL_FRect panel{panelX, panelY, panelW, panelH};
-    SDL_RenderFillRect(renderer, &panel);
-
-    // Title
-    SDL_Texture *titleTex = RenderText(isSaving ? "SAVE GAME" : "LOAD GAME", cereka::Color{180, 200, 255, 255});
-    if (titleTex) {
-        float tw, th;
-        SDL_GetTextureSize(titleTex, &tw, &th);
-        SDL_FRect dst{panelX + (panelW - tw) * 0.5f, panelY + 8.0f, tw, th};
-        SDL_RenderTexture(renderer, titleTex, nullptr, &dst);
-        SDL_DestroyTexture(titleTex);
-    }
-
-    // Slot rows
-    for (int i = 1; i <= 10; ++i) {
-        float slotY = panelY + 50.0f + (i - 1) * slotH;
-        SDL_FRect slotRect{panelX + 10.0f, slotY + 2.0f, panelW - 20.0f, slotH - 4.0f};
-
-        SDL_SetRenderDrawColor(renderer, 40, 44, 66, 210);
-        SDL_RenderFillRect(renderer, &slotRect);
-
-        std::string ts = GetSlotTimestamp(i);
-        std::string label = "Slot " + std::to_string(i) + "   " + (ts.empty() ? "Empty" : ts);
-
-        SDL_Texture *slotTex = RenderText(
-            label, ts.empty() ? cereka::Color{100, 100, 100, 255} : cereka::Color{220, 220, 220, 255});
-        if (slotTex) {
-            float tw, th;
-            SDL_GetTextureSize(slotTex, &tw, &th);
-            SDL_FRect dst{slotRect.x + 10.0f, slotY + (slotH - th) * 0.5f, tw, th};
-            SDL_RenderTexture(renderer, slotTex, nullptr, &dst);
-            SDL_DestroyTexture(slotTex);
-        }
-    }
-
-    // ESC hint
-    SDL_Texture *hintTex = RenderText("ESC to cancel", {120, 120, 120, 255});
-    if (hintTex) {
-        float tw, th;
-        SDL_GetTextureSize(hintTex, &tw, &th);
-        SDL_FRect dst{panelX + (panelW - tw) * 0.5f, panelY + panelH - th - 8.0f, tw, th};
-        SDL_RenderTexture(renderer, hintTex, nullptr, &dst);
-        SDL_DestroyTexture(hintTex);
-    }
+    std::string timestamps[10];
+    for (int i = 1; i <= 10; i++)
+        timestamps[i - 1] = GetSlotTimestamp(i);
+    ui.DrawSaveLoadOverlay(isSaving, timestamps, uiCfg);
 }
 
 // ---------------------------------------------------------------------------
 // HitTestSaveSlot — returns slot 1-10 or -1
 // ---------------------------------------------------------------------------
 
-int Impl::HitTestSaveSlot(int mx,
-                          int my)
+int Impl::HitTestSaveSlot(int mx, int my)
 {
-    const float panelW = screenWidth * 0.5f;
-    const float panelH = screenHeight * 0.8f;
-    const float panelX = (screenWidth - panelW) * 0.5f;
-    const float panelY = (screenHeight - panelH) * 0.5f;
-    const float slotH = (panelH - 60.0f) / 10.0f;
-
-    for (int i = 1; i <= 10; ++i) {
-        float slotY = panelY + 50.0f + (i - 1) * slotH;
-        if ((float)mx >= panelX + 10.0f && (float)mx <= panelX + panelW - 10.0f &&
-            (float)my >= slotY + 2.0f && (float)my <= slotY + slotH - 2.0f)
-            return i;
-    }
-    return -1;
+    return ui.HitTestSaveSlot(mx, my, screenWidth, screenHeight);
 }

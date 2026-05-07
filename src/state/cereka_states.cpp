@@ -56,42 +56,7 @@ void MenuState::handleEvent(const CerekaEvent &event,
 void MenuState::draw(ICerekaStateContext &ctx) const
 {
     auto &impl = static_cast<Impl &>(ctx);
-    if (!impl.menu.IsOpen())
-        return;
-
-    const float bw = impl.uiCfg.button.w;
-    const float bh = impl.uiCfg.button.h;
-    const float spacing = 20.0f;
-    float y = impl.screenHeight * 0.4f;
-    const auto &buttonTexts = impl.menu.Texts();
-
-    for (size_t i = 0; i < buttonTexts.size(); ++i) {
-        SDL_FRect btn{(float)impl.screenWidth / 2.0f - bw / 2.0f, y, bw, bh};
-
-        if (impl.uiCfg.button.image) {
-            SDL_RenderTexture(impl.renderer, impl.uiCfg.button.image->RawTexture(), nullptr, &btn);
-        }
-        else {
-            SDL_SetRenderDrawBlendMode(impl.renderer, SDL_BLENDMODE_BLEND);
-            SDL_SetRenderDrawColor(impl.renderer,
-                                   impl.uiCfg.button.color.r,
-                                   impl.uiCfg.button.color.g,
-                                   impl.uiCfg.button.color.b,
-                                   impl.uiCfg.button.color.a);
-            SDL_RenderFillRect(impl.renderer, &btn);
-        }
-
-        auto textTex = impl.RenderText(buttonTexts[i], impl.uiCfg.button.textColor);
-        if (textTex) {
-            float tw2, th2;
-            SDL_GetTextureSize(textTex, &tw2, &th2);
-            SDL_FRect tr{
-                (float)impl.screenWidth / 2.0f - tw2 / 2.0f, y + bh / 2.0f - th2 / 2.0f, tw2, th2};
-            SDL_RenderTexture(impl.renderer, textTex, nullptr, &tr);
-            SDL_DestroyTexture(textTex);
-        }
-        y += bh + spacing;
-    }
+    impl.ui.DrawMenuButtons(impl.menu, impl.uiCfg);
 }
 
 // ============================================================================
@@ -111,14 +76,7 @@ void FadeState::update(float dt,
 void FadeState::draw(ICerekaStateContext &ctx) const
 {
     auto &impl = static_cast<Impl &>(ctx);
-    if (impl.scene.Phase() == SceneManager::FadePhase::None)
-        return;
-
-    float t = std::min(impl.scene.FadeTimer() / impl.scene.FadePhaseDuration(), 1.0f);
-    float alpha = (impl.scene.Phase() == SceneManager::FadePhase::Out) ? t : (1.0f - t);
-    SDL_SetRenderDrawBlendMode(impl.renderer, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(impl.renderer, 0, 0, 0, (Uint8)(alpha * 255.0f));
-    SDL_RenderFillRect(impl.renderer, nullptr);
+    impl.ui.DrawFadeOverlay(impl.scene);
 }
 
 // ============================================================================
