@@ -37,6 +37,7 @@ jobs:
             libxkbcommon-dev \
             libxtst-dev \
             qt6-base-dev \
+            libfreetype-dev \
             libwayland-dev \
             libegl1-mesa-dev \
             libgl1-mesa-dev \

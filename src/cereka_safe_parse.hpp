@@ -2,6 +2,7 @@
 #include <charconv>
 #include <expected>
 #include <string>
+#include <cstdlib>
 
 namespace cereka {
 
@@ -17,9 +18,9 @@ inline std::expected<float, std::string> safe_stof(const std::string &s) noexcep
     if (s.empty())
         return std::unexpected(std::string("empty string"));
 
-    float val = 0.0f;
-    auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), val);
-    if (ec != std::errc{})
+    char *end = nullptr;
+    float val = std::strtof(s.c_str(), &end);
+    if (end == s.c_str())
         return std::unexpected(std::string("invalid float: '") + s + "'");
     return val;
 }
