@@ -6,6 +6,7 @@
 #include "Cereka/exceptions.hpp"
 #include "cereka_audio_manager.hpp"
 #include "config/config_manager.hpp"
+#include "ui/ui_manager.hpp"
 #include "cereka_dialogue_system.hpp"
 #include "cereka_menu_system.hpp"
 #include "cereka_scene_manager.hpp"
@@ -49,6 +50,9 @@ class CerekaImpl : public ICerekaStateContext {
 
     // --- Audio ---
     AudioManager audio;
+
+    // --- UI ---
+    UIManager ui;
 
     // --- Script interpreter ---
     ScriptInterpreter scriptInterpreter;

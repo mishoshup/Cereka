@@ -37,8 +37,10 @@ bool Impl::InitGame(const char *title,
     renderer = sdlRenderer;  // backwards compat for existing draw code
 
     LoadFont(uiCfg.fontSize);
+    ui.SetFont(font);
     InitConfigManager();
 
+    ui.Init(*m_renderCtx);
     scene.Init(*m_renderCtx);
     audio.Init();
 
