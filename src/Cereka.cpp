@@ -1,6 +1,7 @@
 // Cereka.cpp — engine init/shutdown, event handling, SDL helpers, public API wrapper
 
 #include "engine_impl.hpp"
+#include "state/cereka_states.hpp"
 
 // ---------------------------------------------------------------------------
 // Init / Shutdown
@@ -28,6 +29,17 @@ bool Impl::InitGame(const char *title,
 
     scene.Init(renderer);
     audio.Init();
+
+    // --- State machine ---
+    m_stateMachine.setContext(*this);
+    m_stateMachine.registerState<DialogueState>();
+    m_stateMachine.registerState<MenuState>();
+    m_stateMachine.registerState<FadeState>();
+    m_stateMachine.registerState<SaveMenuState>();
+    m_stateMachine.registerState<LoadMenuState>();
+    m_stateMachine.registerState<FinishedState>();
+    m_stateMachine.registerState<QuitState>();
+    m_stateMachine.setInitialState(CerekaState::Running);
     return true;
 }
 
@@ -64,6 +76,39 @@ void Impl::ShutDown()
 
     TTF_Quit();
     SDL_Quit();
+}
+
+// ---------------------------------------------------------------------------
+// IVNStateContext — state machine interface
+// ---------------------------------------------------------------------------
+
+void Impl::changeState(CerekaState newState)
+{
+    m_stateMachine.changeState(newState);
+    state = m_stateMachine.currentType();
+}
+
+void Impl::pushOverlay(CerekaState overlayState)
+{
+    stateBeforeSaveMenu = state;
+    m_stateMachine.pushOverlay(overlayState);
+    state = m_stateMachine.currentType();
+}
+
+void Impl::popOverlay()
+{
+    m_stateMachine.popOverlay();
+    state = m_stateMachine.currentType();
+}
+
+cereka::CerekaState Impl::getSavedState() const
+{
+    return stateBeforeSaveMenu;
+}
+
+void Impl::setSavedState(CerekaState stateVal)
+{
+    stateBeforeSaveMenu = stateVal;
 }
 
 // ---------------------------------------------------------------------------
@@ -209,6 +254,83 @@ void Impl::EnterMenu()
 void Impl::ExitMenu()
 {
     menu.Close();
+}
+
+// ---------------------------------------------------------------------------
+// Event handling — delegates to state machine
+// ---------------------------------------------------------------------------
+
+void Impl::HandleEvent(const CerekaEvent &e)
+{
+    // Always delegate to the state machine for states to handle
+    m_stateMachine.handleEvent(e);
+
+    // Global events handled at engine level regardless of state
+    if (e.type == CerekaEvent::Quit) {
+        changeState(CerekaState::Quit);
+        return;
+    }
+
+    // Save/Load overlay — handled at engine level until Task 2 moves this into states
+    if (state == CerekaState::SaveMenuState || state == CerekaState::LoadMenuState) {
+        bool isSaving = (state == CerekaState::SaveMenuState);
+        if (e.type == CerekaEvent::KeyDown && e.key == SDLK_ESCAPE) {
+            popOverlay();
+            return;
+        }
+        if (e.type == CerekaEvent::MouseDown) {
+            int slot = HitTestSaveSlot((int)e.mouseX, (int)e.mouseY);
+            if (slot >= 1 && slot <= 10) {
+                if (isSaving) {
+                    SaveGame(slot);
+                    popOverlay();
+                }
+                else {
+                    LoadGame(slot);  // restores state from file
+                }
+            }
+        }
+        return;
+    }
+
+    // Escape during normal play opens save menu
+    if (e.type == CerekaEvent::KeyDown && e.key == SDLK_ESCAPE) {
+        if (state == CerekaState::WaitingForInput || state == CerekaState::Running) {
+            pushOverlay(CerekaState::SaveMenuState);
+            return;
+        }
+    }
+
+    // Advance key: WaitingForInput → Running
+    if (state == CerekaState::WaitingForInput &&
+        (e.type == CerekaEvent::MouseDown ||
+         (e.type == CerekaEvent::KeyDown &&
+          std::find(uiCfg.advanceKeys.begin(), uiCfg.advanceKeys.end(), (SDL_Keycode)e.key) !=
+              uiCfg.advanceKeys.end())))
+    {
+        changeState(CerekaState::Running);
+        return;
+    }
+
+    // Menu button clicks — handled at engine level until Task 2 moves this into states
+    if (state == CerekaState::InMenu && e.type == CerekaEvent::MouseDown) {
+        int idx = menu.HitTest(
+            e.mouseX, e.mouseY, screenWidth, screenHeight, uiCfg.button.w, uiCfg.button.h);
+        if (idx < 0)
+            return;
+
+        if (menu.IsExit(idx)) {
+            ExitMenu();
+            changeState(CerekaState::Finished);
+            return;
+        }
+
+        const std::string &target = menu.Target(idx);
+        scriptInterpreter.pc =
+            target.empty() ? menu.EndPC() : scriptInterpreter.labelMap[target];
+        ExitMenu();
+        changeState(CerekaState::Running);
+    }
 }
 
 // ---------------------------------------------------------------------------

@@ -10,6 +10,7 @@
 #include "menu_system.hpp"
 #include "scene_manager.hpp"
 #include "script_interpreter.hpp"
+#include "state/cereka_state.hpp"
 #include "text_renderer.hpp"
 #include "ui_config.hpp"
 #include "video.hpp"
@@ -27,7 +28,7 @@ namespace fs = std::filesystem;
 
 namespace cereka {
 
-class CerekaImpl {
+class CerekaImpl : public IVNStateContext {
    public:
     // --- Window / renderer ---
     SDL_Window *window = nullptr;
@@ -55,12 +56,22 @@ class CerekaImpl {
     MenuSystem menu;
 
     // --- State machine ---
+    CerekaStateMachine m_stateMachine;
     CerekaState state = CerekaState::Running;
     CerekaState stateBeforeSaveMenu = CerekaState::Running;  // restored when overlay closes
 
     // --- UI theme ---
     UiConfig uiCfg;
     config::ConfigManager configManager;
+
+    // -----------------------------------------------------------------------
+    // IVNStateContext — state machine interface
+    // -----------------------------------------------------------------------
+    void changeState(CerekaState newState) override;
+    void pushOverlay(CerekaState overlayState) override;
+    void popOverlay() override;
+    [[nodiscard]] CerekaState getSavedState() const override;
+    void setSavedState(CerekaState stateVal) override;
 
     // -----------------------------------------------------------------------
     // Methods — defined across the engine .cpp files

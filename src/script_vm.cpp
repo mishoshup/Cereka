@@ -45,87 +45,15 @@ void Impl::Reset()
 }
 
 // ---------------------------------------------------------------------------
-// Update — typewriter + fade transition
+// Update — delegates to state machine
 // ---------------------------------------------------------------------------
 
 void Impl::Update(float dt)
 {
-    dialogue.Tick(dt);
+    m_stateMachine.update(dt);
 
     if (state == CerekaState::Fading && scene.TickFade(dt))
-        state = CerekaState::Running;
-}
-
-// ---------------------------------------------------------------------------
-// Event handling
-// ---------------------------------------------------------------------------
-
-void Impl::HandleEvent(const CerekaEvent &e)
-{
-    if (e.type == CerekaEvent::Quit) {
-        state = CerekaState::Quit;
-        return;
-    }
-
-    // Save/Load overlay — intercept all input while overlay is open
-    if (state == CerekaState::SaveMenuState || state == CerekaState::LoadMenuState) {
-        bool isSaving = (state == CerekaState::SaveMenuState);
-        if (e.type == CerekaEvent::KeyDown && e.key == SDLK_ESCAPE) {
-            state = stateBeforeSaveMenu;
-            return;
-        }
-        if (e.type == CerekaEvent::MouseDown) {
-            int slot = HitTestSaveSlot((int)e.mouseX, (int)e.mouseY);
-            if (slot >= 1 && slot <= 10) {
-                if (isSaving) {
-                    SaveGame(slot);
-                    state = stateBeforeSaveMenu;
-                }
-                else {
-                    LoadGame(slot);  // restores state from file
-                }
-            }
-        }
-        return;
-    }
-
-    // Escape during normal play opens save menu
-    if (e.type == CerekaEvent::KeyDown && e.key == SDLK_ESCAPE) {
-        if (state == CerekaState::WaitingForInput || state == CerekaState::Running) {
-            stateBeforeSaveMenu = state;
-            state = CerekaState::SaveMenuState;
-            return;
-        }
-    }
-
-    if (state == CerekaState::WaitingForInput &&
-        (e.type == CerekaEvent::MouseDown ||
-         (e.type == CerekaEvent::KeyDown &&
-          std::find(uiCfg.advanceKeys.begin(), uiCfg.advanceKeys.end(), (SDL_Keycode)e.key) !=
-              uiCfg.advanceKeys.end())))
-    {
-        state = CerekaState::Running;
-        return;
-    }
-
-    if (state == CerekaState::InMenu && e.type == CerekaEvent::MouseDown) {
-        int idx = menu.HitTest(
-            e.mouseX, e.mouseY, screenWidth, screenHeight, uiCfg.button.w, uiCfg.button.h);
-        if (idx < 0)
-            return;
-
-        if (menu.IsExit(idx)) {
-            ExitMenu();
-            state = CerekaState::Finished;
-            return;
-        }
-
-        const std::string &target = menu.Target(idx);
-        scriptInterpreter.pc =
-            target.empty() ? menu.EndPC() : scriptInterpreter.labelMap[target];
-        ExitMenu();
-        state = CerekaState::Running;
-    }
+        changeState(CerekaState::Running);
 }
 
 // ---------------------------------------------------------------------------
@@ -177,7 +105,7 @@ void Impl::TickScript()
                     }
                 }
                 scene.StartFade(ins.a, totalDur);
-                state = CerekaState::Fading;
+                changeState(CerekaState::Fading);
                 si.pc++;
                 return;
             }
@@ -194,19 +122,19 @@ void Impl::TickScript()
 
             case scenario::Op::SAY:
                 Say(ins.a, ins.a, ins.b);
-                state = CerekaState::WaitingForInput;
+                changeState(CerekaState::WaitingForInput);
                 si.pc++;
                 return;
 
             case scenario::Op::NARRATE:
                 Narrate(ins.b);
-                state = CerekaState::WaitingForInput;
+                changeState(CerekaState::WaitingForInput);
                 si.pc++;
                 return;
 
             case scenario::Op::MENU:
                 EnterMenu();
-                state = CerekaState::InMenu;
+                changeState(CerekaState::InMenu);
                 si.pc++;
                 return;
 
@@ -225,7 +153,7 @@ void Impl::TickScript()
                     si.callStack.pop_back();
                 }
                 else {
-                    state = CerekaState::Finished;
+                    changeState(CerekaState::Finished);
                 }
                 continue;
 
@@ -331,21 +259,19 @@ void Impl::TickScript()
                 continue;
 
             case scenario::Op::SAVE_MENU:
-                stateBeforeSaveMenu = state;
-                state = CerekaState::SaveMenuState;
+                pushOverlay(CerekaState::SaveMenuState);
                 si.pc++;
                 return;
 
             case scenario::Op::LOAD_MENU:
-                stateBeforeSaveMenu = state;
-                state = CerekaState::LoadMenuState;
+                pushOverlay(CerekaState::LoadMenuState);
                 si.pc++;
                 return;
 
             case scenario::Op::SAVE: {
                 int slot = ins.a.empty() ? 0 : std::stoi(ins.a);
                 if (slot >= 1 && slot <= 10) {
-                    stateBeforeSaveMenu = state;
+                    setSavedState(state);
                     SaveGame(slot);
                 }
                 si.pc++;
@@ -360,7 +286,7 @@ void Impl::TickScript()
             }
 
             case scenario::Op::END:
-                state = CerekaState::Finished;
+                changeState(CerekaState::Finished);
                 return;
 
             case scenario::Op::LABEL:
