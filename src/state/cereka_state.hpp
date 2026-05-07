@@ -239,6 +239,11 @@ class CerekaStateMachine {
         return currentType_;
     }
 
+    [[nodiscard]] bool isInitialized() const
+    {
+        return ctx_ != nullptr && currentState_ != nullptr;
+    }
+
     [[nodiscard]] bool hasOverlays() const
     {
         return !overlayStack_.empty();

@@ -84,21 +84,36 @@ void Impl::ShutDown()
 
 void Impl::changeState(CerekaState newState)
 {
-    m_stateMachine.changeState(newState);
-    state = m_stateMachine.currentType();
+    if (m_stateMachine.isInitialized()) {
+        m_stateMachine.changeState(newState);
+        state = m_stateMachine.currentType();
+    }
+    else {
+        state = newState;
+    }
 }
 
 void Impl::pushOverlay(CerekaState overlayState)
 {
     stateBeforeSaveMenu = state;
-    m_stateMachine.pushOverlay(overlayState);
-    state = m_stateMachine.currentType();
+    if (m_stateMachine.isInitialized()) {
+        m_stateMachine.pushOverlay(overlayState);
+        state = m_stateMachine.currentType();
+    }
+    else {
+        state = overlayState;
+    }
 }
 
 void Impl::popOverlay()
 {
-    m_stateMachine.popOverlay();
-    state = m_stateMachine.currentType();
+    if (m_stateMachine.isInitialized()) {
+        m_stateMachine.popOverlay();
+        state = m_stateMachine.currentType();
+    }
+    else {
+        state = stateBeforeSaveMenu;
+    }
 }
 
 cereka::CerekaState Impl::getSavedState() const
