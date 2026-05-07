@@ -21,7 +21,7 @@ class ScriptInterpreter {
     sol::state lua;
     sol::coroutine script;
 
-    std::vector<scenario::Instruction> program;
+    std::vector<compiler::Instruction> program;
     std::unordered_map<std::string, size_t> labelMap;
     std::unordered_map<std::string, std::string> variables;
     std::unordered_map<std::string, float> numVariables;

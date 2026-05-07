@@ -8,7 +8,7 @@
 
 namespace fs = std::filesystem;
 
-namespace cereka::scenario {
+namespace cereka::compiler {
 
 // ---------------------------------------------------------------------------
 // Forward declaration for recursive include/call resolution
@@ -242,4 +242,4 @@ std::vector<Instruction> CompileCerekaScript(const std::string &filename)
     return CompileFile(fs::absolute(filename), 0);
 }
 
-}  // namespace cereka::scenario
+}  // namespace cereka::compiler

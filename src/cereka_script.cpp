@@ -5,11 +5,13 @@
 #include "cereka_engine_impl.hpp"
 #include <algorithm>
 
+using namespace cereka::compiler;
+
 // ---------------------------------------------------------------------------
 // Script loading
 // ---------------------------------------------------------------------------
 
-void Impl::LoadCompiledCerekaScript(const std::vector<scenario::Instruction> &compiled)
+void Impl::LoadCompiledCerekaScript(const std::vector<compiler::Instruction> &compiled)
 {
     scriptInterpreter.program = compiled;
     scriptInterpreter.pc = 0;
@@ -22,7 +24,7 @@ void Impl::LoadCompiledCerekaScript(const std::vector<scenario::Instruction> &co
 
     scriptInterpreter.labelMap.clear();
     for (size_t i = 0; i < scriptInterpreter.program.size(); ++i)
-        if (scriptInterpreter.program[i].op == scenario::Op::LABEL)
+        if (scriptInterpreter.program[i].op == compiler::Op::LABEL)
             scriptInterpreter.labelMap[scriptInterpreter.program[i].a] = i;
 }
 
@@ -69,11 +71,11 @@ void Impl::CerekaScriptTick()
 
         // Skip mode: inside a false if-block
         if (si.skipMode) {
-            if (ins.op == scenario::Op::IF_EQ || ins.op == scenario::Op::IF_NEQ ||
-                ins.op == scenario::Op::IF_GT || ins.op == scenario::Op::IF_LT ||
-                ins.op == scenario::Op::IF_GE || ins.op == scenario::Op::IF_LE) {
+            if (ins.op == compiler::Op::IF_EQ || ins.op == compiler::Op::IF_NEQ ||
+                ins.op == compiler::Op::IF_GT || ins.op == compiler::Op::IF_LT ||
+                ins.op == compiler::Op::IF_GE || ins.op == compiler::Op::IF_LE) {
                 si.skipDepth++;
-            } else if (ins.op == scenario::Op::ENDIF) {
+            } else if (ins.op == compiler::Op::ENDIF) {
                 si.skipDepth--;
                 if (si.skipDepth == 0)
                     si.skipMode = false;
@@ -87,12 +89,12 @@ void Impl::CerekaScriptTick()
 
         switch (ins.op) {
 
-            case scenario::Op::BG:
+            case compiler::Op::BG:
                 scene.ShowBackground(ins.a);
                 si.pc++;
                 continue;
 
-            case scenario::Op::FADE: {
+            case compiler::Op::FADE: {
                 float totalDur = 0.5f;
                 if (!ins.b.empty()) {
                     try {
@@ -107,44 +109,44 @@ void Impl::CerekaScriptTick()
                 return;
             }
 
-            case scenario::Op::CHAR:
+            case compiler::Op::CHAR:
                 scene.ShowCharacter(ins.a, ins.b, ins.c);
                 si.pc++;
                 continue;
 
-            case scenario::Op::HIDE_CHAR:
+            case compiler::Op::HIDE_CHAR:
                 scene.HideCharacter(ins.a);
                 si.pc++;
                 continue;
 
-            case scenario::Op::SAY:
+            case compiler::Op::SAY:
                 Say(ins.a, ins.a, ins.b);
                 changeState(CerekaState::WaitingForInput);
                 si.pc++;
                 return;
 
-            case scenario::Op::NARRATE:
+            case compiler::Op::NARRATE:
                 Narrate(ins.b);
                 changeState(CerekaState::WaitingForInput);
                 si.pc++;
                 return;
 
-            case scenario::Op::MENU:
+            case compiler::Op::MENU:
                 EnterMenu();
                 changeState(CerekaState::InMenu);
                 si.pc++;
                 return;
 
-            case scenario::Op::JUMP:
+            case compiler::Op::JUMP:
                 si.pc = si.labelMap[ins.a];
                 continue;
 
-            case scenario::Op::CALL:
+            case compiler::Op::CALL:
                 si.callStack.push_back(si.pc + 1);
                 si.pc = si.labelMap[ins.a];
                 continue;
 
-            case scenario::Op::RETURN:
+            case compiler::Op::RETURN:
                 if (!si.callStack.empty()) {
                     si.pc = si.callStack.back();
                     si.callStack.pop_back();
@@ -154,12 +156,12 @@ void Impl::CerekaScriptTick()
                 }
                 continue;
 
-            case scenario::Op::SET_VAR:
+            case compiler::Op::SET_VAR:
                 si.variables[ins.a] = ins.b;
                 si.pc++;
                 continue;
 
-            case scenario::Op::SET_VAR_NUM: {
+            case compiler::Op::SET_VAR_NUM: {
                 float lhs = si.LookupNumVar(ins.a);
                 float rhs = si.EvalExpr(ins.c);
                 float result = 0.0f;
@@ -179,7 +181,7 @@ void Impl::CerekaScriptTick()
                 continue;
             }
 
-            case scenario::Op::IF_EQ: {
+            case compiler::Op::IF_EQ: {
                 auto it = si.variables.find(ins.a);
                 std::string val = (it != si.variables.end()) ? it->second : "";
                 if (val != ins.b) {
@@ -190,7 +192,7 @@ void Impl::CerekaScriptTick()
                 continue;
             }
 
-            case scenario::Op::IF_NEQ: {
+            case compiler::Op::IF_NEQ: {
                 auto it = si.variables.find(ins.a);
                 std::string val = (it != si.variables.end()) ? it->second : "";
                 if (val == ins.b) {
@@ -201,18 +203,18 @@ void Impl::CerekaScriptTick()
                 continue;
             }
 
-            case scenario::Op::IF_GT:
-            case scenario::Op::IF_LT:
-            case scenario::Op::IF_GE:
-            case scenario::Op::IF_LE: {
+            case compiler::Op::IF_GT:
+            case compiler::Op::IF_LT:
+            case compiler::Op::IF_GE:
+            case compiler::Op::IF_LE: {
                 float lhs = si.LookupNumVar(ins.a);
                 float rhs = si.EvalExpr(ins.b);
                 bool cond = false;
                 switch (ins.op) {
-                    case scenario::Op::IF_GT: cond = lhs > rhs; break;
-                    case scenario::Op::IF_LT: cond = lhs < rhs; break;
-                    case scenario::Op::IF_GE: cond = lhs >= rhs; break;
-                    case scenario::Op::IF_LE: cond = lhs <= rhs; break;
+                    case compiler::Op::IF_GT: cond = lhs > rhs; break;
+                    case compiler::Op::IF_LT: cond = lhs < rhs; break;
+                    case compiler::Op::IF_GE: cond = lhs >= rhs; break;
+                    case compiler::Op::IF_LE: cond = lhs <= rhs; break;
                     default: break;
                 }
                 if (!cond) {
@@ -223,11 +225,11 @@ void Impl::CerekaScriptTick()
                 continue;
             }
 
-            case scenario::Op::ENDIF:
+            case compiler::Op::ENDIF:
                 si.pc++;
                 continue;
 
-            case scenario::Op::ELSE:
+            case compiler::Op::ELSE:
                 // If we reach here, skipMode was false, meaning the IF branch was executed.
                 // So we must skip the ELSE branch.
                 si.skipMode = true;
@@ -235,37 +237,37 @@ void Impl::CerekaScriptTick()
                 si.pc++;
                 continue;
 
-            case scenario::Op::PLAY_BGM:
+            case compiler::Op::PLAY_BGM:
                 audio.PlayBGM(ins.a);
                 si.pc++;
                 continue;
 
-            case scenario::Op::STOP_BGM:
+            case compiler::Op::STOP_BGM:
                 audio.StopBGM();
                 si.pc++;
                 continue;
 
-            case scenario::Op::PLAY_SFX:
+            case compiler::Op::PLAY_SFX:
                 audio.PlaySFX(ins.a);
                 si.pc++;
                 continue;
 
-            case scenario::Op::UI_SET:
+            case compiler::Op::UI_SET:
                 ApplyUiSet(ins.a, ins.b);
                 si.pc++;
                 continue;
 
-            case scenario::Op::SAVE_MENU:
+            case compiler::Op::SAVE_MENU:
                 pushOverlay(CerekaState::SaveMenuState);
                 si.pc++;
                 return;
 
-            case scenario::Op::LOAD_MENU:
+            case compiler::Op::LOAD_MENU:
                 pushOverlay(CerekaState::LoadMenuState);
                 si.pc++;
                 return;
 
-            case scenario::Op::SAVE: {
+            case compiler::Op::SAVE: {
                 int slot = ins.a.empty() ? 0 : std::stoi(ins.a);
                 if (slot >= 1 && slot <= 10) {
                     setSavedState(state);
@@ -275,18 +277,18 @@ void Impl::CerekaScriptTick()
                 continue;
             }
 
-            case scenario::Op::LOAD: {
+            case compiler::Op::LOAD: {
                 int slot = ins.a.empty() ? 0 : std::stoi(ins.a);
                 if (slot >= 1 && slot <= 10)
                     LoadGame(slot);  // restores pc and state from file
                 return;
             }
 
-            case scenario::Op::END:
+            case compiler::Op::END:
                 changeState(CerekaState::Finished);
                 return;
 
-            case scenario::Op::LABEL:
+            case compiler::Op::LABEL:
                 si.pc++;
                 continue;
 

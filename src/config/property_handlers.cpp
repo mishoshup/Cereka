@@ -8,7 +8,7 @@
 #include <cstdio>
 #include <sstream>
 
-namespace config {
+namespace cereka::config {
 
 // ============================================================================
 // Key Name Mapping — string ↔ SDL_Keycode
@@ -314,4 +314,4 @@ ApplyValue parseByType(PropType type,
     return parsers::parseString(str);
 }
 
-}  // namespace config
+}  // namespace cereka::config

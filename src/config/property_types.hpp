@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-namespace config {
+namespace cereka::config {
 
 // ============================================================================
 // Property Type Enum
@@ -148,4 +148,4 @@ void applyTexture(ApplyContext &ctx,
 
 }  // namespace handlers
 
-}  // namespace config
+}  // namespace cereka::config

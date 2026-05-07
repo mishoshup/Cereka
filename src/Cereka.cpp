@@ -3,6 +3,11 @@
 #include "cereka_engine_impl.hpp"
 #include "state/cereka_states.hpp"
 
+using namespace cereka::compiler;
+using namespace cereka::video;
+using namespace cereka::text_renderer;
+using namespace cereka::engine;
+
 // ---------------------------------------------------------------------------
 // Init / Shutdown
 // ---------------------------------------------------------------------------
@@ -247,12 +252,12 @@ void Impl::EnterMenu()
     while (scan < scriptInterpreter.program.size()) {
         const auto &ins = scriptInterpreter.program[scan];
 
-        if (ins.op == scenario::Op::BG || ins.op == scenario::Op::FADE) {
+        if (ins.op == compiler::Op::BG || ins.op == compiler::Op::FADE) {
             // Instant swap inside menu — no game loop available to animate
             scene.ShowBackground(ins.a);
             scan++;
         }
-        else if (ins.op == scenario::Op::BUTTON) {
+        else if (ins.op == compiler::Op::BUTTON) {
             texts.push_back(ins.a);
             targets.push_back(ins.b);
             exits.push_back(ins.exit_button);
@@ -347,7 +352,7 @@ int cereka::CerekaEngine::Height() const
     return pImplementation->screenHeight;
 }
 
-void cereka::CerekaEngine::LoadCompiledCerekaScript(const std::vector<scenario::Instruction> &compiled)
+void cereka::CerekaEngine::LoadCompiledCerekaScript(const std::vector<compiler::Instruction> &compiled)
 {
     pImplementation->LoadCompiledCerekaScript(compiled);
 }

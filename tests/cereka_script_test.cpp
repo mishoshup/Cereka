@@ -2,7 +2,7 @@
 #include "cereka_engine_impl.hpp"
 
 using namespace cereka;
-using namespace cereka::scenario;
+using namespace cereka::compiler;
 
 class VMTest : public ::testing::Test {
 protected:

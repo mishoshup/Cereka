@@ -13,7 +13,7 @@
 #include "property_types.hpp"
 #include <sstream>
 
-namespace config {
+namespace cereka::config {
 
 // ============================================================================
 // Property Table — all configurable properties defined as data
@@ -368,4 +368,4 @@ const std::vector<PropertyDef> &getPropertyTable()
     return ConfigManager::getPropertyTable();
 }
 
-}  // namespace config
+}  // namespace cereka::config

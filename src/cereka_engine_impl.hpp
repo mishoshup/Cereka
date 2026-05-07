@@ -62,7 +62,7 @@ class CerekaImpl : public ICerekaStateContext {
 
     // --- UI theme ---
     UiConfig uiCfg;
-    config::ConfigManager configManager;
+    cereka::config::ConfigManager configManager;
 
     // -----------------------------------------------------------------------
     // ICerekaStateContext — state machine interface
@@ -103,7 +103,7 @@ class CerekaImpl : public ICerekaStateContext {
     // script_vm.cpp
     void CerekaScriptTick();
     void Update(float dt);
-    void LoadCompiledCerekaScript(const std::vector<scenario::Instruction> &compiled);
+    void LoadCompiledCerekaScript(const std::vector<compiler::Instruction> &compiled);
     void LoadCerekaScript(const std::string &filename);
     void Reset();
 

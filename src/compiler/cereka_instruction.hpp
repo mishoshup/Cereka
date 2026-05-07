@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 
-namespace cereka::scenario {
+namespace cereka::compiler {
 
 enum class Op {
     BG,
@@ -60,4 +60,4 @@ struct Instruction {
 
 std::vector<Instruction> CompileCerekaScript(const std::string &filename);
 
-}  // namespace cereka::scenario
+}  // namespace cereka::compiler

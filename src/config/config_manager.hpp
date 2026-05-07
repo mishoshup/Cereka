@@ -25,7 +25,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace config {
+namespace cereka::config {
 
 // ============================================================================
 // Property Value — runtime value with accessor
@@ -88,4 +88,4 @@ class ConfigManager {
 
 const std::vector<PropertyDef> &getPropertyTable();
 
-}  // namespace config
+}  // namespace cereka::config

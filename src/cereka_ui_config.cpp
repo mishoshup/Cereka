@@ -5,6 +5,8 @@
 
 #include "cereka_engine_impl.hpp"
 
+using namespace cereka::text_renderer;
+
 // ============================================================================
 // Font Loading
 // ============================================================================
@@ -40,7 +42,7 @@ void Impl::LoadFont(int size)
 
 void Impl::InitConfigManager()
 {
-    config::ApplyContext ctx;
+    cereka::config::ApplyContext ctx;
     ctx.renderer = renderer;
     ctx.fontPath = fontPath;
     ctx.uiCfg = &uiCfg;
