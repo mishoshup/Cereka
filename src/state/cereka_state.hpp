@@ -27,6 +27,7 @@
 #    include "Cereka/Cereka.hpp"
 #    include <expected>
 #    include <functional>
+#    include <iostream>
 #    include <memory>
 #    include <string>
 #    include <unordered_map>
@@ -117,6 +118,22 @@ class CerekaStateMachine {
    public:
     CerekaStateMachine() = default;
 
+    /// Human-readable label for a CerekaState value.
+    static const char *stateLabel(CerekaState s)
+    {
+        switch (s) {
+            case CerekaState::Running:         return "Running";
+            case CerekaState::WaitingForInput: return "WaitingForInput";
+            case CerekaState::InMenu:          return "InMenu";
+            case CerekaState::Fading:          return "Fading";
+            case CerekaState::Finished:        return "Finished";
+            case CerekaState::Quit:            return "Quit";
+            case CerekaState::SaveMenuState:   return "SaveMenu";
+            case CerekaState::LoadMenuState:   return "LoadMenu";
+        }
+        return "?";
+    }
+
     void setContext(IVNStateContext &ctx)
     {
         ctx_ = &ctx;
@@ -145,6 +162,9 @@ class CerekaStateMachine {
         if (!currentState_ || !ctx_)
             return;
 
+        std::cout << "[STATE] " << stateLabel(currentType_) << " -> " << stateLabel(newType)
+                  << "\n";
+
         currentState_->onExit(*ctx_);
         currentState_ = nullptr;
 
@@ -161,6 +181,9 @@ class CerekaStateMachine {
         if (!ctx_)
             return;
 
+        std::cout << "[STATE] " << stateLabel(currentType_) << " -> pushOverlay("
+                  << stateLabel(overlayType) << ")\n";
+
         overlayStack_.push_back({currentType_, currentState_});
 
         auto it = states_.find(overlayType);
@@ -175,6 +198,9 @@ class CerekaStateMachine {
     {
         if (!ctx_ || overlayStack_.empty())
             return;
+
+        std::cout << "[STATE] popOverlay(" << stateLabel(currentType_) << ") -> "
+                  << stateLabel(overlayStack_.back().first) << "\n";
 
         if (currentState_) {
             currentState_->onExit(*ctx_);
@@ -220,6 +246,7 @@ class CerekaStateMachine {
 
     void clearOverlays()
     {
+        std::cout << "[STATE] clearOverlays (was: " << stateLabel(currentType_) << ")\n";
         if (currentState_) {
             currentState_->onExit(*ctx_);
         }
