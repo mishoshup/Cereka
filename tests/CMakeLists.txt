@@ -22,6 +22,7 @@ enable_testing()
 
 add_executable(cereka_test
     config_test.cpp
+    markup_parser_test.cpp
     save_data_test.cpp
     cereka_script_test.cpp
     main.cpp

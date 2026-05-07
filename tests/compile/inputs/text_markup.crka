@@ -1,0 +1,3 @@
+; text_markup.crka — markup in dialogue (render-time, not compile-time)
+say alice "Hello <b>world</b>!"
+narrate "Plain text <i>italic</i> <color=#ff0000>red</color>"
