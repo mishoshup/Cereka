@@ -36,12 +36,10 @@ void create_window(const char *title,
     if (fullscreen)
         flags |= SDL_WINDOW_FULLSCREEN;
 
-    SDL_DisplayID id = SDL_GetPrimaryDisplay();
-    const SDL_DisplayMode *mode = SDL_GetCurrentDisplayMode(id);
-    video::width  = mode->w;
-    video::height = mode->h;
+    video::width  = width;
+    video::height = height;
 
-    video::window = SDL_CreateWindow(title, video::width, video::height, flags);
+    video::window = SDL_CreateWindow(title, width, height, flags);
     if (!video::window) {
         throw engine::error("Create window failed: %s", SDL_GetError());
     }
