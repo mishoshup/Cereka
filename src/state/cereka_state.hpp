@@ -1,5 +1,5 @@
 #pragma once
-// cereka_state.hpp — Cereka VN Engine State System
+// cereka_state.hpp — Cereka Engine State System
 //
 // Implements a hierarchical state machine pattern for managing game flow.
 // States encapsulate their own behavior (enter, exit, update, events).
@@ -41,7 +41,7 @@ namespace cereka {
 // ============================================================================
 
 /**
- * @brief Interface for VN states to request actions from the engine.
+ * @brief Interface for Cereka states to request actions from the engine.
  *
  * States should never directly manipulate engine state. They request
  * changes through this interface, enabling loose coupling and testability.
@@ -58,11 +58,11 @@ class ICerekaStateContext {
 };
 
 // ============================================================================
-// ICerekaState — Abstract base for all VN game states
+// ICerekaState — Abstract base for all Cereka game states
 // ============================================================================
 
 /**
- * @brief Abstract base for all visual novel game states.
+ * @brief Abstract base for all Cereka game states.
  *
  * Each state encapsulates:
  * - onEnter: Called when state becomes active

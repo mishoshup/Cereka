@@ -1,6 +1,6 @@
 # Cereka
 
-A visual novel engine built in C++ with SDL3. Game projects are purely script-based — no C++ required. Write `.crka` scripts, run your game.
+A Cereka game engine built in C++ with SDL3. Game projects are purely script-based — no C++ required. Write `.crka` scripts, run your game.
 
 ---
 

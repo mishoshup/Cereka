@@ -1,6 +1,6 @@
-# Cereka — Visual Novel Engine
+# Cereka — Cereka Game Engine
 
-Goal: a Ren'Py rival where game authors write only `.crka` scripts — no C++ needed.
+Goal: game authors write only `.crka` scripts — no C++ needed.
 
 Developed on **both Linux and Windows** as first-class targets. Linux→Windows cross-compile is also supported via the `cmake/toolchains/ucrt64.cmake` llvm-mingw toolchain.
 
@@ -189,7 +189,7 @@ Two independent suites:
 - `src/` uses `file(GLOB_RECURSE)` — re-run cmake after adding/removing `.cpp` files.
 - Public surface (`include/Cereka/*.hpp`) must not leak SDL/Mixer types.
 - Comments explain *why*, not *what*. No "Enterprise-grade" / "production-ready" header banners — see `/no-buzzwords` skill.
-- Quality bar: code must be defensible against the "rivals Ren'Py / Unity / Unreal" yardstick — see `/review` skill.
+- Quality bar: code must be defensible against the "rivals Cereka" yardstick — see `/review` skill.
 
 ## Project skills (`.claude/skills/`)
 - `/build` — cross-platform build commands and gotchas

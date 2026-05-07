@@ -1,7 +1,7 @@
 #pragma once
 // cereka_states.hpp — Concrete state declarations
 //
-// Defines all game states used by Cereka VN engine.
+// Defines all game states used by Cereka engine.
 //
 // States:
 // - DialogueState: Normal dialogue/tick execution
