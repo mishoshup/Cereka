@@ -63,7 +63,7 @@ Plans:
 Plans:
 - [x] 03-01-PLAN.md — CI Fix + Crash Safety (D-01, D-05)
 - [x] 03-02-PLAN.md — IRenderContext Abstraction (D-04)
-- [ ] 03-03-PLAN.md — UIManager Extraction (D-03)
+- [x] 03-03-PLAN.md — UIManager Extraction (D-03)
 - [ ] 03-04-PLAN.md — State Machine Unification (D-02)
 
 ---
