@@ -25,6 +25,7 @@ add_executable(cereka_test
     save_data_test.cpp
     cereka_script_test.cpp
     main.cpp
+    scene_graph_test.cpp
 )
 
 if(WIN32)
