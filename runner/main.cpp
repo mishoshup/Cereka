@@ -180,8 +180,7 @@ int main(int argc,
         while (engine.PollEvent(e))
             engine.HandleEvent(e);
 
-        engine.Update(1.0f / 60.0f);
-        engine.CerekaScriptTick();
+        engine.Update(1.0f / 60.0f);  // includes dispatch loop via DialogueState::update
         engine.Draw();
         engine.Present();
     }
