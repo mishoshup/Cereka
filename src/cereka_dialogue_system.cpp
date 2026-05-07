@@ -1,4 +1,4 @@
-#include "dialogue_system.hpp"
+#include "cereka_dialogue_system.hpp"
 
 namespace cereka {
 

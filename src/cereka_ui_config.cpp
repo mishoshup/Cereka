@@ -3,7 +3,7 @@
 // Font loading is still here as it's engine-specific.
 // ConfigManager handles all UI properties via the property system.
 
-#include "engine_impl.hpp"
+#include "cereka_engine_impl.hpp"
 
 // ============================================================================
 // Font Loading

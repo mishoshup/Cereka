@@ -3,7 +3,7 @@
 // Tests the property-based configuration system.
 
 #include "config/config_manager.hpp"
-#include "ui_config.hpp"
+#include "cereka_ui_config.hpp"
 #include <gtest/gtest.h>
 #include <sstream>
 

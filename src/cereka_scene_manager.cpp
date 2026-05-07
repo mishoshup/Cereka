@@ -1,4 +1,4 @@
-#include "scene_manager.hpp"
+#include "cereka_scene_manager.hpp"
 
 #include <SDL3_image/SDL_image.h>
 #include <iostream>

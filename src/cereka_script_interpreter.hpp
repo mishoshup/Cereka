@@ -1,6 +1,6 @@
 #pragma once
 
-#include "compiler/vn_instruction.hpp"
+#include "compiler/cereka_instruction.hpp"
 
 #include <cstddef>
 #include <sol/sol.hpp>

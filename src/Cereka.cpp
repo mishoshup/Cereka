@@ -1,6 +1,6 @@
 // Cereka.cpp — engine init/shutdown, event handling, SDL helpers, public API wrapper
 
-#include "engine_impl.hpp"
+#include "cereka_engine_impl.hpp"
 #include "state/cereka_states.hpp"
 
 // ---------------------------------------------------------------------------

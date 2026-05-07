@@ -2,7 +2,7 @@
 // HandleEvent, script loading. Expression evaluation and the variable
 // state container live in script_interpreter.{hpp,cpp}.
 
-#include "engine_impl.hpp"
+#include "cereka_engine_impl.hpp"
 #include <algorithm>
 
 // ---------------------------------------------------------------------------

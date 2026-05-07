@@ -4,7 +4,7 @@
 // Data-driven configuration: properties are defined as data, not code.
 // Type handlers provide the logic for each property type.
 
-#include "ui_config.hpp"
+#include "cereka_ui_config.hpp"
 #include <functional>
 #include <string>
 #include <vector>

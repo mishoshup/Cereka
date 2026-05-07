@@ -1,7 +1,7 @@
 // Cereka/Cereka.hpp — public engine API
 #pragma once
 
-#include "compiler/vn_instruction.hpp"
+#include "compiler/cereka_instruction.hpp"
 #include <string>
 
 namespace cereka {

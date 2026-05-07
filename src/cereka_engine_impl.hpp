@@ -4,16 +4,16 @@
 
 #include "Cereka/Cereka.hpp"
 #include "Cereka/exceptions.hpp"
-#include "audio_manager.hpp"
+#include "cereka_audio_manager.hpp"
 #include "config/config_manager.hpp"
-#include "dialogue_system.hpp"
-#include "menu_system.hpp"
-#include "scene_manager.hpp"
-#include "script_interpreter.hpp"
+#include "cereka_dialogue_system.hpp"
+#include "cereka_menu_system.hpp"
+#include "cereka_scene_manager.hpp"
+#include "cereka_script_interpreter.hpp"
 #include "state/cereka_state.hpp"
-#include "text_renderer.hpp"
-#include "ui_config.hpp"
-#include "video.hpp"
+#include "cereka_text_renderer.hpp"
+#include "cereka_ui_config.hpp"
+#include "cereka_video.hpp"
 
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>

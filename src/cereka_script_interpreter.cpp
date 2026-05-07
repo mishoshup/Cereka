@@ -1,4 +1,4 @@
-#include "script_interpreter.hpp"
+#include "cereka_script_interpreter.hpp"
 
 #include <cctype>
 #include <string>

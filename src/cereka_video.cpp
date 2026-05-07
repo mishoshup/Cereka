@@ -1,4 +1,4 @@
-#include "video.hpp"
+#include "cereka_video.hpp"
 #include "Cereka/exceptions.hpp"
 #include <SDL3/SDL.h>
 

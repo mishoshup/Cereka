@@ -2,7 +2,7 @@
 //
 // Tests Glaze JSON serialization/deserialization of game saves.
 
-#include "save_data.hpp"
+#include "cereka_save_data.hpp"
 #include <gtest/gtest.h>
 #include <string>
 

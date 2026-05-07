@@ -1,4 +1,4 @@
-#include "text_renderer.hpp"
+#include "cereka_text_renderer.hpp"
 #include "Cereka/exceptions.hpp"
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
