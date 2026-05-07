@@ -135,6 +135,16 @@ None.
 - Ready for 03-04: State Machine Unification (state draw methods already delegate to UIManager)
 - Scene graph (Phase 4) can extend UIManager's visual tree
 
+## Self-Check: PASSED
+
+- ✅ UIManager files exist (src/ui/ui_manager.hpp, src/ui/ui_manager.cpp)
+- ✅ All 4 commits present (c32a3b6, 4bc6a55, 771d833, a850748)
+- ✅ 6 draw methods declared on UIManager
+- ✅ State draw methods call UIManager (2 matches)
+- ✅ No SDL_Renderer* in rendering code
+- ✅ All 21 unit tests pass
+- ✅ CerekaImpl no longer has raw SDL_Renderer* renderer member
+
 ---
 
 *Phase: 03-architectural-cleanup*
