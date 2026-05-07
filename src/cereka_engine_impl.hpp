@@ -36,8 +36,6 @@ class CerekaImpl : public ICerekaStateContext {
     // --- Window / renderer ---
     SDL_Window *window = nullptr;
     std::unique_ptr<IRenderContext> m_renderCtx;
-    // TODO(03-03): Remove renderer — kept for existing draw code migration
-    SDL_Renderer *renderer = nullptr;
     int screenWidth = 0;
     int screenHeight = 0;
 
@@ -93,12 +91,6 @@ class CerekaImpl : public ICerekaStateContext {
     void ShutDown();
     bool PollEvent(CerekaEvent &e);
     void Present();
-    // Returns SDL_Texture* for existing draw code — will change in 03-03
-    SDL_Texture *RenderText(const std::string &text,
-                            Color color);
-    SDL_Texture *RenderTextWrapped(const std::string &text,
-                                   Color color,
-                                   int wrapWidth);
     void Say(const std::string &speaker,
              const std::string &name,
              const std::string &text);

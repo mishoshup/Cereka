@@ -34,7 +34,6 @@ bool Impl::InitGame(const char *title,
         throw engine::error("All renderer attempts failed");
 
     m_renderCtx = std::make_unique<SdlRenderContext>(sdlRenderer, screenWidth, screenHeight);
-    renderer = sdlRenderer;  // backwards compat for existing draw code
 
     LoadFont(uiCfg.fontSize);
     ui.SetFont(font);
@@ -81,7 +80,6 @@ void Impl::ShutDown()
             SDL_DestroyRenderer(r);
         m_renderCtx.reset();
     }
-    renderer = nullptr;  // same pointer, already destroyed via NativeRenderer path
     if (window) {
         SDL_DestroyWindow(window);
         window = nullptr;
@@ -193,37 +191,6 @@ static SDL_Renderer *CreateBestRenderer(SDL_Window *win)
         }
     }
     return SDL_CreateRenderer(win, nullptr);
-}
-
-// Keep SDL_Texture* return for existing draw code (cereka_draw.cpp, states, save)
-SDL_Texture *Impl::RenderText(const std::string &text,
-                              Color color)
-{
-    if (text.empty() || !font)
-        return nullptr;
-    SDL_Color sdlColor{color.r, color.g, color.b, color.a};
-    SDL_Surface *surf = TTF_RenderText_Blended(font, text.c_str(), text.size(), sdlColor);
-    if (!surf)
-        return nullptr;
-    SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surf);
-    SDL_DestroySurface(surf);
-    return tex;
-}
-
-SDL_Texture *Impl::RenderTextWrapped(const std::string &text,
-                                     Color color,
-                                     int wrapWidth)
-{
-    if (text.empty() || !font)
-        return nullptr;
-    SDL_Color sdlColor{color.r, color.g, color.b, color.a};
-    SDL_Surface *surf = TTF_RenderText_Blended_Wrapped(
-        font, text.c_str(), text.size(), sdlColor, wrapWidth > 0 ? wrapWidth : 0);
-    if (!surf)
-        return nullptr;
-    SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surf);
-    SDL_DestroySurface(surf);
-    return tex;
 }
 
 void Impl::Say(const std::string &speaker,
