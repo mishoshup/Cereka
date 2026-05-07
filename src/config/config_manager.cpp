@@ -9,6 +9,7 @@
 //   2. Add case in serialize() if needed
 // ============================================================================
 
+#include "cereka_safe_parse.hpp"
 #include "config_manager.hpp"
 #include "property_types.hpp"
 #include <sstream>
@@ -103,12 +104,14 @@ static PropertyLookup LOOKUP;
 
 float PropertyValue::asFloat() const
 {
-    return std::stof(serialized);
+    auto r = safe_stof(serialized);
+    return r ? *r : 0.0f;
 }
 
 int PropertyValue::asInt() const
 {
-    return std::stoi(serialized);
+    auto r = safe_stoi(serialized);
+    return r ? *r : 0;
 }
 
 std::string PropertyValue::asString() const

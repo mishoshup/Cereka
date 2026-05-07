@@ -3,6 +3,7 @@
 // state container live in script_interpreter.{hpp,cpp}.
 
 #include "cereka_engine_impl.hpp"
+#include "cereka_safe_parse.hpp"
 #include <algorithm>
 
 using namespace cereka::compiler;
@@ -268,7 +269,11 @@ void Impl::CerekaScriptTick()
                 return;
 
             case compiler::Op::SAVE: {
-                int slot = ins.a.empty() ? 0 : std::stoi(ins.a);
+                int slot = 0;
+                if (!ins.a.empty()) {
+                    auto r = safe_stoi(ins.a);
+                    if (r) slot = *r;
+                }
                 if (slot >= 1 && slot <= 10) {
                     setSavedState(state);
                     SaveGame(slot);
@@ -278,7 +283,11 @@ void Impl::CerekaScriptTick()
             }
 
             case compiler::Op::LOAD: {
-                int slot = ins.a.empty() ? 0 : std::stoi(ins.a);
+                int slot = 0;
+                if (!ins.a.empty()) {
+                    auto r = safe_stoi(ins.a);
+                    if (r) slot = *r;
+                }
                 if (slot >= 1 && slot <= 10)
                     LoadGame(slot);  // restores pc and state from file
                 return;

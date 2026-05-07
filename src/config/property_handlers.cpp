@@ -4,6 +4,7 @@
 // a serializer (typed value → string),
 // and a handler (apply typed value to target).
 
+#include "cereka_safe_parse.hpp"
 #include "property_types.hpp"
 #include <cstdio>
 #include <sstream>
@@ -44,7 +45,8 @@ ApplyValue parseFloat(const std::string &str)
     ApplyValue v;
     v.type = PropType::Float;
     v.raw = str;
-    v.floatVal = std::stof(str);
+    auto r = safe_stof(str);
+    v.floatVal = r ? *r : 0.0f;
     return v;
 }
 
@@ -53,7 +55,8 @@ ApplyValue parseInt(const std::string &str)
     ApplyValue v;
     v.type = PropType::Int;
     v.raw = str;
-    v.intVal = std::stoi(str);
+    auto r = safe_stoi(str);
+    v.intVal = r ? *r : 0;
     return v;
 }
 

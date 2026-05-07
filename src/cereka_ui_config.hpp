@@ -1,4 +1,5 @@
 #pragma once
+#include "cereka_safe_parse.hpp"
 #include <SDL3/SDL.h>
 #include <string>
 #include <vector>
@@ -25,11 +26,13 @@ struct Dim {
             return {};
         Dim d;
         if (s.back() == '%') {
-            d.value = std::stof(s) / 100.0f;
+            auto r = safe_stof(s);
+            d.value = r ? *r / 100.0f : 0.0f;
             d.relative = true;
         }
         else {
-            d.value = std::stof(s);
+            auto r = safe_stof(s);
+            d.value = r ? *r : 0.0f;
         }
         return d;
     }
