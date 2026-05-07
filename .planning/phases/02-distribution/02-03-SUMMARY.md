@@ -1,56 +1,13 @@
+## Self-Check: PASSED
+
+- All 7 key files found on disk ✓
+- All 5 commits present in git history ✓
+- All 21 C++ unit tests passing ✓
+- Full build succeeds ✓
+
 ---
-phase: 02-distribution
-plan: 03
-subsystem: engine
-tags: [state-machine, refactor, architecture, cpp]
-
-requires:
-  - phase: 02-distribution
-    plan: 02
-    provides: Fixed VM (nested if/else skipDepth) + word-wrap
-
-provides:
-  - CerekaImpl delegates main loop control to CerekaStateMachine
-  - Game logic (dialogue, menus, fades, save/load overlays) encapsulated in concrete state classes
-  - State transitions are traceable via stdout logging
-  - Stack underflow protection for overlay operations
-
-affects:
-  - 02-distribution-04 (save system modernization — state machine sync after LoadGame)
-
-tech-stack:
-  added: []
-  patterns:
-    - State Machine pattern with CRTP (VNState<T>) for compile-time dispatch
-    - IVNStateContext interface for loose coupling between states and engine
-    - Overlay stack pattern for save/load UI on top of gameplay
-
-key-files:
-  created: []
-  modified:
-    - src/engine_impl.hpp: IVNStateContext inheritance, CerekaStateMachine member
-    - src/Cereka.cpp: State registration in InitGame, IVNStateContext implementations, HandleEvent delegation
-    - src/script_vm.cpp: Update delegates to state machine, TickScript uses changeState/pushOverlay
-    - src/draw.cpp: Draw delegates to state machine for menus/fades/overlays, dialogue skip on overlay
-    - src/state/cereka_state.hpp: State transition logging, isInitialized(), clearOverlays()
-    - src/state/cereka_states.hpp: Draw method declarations for MenuState, FadeState, SaveMenuState, LoadMenuState
-    - src/state/cereka_states.cpp: Full state implementations for all 7 concrete states
-
-key-decisions:
-  - States cast IVNStateContext& to Impl& (static_cast) to access engine internals — pragmatic for this tightly-coupled codebase, can be refactored to interface methods later
-  - Fallback to direct state assignment when the state machine is uninitialized (supports VM unit tests that create Impl directly)
-  - dialogue.Tick() kept in engine-level Update (not moved to DialogueState) because typewriter animation must run during both Running and WaitingForInput states
-  - clearOverlays() added to CerekaStateMachine for LoadGame post-load state machine sync
-
-patterns-established:
-  - State pattern: each game mode (dialogue, menu, fade, save, load) encapsulated in its own class with enter/exit/update/draw/handleEvent lifecycle
-  - Overlay stack: save/load menus push an overlay on top of gameplay state and pop back on ESC or action
-  - Logging convention: "[STATE] <from> -> <to>" for all transitions
-
-requirements-completed: [ARCH-01]
-
-duration: 32 min
-completed: 2026-05-07
+*Phase: 02-distribution*
+*Completed: 2026-05-07*
 ---
 
 # Phase 02 Plan 03: State Machine "Big Bang" Migration Summary
