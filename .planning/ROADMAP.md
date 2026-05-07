@@ -19,6 +19,14 @@ Players download the ZIP, unzip, run the binary. Zero external dependencies.
 
 **Status:** planned
 
+**Plans:** 4 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — SDL3 static gate (Windows) + $ORIGIN RPATH + SDL .so routing (Linux)
+- [ ] 01-02-PLAN.md — windeployqt --compiler-runtime flag + WIN32 guard for launcher
+- [ ] 01-03-PLAN.md — AppImage packaging script + .desktop file + icon
+- [ ] 01-04-PLAN.md — doPackage() Linux branch: copy SDL .so files into game archive
+
 ---
 
 ## Phase 2 — Engine Correctness (HIGH severity bugs)
