@@ -44,7 +44,7 @@ Plans:
 - [x] 02-01-PLAN.md — CI Infrastructure (Linux/macOS/Windows) + Local verification scripts
 - [x] 02-02-PLAN.md — Fix nested if/else VM bug + Implement themeable word-wrap
 - [x] 02-03-PLAN.md — State Machine "Big Bang" migration (CerekaImpl decoupling)
-- [ ] 02-04-PLAN.md — Modern Save System (Glaze JSON + versioning)
+- [x] 02-04-PLAN.md — Modern Save System (Glaze JSON + versioning)
 
 ---
 
