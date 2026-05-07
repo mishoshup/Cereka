@@ -1,6 +1,8 @@
 #pragma once
 
-#include <SDL3/SDL.h>
+#include "renderer/irender_context.hpp"
+#include "renderer/irecture.hpp"
+#include <memory>
 #include <string>
 #include <unordered_map>
 
@@ -11,11 +13,11 @@ class SceneManager {
     enum class FadePhase { None, Out, In };
 
     struct CharacterEntry {
-        SDL_Texture *tex;
+        std::shared_ptr<ITexture> tex;
         float xNorm;  // 0.0–1.0 horizontal centre
     };
 
-    void Init(SDL_Renderer *r);
+    void Init(IRenderContext &renderCtx);
     void Shutdown();
 
     void ShowBackground(const std::string &filename);
@@ -33,7 +35,7 @@ class SceneManager {
     // Tear down all textures (used by Reset and LoadGame).
     void Clear();
 
-    SDL_Texture *Background() const { return background; }
+    ITexture *Background() const { return background.get(); }
     const std::string &BgPath() const { return bgPath; }
     const std::unordered_map<std::string, CharacterEntry> &Characters() const { return characters; }
     const std::unordered_map<std::string, std::string> &CharPaths() const { return charPaths; }
@@ -45,14 +47,14 @@ class SceneManager {
     static float posToXNorm(const std::string &pos);
 
    private:
-    SDL_Texture *loadBg(const std::string &filename);
+    std::shared_ptr<ITexture> loadBg(const std::string &filename);
 
-    SDL_Renderer *renderer = nullptr;
-    SDL_Texture *background = nullptr;
+    IRenderContext *m_renderCtx = nullptr;
+    std::shared_ptr<ITexture> background;
     std::string bgPath;
     std::unordered_map<std::string, CharacterEntry> characters;
     std::unordered_map<std::string, std::string> charPaths;
-    SDL_Texture *pendingBg = nullptr;
+    std::shared_ptr<ITexture> pendingBg;
     FadePhase fadePhase = FadePhase::None;
     float fadePhaseDuration = 0.25f;
     float fadeTimer = 0.0f;
