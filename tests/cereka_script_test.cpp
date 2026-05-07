@@ -12,6 +12,7 @@ protected:
     void SetUp() override {
         engine.m_stateMachine.setContext(engine);
         engine.m_stateMachine.registerState<DialogueState>();
+        engine.m_stateMachine.registerState<WaitingForInputState>();
         engine.m_stateMachine.registerState<MenuState>();
         engine.m_stateMachine.registerState<FadeState>();
         engine.m_stateMachine.registerState<SaveMenuState>();

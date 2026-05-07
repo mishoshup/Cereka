@@ -30,6 +30,12 @@ class DialogueState : public CerekaStateBase<CerekaState::Running> {
 };
 
 // ============================================================================
+// WaitingForInputState — Idle state; dispatch paused until advance key
+// ============================================================================
+
+class WaitingForInputState : public CerekaStateBase<CerekaState::WaitingForInput> {};
+
+// ============================================================================
 // MenuState — In-game menu with buttons
 // ============================================================================
 

@@ -46,6 +46,7 @@ bool Impl::InitGame(const char *title,
     // --- State machine ---
     m_stateMachine.setContext(*this);
     m_stateMachine.registerState<DialogueState>();
+    m_stateMachine.registerState<WaitingForInputState>();
     m_stateMachine.registerState<MenuState>();
     m_stateMachine.registerState<FadeState>();
     m_stateMachine.registerState<SaveMenuState>();
