@@ -249,6 +249,15 @@ class CerekaStateMachine {
         return !overlayStack_.empty();
     }
 
+    // Returns the state that was active before the topmost overlay was pushed.
+    // When no overlay is active, returns currentType().
+    // Used by save serialization to capture the gameplay state rather than
+    // the overlay state (e.g. SaveMenuState).
+    [[nodiscard]] CerekaState effectiveState() const
+    {
+        return overlayStack_.empty() ? currentType_ : overlayStack_.back().first;
+    }
+
     void clearOverlays()
     {
         std::cout << "[STATE] clearOverlays (was: " << stateLabel(currentType_) << ")\n";

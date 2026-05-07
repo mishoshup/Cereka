@@ -111,8 +111,8 @@ bool Impl::SaveGame(int slot)
     // Audio
     data.bgm = audio.BgmPath();
 
-    // State machine — save the state before we entered the save menu overlay
-    data.state = stateToString(stateBeforeSaveMenu);
+    // State machine — save the effective gameplay state (under any overlays)
+    data.state = stateToString(m_stateMachine.effectiveState());
 
     // Dialogue state
     data.speaker = dialogue.Speaker();
@@ -179,8 +179,9 @@ bool Impl::LoadGame(int slot)
     if (!data.bgm.empty())
         audio.PlayBGM(data.bgm);
 
-    // Restore state machine
-    state = parseState(data.state);
+    // Restore state machine — clear overlays and set the restored state directly
+    m_stateMachine.clearOverlays();
+    m_stateMachine.changeState(parseState(data.state));
 
     // Restore dialogue state
     dialogue.SetSpeaker(data.speaker);

@@ -97,46 +97,20 @@ void Impl::ShutDown()
 
 void Impl::changeState(CerekaState newState)
 {
-    if (m_stateMachine.isInitialized()) {
+    if (m_stateMachine.isInitialized())
         m_stateMachine.changeState(newState);
-        state = m_stateMachine.currentType();
-    }
-    else {
-        state = newState;
-    }
 }
 
 void Impl::pushOverlay(CerekaState overlayState)
 {
-    stateBeforeSaveMenu = state;
-    if (m_stateMachine.isInitialized()) {
+    if (m_stateMachine.isInitialized())
         m_stateMachine.pushOverlay(overlayState);
-        state = m_stateMachine.currentType();
-    }
-    else {
-        state = overlayState;
-    }
 }
 
 void Impl::popOverlay()
 {
-    if (m_stateMachine.isInitialized()) {
+    if (m_stateMachine.isInitialized())
         m_stateMachine.popOverlay();
-        state = m_stateMachine.currentType();
-    }
-    else {
-        state = stateBeforeSaveMenu;
-    }
-}
-
-cereka::CerekaState Impl::getSavedState() const
-{
-    return stateBeforeSaveMenu;
-}
-
-void Impl::setSavedState(CerekaState stateVal)
-{
-    stateBeforeSaveMenu = stateVal;
 }
 
 // ---------------------------------------------------------------------------
@@ -288,14 +262,15 @@ void Impl::HandleEvent(const CerekaEvent &e)
 
     // Escape during normal play opens save menu
     if (e.type == CerekaEvent::KeyDown && e.key == SDLK_ESCAPE) {
-        if (state == CerekaState::WaitingForInput || state == CerekaState::Running) {
+        auto cur = m_stateMachine.currentType();
+        if (cur == CerekaState::WaitingForInput || cur == CerekaState::Running) {
             pushOverlay(CerekaState::SaveMenuState);
             return;
         }
     }
 
     // Advance key: WaitingForInput → Running
-    if (state == CerekaState::WaitingForInput &&
+    if (m_stateMachine.currentType() == CerekaState::WaitingForInput &&
         (e.type == CerekaEvent::MouseDown ||
          (e.type == CerekaEvent::KeyDown &&
           std::find(uiCfg.advanceKeys.begin(), uiCfg.advanceKeys.end(), (SDL_Keycode)e.key) !=
@@ -393,13 +368,13 @@ size_t cereka::CerekaEngine::ProgramCounter() const
 
 bool cereka::CerekaEngine::IsGameFinished() const
 {
-    return pImplementation->state == CerekaState::Finished ||
-           pImplementation->state == CerekaState::Quit;
+    auto s = pImplementation->m_stateMachine.currentType();
+    return s == CerekaState::Finished || s == CerekaState::Quit;
 }
 
 bool cereka::CerekaEngine::IsGameQuit() const
 {
-    return pImplementation->state == CerekaState::Quit;
+    return pImplementation->m_stateMachine.currentType() == CerekaState::Quit;
 }
 
 bool cereka::CerekaEngine::IsFinished() const

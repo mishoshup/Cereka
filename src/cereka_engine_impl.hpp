@@ -63,8 +63,6 @@ class CerekaImpl : public ICerekaStateContext {
 
     // --- State machine ---
     CerekaStateMachine m_stateMachine;
-    CerekaState state = CerekaState::Running;
-    CerekaState stateBeforeSaveMenu = CerekaState::Running;  // restored when overlay closes
 
     // --- UI theme ---
     UiConfig uiCfg;
@@ -76,8 +74,6 @@ class CerekaImpl : public ICerekaStateContext {
     void changeState(CerekaState newState) override;
     void pushOverlay(CerekaState overlayState) override;
     void popOverlay() override;
-    [[nodiscard]] CerekaState getSavedState() const override;
-    void setSavedState(CerekaState stateVal) override;
 
     // -----------------------------------------------------------------------
     // Methods — defined across the engine .cpp files
