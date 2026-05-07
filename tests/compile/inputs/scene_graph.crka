@@ -1,0 +1,2 @@
+scene_graph title set pos(0.5,0.2) scale(2.0)
+scene_graph title remove

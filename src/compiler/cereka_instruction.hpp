@@ -38,6 +38,9 @@ enum class Op {
     LOAD,
     SAVE_MENU,
     LOAD_MENU,
+    SG_CREATE,
+    SG_SET,
+    SG_REMOVE,
 };
 
 struct ChoiceOption {

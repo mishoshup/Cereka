@@ -1,0 +1,2 @@
+a=title b=pos(0.5,0.2) scale(2.0) col=1 line=1 op=SG_SET
+a=title col=1 line=2 op=SG_REMOVE

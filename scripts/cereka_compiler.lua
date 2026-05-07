@@ -121,6 +121,9 @@ local function tokenize(line_text, lineno, base_col)
                 tokens[#tokens + 1] = { type = "OP", value = c, col = base_col + i - 1, lineno = lineno }
                 i = i + 1
             end
+        elseif c == "(" or c == ")" or c == "," then
+            tokens[#tokens + 1] = { type = "OP", value = c, col = base_col + i - 1, lineno = lineno }
+            i = i + 1
         else
             die(lineno, base_col + i - 1, "unexpected character '" .. c .. "'")
         end
@@ -347,6 +350,24 @@ local function parse_bgm(ctx)
     return { kind = "PlayBgm", file = f.value, line = kw.lineno, col = kw.col }
 end
 
+local function parse_scene_graph(ctx)
+    local kw = take(ctx)
+    local id_t = expect(ctx, "IDENT", nil, "expected node id after 'scene_graph'")
+    local action_t = peek(ctx)
+    if not action_t then die(kw.lineno, kw.col, "expected 'set' or 'remove' after node id") end
+    if action_t.type == "IDENT" and action_t.value == "remove" then
+        take(ctx)
+        return { kind = "SceneGraphRemove", id = id_t.value, line = kw.lineno, col = kw.col }
+    elseif action_t.type == "IDENT" and action_t.value == "set" then
+        take(ctx)
+        local rest = rest_text(ctx)
+        if rest == "" then die(kw.lineno, kw.col, "expected property changes after 'set'") end
+        return { kind = "SceneGraphSet", id = id_t.value, props = rest, line = kw.lineno, col = kw.col }
+    else
+        die(action_t.lineno, action_t.col, "expected 'set' or 'remove'")
+    end
+end
+
 local function parse_sfx(ctx)
     local kw = take(ctx)
     local f = expect(ctx, "IDENT", nil, "expected filename after 'sfx'")
@@ -389,6 +410,7 @@ end
 -- ============================================================================
 
 local STMT_HANDLERS = {
+    scene_graph = parse_scene_graph,
     bg        = parse_bg,
     char      = parse_char,
     hide      = parse_hide_char,
@@ -660,6 +682,12 @@ LOWERERS = {
     Button = function(n, out)
         emit(out, { op = "BUTTON", a = n.text, b = n.target, exit_button = n.exit,
                     line = n.line, col = n.col })
+    end,
+    SceneGraphSet = function(n, out)
+        emit(out, { op = "SG_SET", a = n.id, b = n.props, line = n.line, col = n.col })
+    end,
+    SceneGraphRemove = function(n, out)
+        emit(out, { op = "SG_REMOVE", a = n.id, line = n.line, col = n.col })
     end,
     UiBlock = function(n, out)
         for _, child in ipairs(n.children) do
