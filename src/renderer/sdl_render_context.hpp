@@ -9,7 +9,7 @@ namespace cereka {
 class SdlRenderContext : public IRenderContext {
 public:
     SdlRenderContext(SDL_Renderer *renderer, int width, int height);
-    ~SdlRenderContext() override = default;
+    ~SdlRenderContext() override;
 
     // --- Lifecycle ---
     void Clear(Color c) override;
@@ -40,9 +40,6 @@ public:
     // --- Dimensions ---
     int Width() const override { return m_width; }
     int Height() const override { return m_height; }
-
-    // --- Escape hatch ---
-    SDL_Renderer *NativeRenderer() override { return m_renderer; }
 
 private:
     // Inner class that wraps an SDL_Texture* behind ITexture.

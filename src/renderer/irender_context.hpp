@@ -5,17 +5,12 @@
 // All SDL3 types stay behind SdlRenderContext; engine code sees only
 // Color, Rect, ITexture, and IRenderContext.
 //
-// NativeRenderer() is a temporary escape hatch during the migration from
-// raw SDL_Renderer* to IRenderContext. Plan 03-03 (UIManager extraction)
-// removes all remaining direct SDL_Renderer* access. Do NOT add new uses.
-
 #include "irecture.hpp"
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
-struct SDL_Renderer;  // forward declare for NativeRenderer escape hatch
 struct TTF_Font;
 
 namespace cereka::text {
@@ -82,10 +77,6 @@ public:
     // --- Dimensions ---
     virtual int Width() const = 0;
     virtual int Height() const = 0;
-
-    // --- Escape hatch for existing draw code during migration (03-03 removes this) ---
-    [[deprecated("Use IRenderContext methods instead of accessing SDL_Renderer* directly")]]
-    virtual SDL_Renderer *NativeRenderer() = 0;
 };
 
 } // namespace cereka

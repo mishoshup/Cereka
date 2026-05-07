@@ -43,6 +43,14 @@ SdlRenderContext::SdlRenderContext(SDL_Renderer *renderer, int width, int height
 {
 }
 
+SdlRenderContext::~SdlRenderContext()
+{
+    if (m_renderer) {
+        SDL_DestroyRenderer(m_renderer);
+        m_renderer = nullptr;
+    }
+}
+
 void SdlRenderContext::Clear(Color c)
 {
     SDL_SetRenderDrawColor(m_renderer, c.r, c.g, c.b, c.a);

@@ -76,9 +76,6 @@ void Impl::ShutDown()
         font = nullptr;
     }
     if (m_renderCtx) {
-        auto *r = m_renderCtx->NativeRenderer();
-        if (r)
-            SDL_DestroyRenderer(r);
         m_renderCtx.reset();
     }
     if (window) {
