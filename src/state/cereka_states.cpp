@@ -359,11 +359,9 @@ void LoadMenuState::handleEvent(const CerekaEvent &event,
     if (event.type == CerekaEvent::MouseDown) {
         int slot = impl.HitTestSaveSlot((int)event.mouseX, (int)event.mouseY);
         if (slot >= 1 && slot <= 10) {
-            impl.LoadGame(slot);  // restores pc, variables, state from file
-            // After load the state machine overlay stack and internal state
-            // must match what LoadGame restored (the `state` member).
-            impl.m_stateMachine.clearOverlays();
-            impl.m_stateMachine.changeState(impl.state);
+            impl.LoadGame(slot);  // restores pc, variables, state via m_stateMachine
+            // No overlay cleanup needed — LoadGame already called
+            // clearOverlays() + changeState() on m_stateMachine.
         }
     }
 }

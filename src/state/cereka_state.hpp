@@ -53,8 +53,7 @@ class ICerekaStateContext {
     virtual void changeState(CerekaState newState) = 0;
     virtual void pushOverlay(CerekaState overlayState) = 0;
     virtual void popOverlay() = 0;
-    virtual CerekaState getSavedState() const = 0;
-    virtual void setSavedState(CerekaState state) = 0;
+    // getSavedState/setSavedState removed — overlay stack is the source of truth
 };
 
 // ============================================================================

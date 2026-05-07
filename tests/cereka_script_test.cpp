@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "cereka_engine_impl.hpp"
+#include "state/cereka_states.hpp"
 
 using namespace cereka;
 using namespace cereka::compiler;
@@ -9,7 +10,15 @@ protected:
     Impl engine;
     
     void SetUp() override {
-        // Mock minimal state if needed
+        engine.m_stateMachine.setContext(engine);
+        engine.m_stateMachine.registerState<DialogueState>();
+        engine.m_stateMachine.registerState<MenuState>();
+        engine.m_stateMachine.registerState<FadeState>();
+        engine.m_stateMachine.registerState<SaveMenuState>();
+        engine.m_stateMachine.registerState<LoadMenuState>();
+        engine.m_stateMachine.registerState<FinishedState>();
+        engine.m_stateMachine.registerState<QuitState>();
+        engine.m_stateMachine.setInitialState(CerekaState::Running);
     }
 };
 
@@ -38,7 +47,7 @@ TEST_F(VMTest, NestedIfElseBug) {
     engine.scriptInterpreter.variables["var"] = "0";
     engine.scriptInterpreter.variables["var2"] = "2";
 
-    engine.state = CerekaState::Running;
+    // State machine is already initialized to Running in SetUp
 
     // Expected: outer IF is false → skipMode=true, skipDepth=1
     //   inner IF (skipped) → skipDepth=2
@@ -48,9 +57,9 @@ TEST_F(VMTest, NestedIfElseBug) {
     //   ENDIF → skipDepth=0, skipMode=false
     //   SAY "after" → executed
 
-    engine.CerekaScriptTick();
+    engine.m_stateMachine.update(1.0f / 60.0f);
 
-    EXPECT_EQ(engine.state, CerekaState::WaitingForInput);
+    EXPECT_EQ(engine.m_stateMachine.currentType(), CerekaState::WaitingForInput);
     EXPECT_EQ(engine.dialogue.Text(), "after");
 }
 
@@ -70,18 +79,18 @@ TEST_F(VMTest, IfTrueElseSkipped) {
     // Set variables AFTER LoadCompiledCerekaScript (which clears them)
     engine.scriptInterpreter.variables["var"] = "1";
 
-    engine.state = CerekaState::Running;
+    // State machine is already initialized to Running in SetUp
 
     // Tick 1: IF is true → execute SAY "inside if", return WaitingForInput
-    engine.CerekaScriptTick();
+    engine.m_stateMachine.update(1.0f / 60.0f);
     EXPECT_EQ(engine.dialogue.Text(), "inside if");
 
     // Tick 2: ELSE → skipMode=true (IF branch was taken, skip ELSE block)
     //   SAY "inside else" (skipped)
     //   ENDIF → skipMode=false
     //   SAY "after" → executed
-    engine.state = CerekaState::Running;
-    engine.CerekaScriptTick();
+    engine.m_stateMachine.changeState(CerekaState::Running);
+    engine.m_stateMachine.update(1.0f / 60.0f);
     EXPECT_EQ(engine.dialogue.Text(), "after");
 }
 
@@ -110,10 +119,10 @@ TEST_F(VMTest, DeeplyNestedIfElse) {
     engine.scriptInterpreter.variables["outer"] = "no";
     engine.scriptInterpreter.variables["mid"] = "yes";
     engine.scriptInterpreter.variables["inner"] = "yes";
-    engine.state = CerekaState::Running;
+    // State machine is already initialized to Running in SetUp
 
-    engine.CerekaScriptTick();
+    engine.m_stateMachine.update(1.0f / 60.0f);
 
-    EXPECT_EQ(engine.state, CerekaState::WaitingForInput);
+    EXPECT_EQ(engine.m_stateMachine.currentType(), CerekaState::WaitingForInput);
     EXPECT_EQ(engine.dialogue.Text(), "after all");
 }
