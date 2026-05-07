@@ -17,15 +17,15 @@ Players download the ZIP, unzip, run the binary. Zero external dependencies.
 - Windows Launcher: ensure `windeployqt` captures UCRT/MinGW runtime DLLs in addition to Qt6 DLLs
 - Linux Launcher: AppImage so devs can run CerekaLauncher on any distro without Qt6 installed
 
-**Status:** planned
+**Status:** completed
 
 **Plans:** 4 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — SDL3 static gate (Windows) + $ORIGIN RPATH + SDL .so routing (Linux)
-- [ ] 01-02-PLAN.md — windeployqt --compiler-runtime flag + WIN32 guard for launcher
-- [ ] 01-03-PLAN.md — AppImage packaging script + .desktop file + icon
-- [ ] 01-04-PLAN.md — doPackage() Linux branch: copy SDL .so files into game archive
+- [x] 01-01-PLAN.md — SDL3 static gate (Windows) + $ORIGIN RPATH + SDL .so routing (Linux)
+- [x] 01-02-PLAN.md — windeployqt --compiler-runtime flag + WIN32 guard for launcher
+- [x] 01-03-PLAN.md — AppImage packaging script + .desktop file + icon
+- [x] 01-04-PLAN.md — doPackage() Linux branch: copy SDL .so files into game archive
 
 ---
 
@@ -36,7 +36,15 @@ Plans:
 - Text word-wrap (long lines compress instead of wrapping)
 - Wire `CerekaStateMachine` into `CerekaImpl` (dead state machine)
 
-**Status:** backlog
+**Status:** in-progress
+
+**Plans:** 4 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — CI Infrastructure (Linux/macOS/Windows) + Local verification scripts
+- [ ] 02-02-PLAN.md — Fix nested if/else VM bug + Implement themeable word-wrap
+- [ ] 02-03-PLAN.md — State Machine "Big Bang" migration (CerekaImpl decoupling)
+- [ ] 02-04-PLAN.md — Modern Save System (Glaze JSON + versioning)
 
 ---
 
