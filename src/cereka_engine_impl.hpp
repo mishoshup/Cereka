@@ -101,7 +101,6 @@ class CerekaImpl : public ICerekaStateContext {
     void HandleEvent(const CerekaEvent &e);
 
     // script_vm.cpp
-    void CerekaScriptTick();
     void Update(float dt);
     void LoadCompiledCerekaScript(const std::vector<compiler::Instruction> &compiled);
     void LoadCerekaScript(const std::string &filename);

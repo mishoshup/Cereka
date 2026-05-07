@@ -357,10 +357,6 @@ void cereka::CerekaEngine::LoadCerekaScript(const std::string &filename)
     pImplementation->LoadCerekaScript(filename);
 }
 
-void cereka::CerekaEngine::CerekaScriptTick()
-{
-    pImplementation->CerekaScriptTick();
-}
 void cereka::CerekaEngine::Reset()
 {
     pImplementation->Reset();

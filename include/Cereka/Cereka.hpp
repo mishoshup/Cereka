@@ -47,7 +47,6 @@ class CerekaEngine {
 
     void LoadCompiledCerekaScript(const std::vector<compiler::Instruction> &compiled);
     void LoadCerekaScript(const std::string &filename);
-    void CerekaScriptTick();
 
     void Reset();
     void HandleEvent(const CerekaEvent &e);
