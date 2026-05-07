@@ -159,10 +159,10 @@ int main(int argc,
 
     L("checking entry exists = " + std::string(fs::exists(entry) ? "true" : "false"));
 
-    auto script = cereka::scenario::CompileVNScript(entry);
+    auto script = cereka::compiler::CompileCerekaScript(entry);
 
     if (script.empty()) {
-        L("[FATAL] CompileVNScript returned empty");
+        L("[FATAL] CompileCerekaScript returned empty");
         return 1;
     }
 
@@ -173,7 +173,7 @@ int main(int argc,
     // ----------------------------------------------------
     L("STEP: running script");
 
-    engine.LoadCompiledScript(script);
+    engine.LoadCompiledCerekaScript(script);
 
     while (!engine.IsGameFinished()) {
         cereka::CerekaEvent e;
@@ -181,7 +181,7 @@ int main(int argc,
             engine.HandleEvent(e);
 
         engine.Update(1.0f / 60.0f);
-        engine.TickScript();
+        engine.CerekaScriptTick();
         engine.Draw();
         engine.Present();
     }

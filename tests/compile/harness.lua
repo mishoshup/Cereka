@@ -1,6 +1,6 @@
 #!/usr/bin/env lua
 -- tests/compile/harness.lua
--- Snapshot tests for scripts/compiler.lua: run compile() on each input and
+-- Snapshot tests for scripts/cereka_compiler.lua: run compile() on each input and
 -- diff the serialized Instruction[] against a recorded expected file.
 -- Usage:
 --   lua tests/compile/harness.lua            run tests, exit 1 on any mismatch
@@ -16,7 +16,7 @@ local ROOT = HERE .. "../../"
 local INPUTS = HERE .. "inputs/"
 local EXPECTED = HERE .. "expected/"
 
-dofile(ROOT .. "scripts/compiler.lua")
+dofile(ROOT .. "scripts/cereka_compiler.lua")
 
 local function read_file(path)
     local f = io.open(path, "r")

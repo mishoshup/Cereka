@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 #include <sstream>
 
-using namespace config;
+using namespace cereka::config;
 
 class ConfigManagerTest : public ::testing::Test {
    protected:

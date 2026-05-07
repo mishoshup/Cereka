@@ -27,7 +27,7 @@ src/                 — Cereka static library (engine)
   compiler/          — Op enum, Instruction struct, Lua compiler bridge
 runner/              — CerekaGame executable (game loop)
 launcher/            — CerekaLauncher (Qt6) — project manager, dev-runner, packaging
-scripts/             — compiler.lua (Lua → Instruction[] compiler, embedded at build time)
+scripts/             — cereka_compiler.lua (Lua → Instruction[] compiler, embedded at build time)
 tests/               — GoogleTest C++ unit tests + Lua compile-output snapshots (tests/compile/)
 vendor/              — SDL3*, sol2, glaze (submodules)
 include/             — public API: Cereka/Cereka.hpp
@@ -38,19 +38,19 @@ include/             — public API: Cereka/Cereka.hpp
 | File | Responsibility |
 |---|---|
 | `Cereka.cpp` | Init/shutdown, SDL helpers, scene helpers (ShowBackground, ShowCharacter…), public API wrappers |
-| `script_vm.cpp` | TickScript (VM dispatch), Update (typewriter+fade), HandleEvent, LoadCompiledScript, EvalExpr (RHS expr parser) |
-| `draw.cpp` | Every-frame rendering: bg, chars, menu buttons, dialogue box, save/load overlay |
-| `audio.cpp` | PlayBGM, StopBGM, PlaySFX via SDL3_mixer |
-| `save.cpp` | SaveGame, LoadGame (glaze JSON), DrawSaveLoadOverlay, HitTestSaveSlot |
-| `save_data.hpp` | `SerializableSaveData` struct (glaze meta) — single source of truth for save schema |
-| `ui_config.cpp` | ApplyUiSet, LoadFont — delegates to ConfigManager |
-| `engine_impl.hpp` | Private CerekaImpl class — currently still holds most state (Phase 0.2 splits this) |
-| `state/cereka_state.hpp` | `IVNState`, CRTP `VNState<T>`, `CerekaStateMachine` with overlay push/pop stack |
+| `cereka_script.cpp` | CerekaScriptTick (Cereka Script dispatch), Update (typewriter+fade), HandleEvent, LoadCompiledCerekaScript, EvalExpr (RHS expr parser) |
+| `cereka_draw.cpp` | Every-frame rendering: bg, chars, menu buttons, dialogue box, save/load overlay |
+| `cereka_audio_manager.cpp` | PlayBGM, StopBGM, PlaySFX via SDL3_mixer |
+| `cereka_save.cpp` | SaveGame, LoadGame (glaze JSON), DrawSaveLoadOverlay, HitTestSaveSlot |
+| `cereka_save_data.hpp` | `SerializableSaveData` struct (glaze meta) — single source of truth for save schema |
+| `cereka_ui_config.cpp` | ApplyUiSet, LoadFont — delegates to ConfigManager |
+| `cereka_engine_impl.hpp` | Private CerekaImpl class — currently still holds most state (Phase 0.2 splits this) |
+| `state/cereka_state.hpp` | `ICerekaState`, CRTP `CerekaStateBase<T>`, `CerekaStateMachine` with overlay push/pop stack |
 | `state/cereka_states.{hpp,cpp}` | Concrete states: Dialogue, Menu, Fade, SaveMenu, LoadMenu, Finished, Quit |
 | `config/config_manager.{hpp,cpp}` | Property Map Pattern — typed properties registered once, looked up via key |
 | `config/property_handlers.cpp` | Per-property apply functions (textbox.color, button.image, …) |
-| `compiler/vn_instruction.hpp` | Op enum + `Instruction` struct (carries `srcLine`/`srcCol` for diagnostics) |
-| `compiler/vn_instruction.cpp` | CompileVNScript: invokes embedded compiler.lua via sol2, resolves include/call recursively |
+| `compiler/cereka_instruction.hpp` | Op enum + `Instruction` struct (carries `srcLine`/`srcCol` for diagnostics) |
+| `compiler/cereka_instruction.cpp` | CompileCerekaScript: invokes embedded cereka_compiler.lua via sol2, resolves include/call recursively |
 
 ### State machine (CerekaState)
 `Running → WaitingForInput → Running` (normal dialogue)
@@ -141,18 +141,18 @@ ui font
 ui advance_keys <key1> <key2> ...   — keys that advance dialogue (default: space enter)
 ```
 
-## Compile pipeline (`scripts/compiler.lua`)
+## Compile pipeline (`scripts/cereka_compiler.lua`)
 Five passes:
 1. **Line splitter** — preserves source line numbers (incl. blank lines).
 2. **Tokenizer** — per line, after indent stripped. Tokens: IDENT / STRING / NUMBER / OP. Two-char ops: `== != >= <= += -= *= /=`.
 3. **Parser** — recursive descent; produces an AST with `kind`, kind-specific fields, plus `line`/`col`. Block statements (`menu`, `ui <element>`) collect indented children.
 4. **Lowerer** — walks AST, emits `Instruction` records. Every emitted instruction carries `line`/`col`.
-5. **C++ bridge** (`src/compiler/vn_instruction.cpp`) — string-tagged op → `Op` enum; resolves `include` (compile-time inline) and `call` (runtime label + RETURN op) recursively.
+5. **C++ bridge** (`src/compiler/cereka_instruction.cpp`) — string-tagged op → `Op` enum; resolves `include` (compile-time inline) and `call` (runtime label + RETURN op) recursively.
 
 Compiler errors raise `error("line L col C: message")` — sol2 surfaces these to the C++ caller as `protected_function_result` failures.
 
 ## Save format
-**glaze JSON**, stored at `{projectRoot}/saves/slot{N}.json`. Schema lives in `src/save_data.hpp` as `SerializableSaveData` with `glz::meta`. Round-trip tested in `tests/save_data_test.cpp`.
+**glaze JSON**, stored at `{projectRoot}/saves/slot{N}.json`. Schema lives in `src/cereka_save_data.hpp` as `SerializableSaveData` with `glz::meta`. Round-trip tested in `tests/save_data_test.cpp`.
 
 ## Project layout (game projects)
 ```
@@ -185,7 +185,7 @@ Two independent suites:
 - All SDL vendor targets use namespaced form: `SDL3_ttf::SDL3_ttf` etc.
 - Lua 5.4 found via `find_package(Lua 5.4 EXACT REQUIRED)` in root CMakeLists.txt.
 - On Windows, vendor DLLs are routed to `CMAKE_BINARY_DIR` via `RUNTIME_OUTPUT_DIRECTORY`.
-- `engine_impl.hpp` is private — never include from public headers.
+- `cereka_engine_impl.hpp` is private — never include from public headers.
 - `src/` uses `file(GLOB_RECURSE)` — re-run cmake after adding/removing `.cpp` files.
 - Public surface (`include/Cereka/*.hpp`) must not leak SDL/Mixer types.
 - Comments explain *why*, not *what*. No "Enterprise-grade" / "production-ready" header banners — see `/no-buzzwords` skill.
