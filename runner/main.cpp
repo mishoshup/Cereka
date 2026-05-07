@@ -159,12 +159,12 @@ int main(int argc,
 
     L("checking entry exists = " + std::string(fs::exists(entry) ? "true" : "false"));
 
-    auto script = cereka::compiler::CompileCerekaScript(entry);
-
-    if (script.empty()) {
-        L("[FATAL] CompileCerekaScript returned empty");
+    auto scriptResult = cereka::compiler::CompileCerekaScript(entry);
+    if (!scriptResult) {
+        L("[FATAL] " + scriptResult.error());
         return 1;
     }
+    auto &script = *scriptResult;
 
     L("compile OK");
 

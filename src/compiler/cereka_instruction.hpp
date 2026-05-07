@@ -1,4 +1,5 @@
 #pragma once
+#include <expected>
 #include <string>
 #include <vector>
 
@@ -58,6 +59,7 @@ struct Instruction {
     int srcCol = 0;
 };
 
-std::vector<Instruction> CompileCerekaScript(const std::string &filename);
+std::expected<std::vector<Instruction>, std::string>
+CompileCerekaScript(const std::string &filename);
 
 }  // namespace cereka::compiler

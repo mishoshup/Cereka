@@ -21,7 +21,8 @@ using cereka::CerekaState;
 
 static std::string savePath(int slot)
 {
-    return "saves/slot" + std::to_string(slot) + ".json";
+    static const fs::path saveDir = fs::absolute("saves");
+    return (saveDir / ("slot" + std::to_string(slot) + ".json")).string();
 }
 
 // Human-readable state labels mirroring CerekaStateMachine::stateLabel().
@@ -70,7 +71,7 @@ static std::string xNormToPos(float xNorm)
 bool Impl::SaveGame(int slot)
 {
     std::error_code ec;
-    fs::create_directories("saves", ec);
+    fs::create_directories(fs::absolute("saves"), ec);
 
     SerializableSaveData data;
     data.version = 1;
@@ -159,8 +160,11 @@ bool Impl::LoadGame(int slot)
     scriptInterpreter.skipMode = false;
     scriptInterpreter.skipDepth = 0;
 
-    // Restore script state
-    scriptInterpreter.pc = data.programCounter;
+    // Restore script state — clamp PC to valid program range
+    scriptInterpreter.pc = std::min(data.programCounter,
+                                     scriptInterpreter.program.empty()
+                                         ? 0
+                                         : scriptInterpreter.program.size() - 1);
     scriptInterpreter.callStack = data.callStack;
     scriptInterpreter.variables = data.variables;
     scriptInterpreter.numVariables = data.numVariables;

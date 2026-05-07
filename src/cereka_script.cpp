@@ -142,10 +142,17 @@ void Impl::CerekaScriptTick()
                 si.pc = si.labelMap[ins.a];
                 continue;
 
-            case compiler::Op::CALL:
+            case compiler::Op::CALL: {
+                static constexpr size_t MAX_CALL_DEPTH = 32;
+                if (si.callStack.size() >= MAX_CALL_DEPTH) {
+                    std::cerr << "[CEREKA] Call stack overflow (max " << MAX_CALL_DEPTH << ")\n";
+                    changeState(CerekaState::Finished);
+                    return;
+                }
                 si.callStack.push_back(si.pc + 1);
                 si.pc = si.labelMap[ins.a];
                 continue;
+            }
 
             case compiler::Op::RETURN:
                 if (!si.callStack.empty()) {

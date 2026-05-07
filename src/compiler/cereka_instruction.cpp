@@ -13,13 +13,14 @@ namespace cereka::compiler {
 // ---------------------------------------------------------------------------
 // Forward declaration for recursive include/call resolution
 // ---------------------------------------------------------------------------
-static std::vector<Instruction> CompileFile(const fs::path &path,
-                                            int depth);
+static std::expected<std::vector<Instruction>, std::string>
+CompileFile(const fs::path &path, int depth);
 
 // ---------------------------------------------------------------------------
 // Run cereka_compiler.lua on script_text, return raw instruction list
 // ---------------------------------------------------------------------------
-static std::vector<Instruction> RunLuaCompiler(const std::string &scriptText)
+static std::expected<std::vector<Instruction>, std::string>
+RunLuaCompiler(const std::string &scriptText)
 {
     sol::state lua;
     lua.open_libraries(sol::lib::base, sol::lib::string, sol::lib::table);
@@ -27,34 +28,29 @@ static std::vector<Instruction> RunLuaCompiler(const std::string &scriptText)
     auto loadRes = lua.load(cereka::COMPILER_LUA_SOURCE);
     if (!loadRes.valid()) {
         sol::error err = loadRes;
-        std::cerr << "[CEREKA] Compiler load error: " << err.what() << "\n";
-        return {};
+        return std::unexpected(std::string("[CEREKA] Compiler load error: ") + err.what());
     }
     loadRes();
 
     sol::function compileFunc = lua["compile"];
     if (!compileFunc.valid()) {
-        std::cerr << "[CEREKA] Lua function 'compile' not found\n";
-        return {};
+        return std::unexpected(std::string("[CEREKA] Lua function 'compile' not found"));
     }
 
     sol::protected_function_result res = compileFunc(scriptText);
     if (!res.valid()) {
         sol::error err = res;
-        std::cerr << "[CEREKA] Script compile error: " << err.what() << "\n";
-        return {};
+        return std::unexpected(std::string("[CEREKA] Script compile error: ") + err.what());
     }
 
     sol::table result = res;
     if (!result.valid()) {
-        std::cerr << "[CEREKA] Compiler returned invalid table\n";
-        return {};
+        return std::unexpected(std::string("[CEREKA] Compiler returned invalid table"));
     }
 
     sol::table instructions = result["instructions"];
     if (!instructions.valid()) {
-        std::cerr << "[CEREKA] Compiler result has no 'instructions' table\n";
-        return {};
+        return std::unexpected(std::string("[CEREKA] Compiler result has no 'instructions' table"));
     }
 
     std::vector<Instruction> program;
@@ -165,24 +161,28 @@ static std::vector<Instruction> RunLuaCompiler(const std::string &scriptText)
 // ---------------------------------------------------------------------------
 // Resolve INCLUDEs and CALLs recursively, then return a flat instruction list
 // ---------------------------------------------------------------------------
-static std::vector<Instruction> CompileFile(const fs::path &path,
-                                            int depth)
+static std::expected<std::vector<Instruction>, std::string>
+CompileFile(const fs::path &path, int depth)
 {
     static constexpr int MAX_DEPTH = 32;
     if (depth > MAX_DEPTH) {
-        std::cerr << "[CEREKA] Include/call depth limit reached at: " << path << "\n";
-        return {};
+        return std::unexpected(
+            std::string("[CEREKA] Include/call depth limit reached at: ") + path.string());
     }
 
     std::ifstream f(path);
     if (!f) {
-        std::cerr << "[CEREKA] Could not open script: " << path << "\n";
-        return {};
+        return std::unexpected(
+            std::string("[CEREKA] Could not open script: ") + path.string());
     }
     std::stringstream buf;
     buf << f.rdbuf();
 
-    std::vector<Instruction> raw = RunLuaCompiler(buf.str());
+    auto rawResult = RunLuaCompiler(buf.str());
+    if (!rawResult)
+        return std::unexpected(rawResult.error());
+
+    std::vector<Instruction> raw = std::move(*rawResult);
 
     fs::path dir = path.parent_path();
     std::vector<Instruction> resolved;
@@ -193,9 +193,11 @@ static std::vector<Instruction> CompileFile(const fs::path &path,
         if (ins.op == Op::INCLUDE) {
             // Inline the included file — strip its trailing END
             auto sub = CompileFile(dir / ins.a, depth + 1);
-            if (!sub.empty() && sub.back().op == Op::END)
-                sub.pop_back();
-            resolved.insert(resolved.end(), sub.begin(), sub.end());
+            if (!sub)
+                return std::unexpected(sub.error());
+            if (!sub->empty() && sub->back().op == Op::END)
+                sub->pop_back();
+            resolved.insert(resolved.end(), sub->begin(), sub->end());
         }
         else if (ins.op == Op::CALL) {
             // Replace CALL with a JUMP-to-subroutine + auto-generated label
@@ -209,19 +211,21 @@ static std::vector<Instruction> CompileFile(const fs::path &path,
 
             // Compile the subroutine; replace its END with RETURN
             auto sub = CompileFile(dir / ins.a, depth + 1);
-            if (!sub.empty() && sub.back().op == Op::END)
-                sub.back().op = Op::RETURN;
+            if (!sub)
+                return std::unexpected(sub.error());
+            if (!sub->empty() && sub->back().op == Op::END)
+                sub->back().op = Op::RETURN;
             else {
                 Instruction ret;
                 ret.op = Op::RETURN;
-                sub.push_back(ret);
+                sub->push_back(ret);
             }
 
             Instruction lbl;
             lbl.op = Op::LABEL;
             lbl.a = label;
             subroutines.push_back(lbl);
-            subroutines.insert(subroutines.end(), sub.begin(), sub.end());
+            subroutines.insert(subroutines.end(), sub->begin(), sub->end());
         }
         else {
             resolved.push_back(ins);
@@ -237,7 +241,8 @@ static std::vector<Instruction> CompileFile(const fs::path &path,
 // ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
-std::vector<Instruction> CompileCerekaScript(const std::string &filename)
+std::expected<std::vector<Instruction>, std::string>
+CompileCerekaScript(const std::string &filename)
 {
     return CompileFile(fs::absolute(filename), 0);
 }
