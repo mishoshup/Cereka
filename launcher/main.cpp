@@ -130,7 +130,8 @@ static QFont boldFont(int ptSize)
 
 // ── Content page indices ──────────────────────────────────────────────────────
 
-enum Page { PageWelcome = 0, PageEmpty = 1, PageProject = 2 };
+enum Page { PageWelcome = 0, PageEmpty = 1, PageProject = 2,
+            PageEditor = 3, PageAssetBrowser = 4 };
 
 // ── LauncherWindow ────────────────────────────────────────────────────────────
 
@@ -155,9 +156,11 @@ public:
 
         m_contentStack = new QStackedWidget();
         m_contentStack->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        m_contentStack->addWidget(buildWelcomeScreen()); // PageWelcome
-        m_contentStack->addWidget(buildEmptyState());    // PageEmpty
-        m_contentStack->addWidget(buildProjectDetail()); // PageProject
+        m_contentStack->addWidget(buildWelcomeScreen());           // PageWelcome
+        m_contentStack->addWidget(buildEmptyState());              // PageEmpty
+        m_contentStack->addWidget(buildProjectDetail());           // PageProject
+        m_contentStack->addWidget(buildEditorPlaceholder());       // PageEditor
+        m_contentStack->addWidget(buildAssetBrowserPlaceholder()); // PageAssetBrowser
         root->addWidget(m_contentStack, 1);
 
         m_contentOpacity = new QGraphicsOpacityEffect(m_contentStack);
@@ -289,6 +292,29 @@ private:
         connect(m_sidebarList, &QListWidget::itemClicked,
                 this, &LauncherWindow::onSidebarProjectClicked);
         v->addWidget(m_sidebarList, 1);
+        v->addWidget(makeHRule());
+
+        // ── Navigation section ──
+        {
+            QWidget *navSec = new QWidget();
+            navSec->setStyleSheet("background: transparent;");
+            QVBoxLayout *navLayout = new QVBoxLayout(navSec);
+            navLayout->setContentsMargins(18, 14, 18, 6);
+            navLayout->setSpacing(2);
+            navLayout->addWidget(makeSectionLabel("TOOLS"));
+
+            QPushButton *editorNav = buildSidebarNavButton("Editor");
+            connect(editorNav, &QPushButton::clicked,
+                    [this]() { fadeToPage(PageEditor); });
+            navLayout->addWidget(editorNav);
+
+            QPushButton *assetsNav = buildSidebarNavButton("Assets");
+            connect(assetsNav, &QPushButton::clicked,
+                    [this]() { fadeToPage(PageAssetBrowser); });
+            navLayout->addWidget(assetsNav);
+
+            v->addWidget(navSec);
+        }
         v->addWidget(makeHRule());
 
         // Bottom buttons
@@ -520,6 +546,84 @@ private:
         v->addWidget(m_log, 1);
 
         return proj;
+    }
+
+    // ── Placeholder pages ────────────────────────────────────────────────────
+
+    QWidget *buildEditorPlaceholder()
+    {
+        QWidget *w = new QWidget();
+        w->setStyleSheet(QString("background-color: %1;").arg(Theme::BgBase));
+        QVBoxLayout *v = new QVBoxLayout(w);
+        v->setAlignment(Qt::AlignCenter);
+        v->setSpacing(12);
+
+        QLabel *icon = new QLabel("◈");
+        icon->setStyleSheet(QString("color: %1; font-size: 48px;").arg(Theme::TextGlyph));
+        icon->setAlignment(Qt::AlignCenter);
+        v->addWidget(icon);
+
+        QLabel *title = new QLabel("Script Editor");
+        title->setFont(boldFont(Theme::FontTitle));
+        title->setStyleSheet(QString("color: %1;").arg(Theme::TextDim));
+        title->setAlignment(Qt::AlignCenter);
+        v->addWidget(title);
+
+        QLabel *desc = new QLabel("coming soon");
+        desc->setStyleSheet(QString("color: %1; font-size: 13px;").arg(Theme::TextFaint));
+        desc->setAlignment(Qt::AlignCenter);
+        v->addWidget(desc);
+
+        return w;
+    }
+
+    QWidget *buildAssetBrowserPlaceholder()
+    {
+        QWidget *w = new QWidget();
+        w->setStyleSheet(QString("background-color: %1;").arg(Theme::BgBase));
+        QVBoxLayout *v = new QVBoxLayout(w);
+        v->setAlignment(Qt::AlignCenter);
+        v->setSpacing(12);
+
+        QLabel *icon = new QLabel("◈");
+        icon->setStyleSheet(QString("color: %1; font-size: 48px;").arg(Theme::TextGlyph));
+        icon->setAlignment(Qt::AlignCenter);
+        v->addWidget(icon);
+
+        QLabel *title = new QLabel("Asset Browser");
+        title->setFont(boldFont(Theme::FontTitle));
+        title->setStyleSheet(QString("color: %1;").arg(Theme::TextDim));
+        title->setAlignment(Qt::AlignCenter);
+        v->addWidget(title);
+
+        QLabel *desc = new QLabel("coming soon");
+        desc->setStyleSheet(QString("color: %1; font-size: 13px;").arg(Theme::TextFaint));
+        desc->setAlignment(Qt::AlignCenter);
+        v->addWidget(desc);
+
+        return w;
+    }
+
+    // ── Sidebar helpers ─────────────────────────────────────────────────────
+
+    static QPushButton *buildSidebarNavButton(const QString &text)
+    {
+        QPushButton *btn = new QPushButton(text);
+        btn->setCursor(Qt::PointingHandCursor);
+        btn->setMinimumHeight(36);
+        btn->setStyleSheet(QString(R"(
+            QPushButton {
+                text-align: left; padding: 9px 10px;
+                border-radius: %1px; border: none;
+                margin: 1px 0; color: %2; font-size: 13px;
+                background: transparent;
+            }
+            QPushButton:hover { background-color: %3; color: %4; }
+        )").arg(Theme::RadiusStd)
+           .arg(Theme::TextMuted)
+           .arg(Theme::BgItemHover)
+           .arg(Theme::TextHover));
+        return btn;
     }
 
     // ── Sidebar / project actions ─────────────────────────────────────────────
