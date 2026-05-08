@@ -7,3 +7,5 @@ cereka-*.zip
 cmake/Toolchain-ucrt64.cmake
 cereka_debug.txt
 docs/book/
+.wrangler/
+_site/

@@ -88,6 +88,16 @@ Plans:
 - [ ] 06-01-PLAN.md — mdBook scaffolding + complete Scripting Reference (38 ops across 10 category pages)
 - [ ] 06-02-PLAN.md — User guide sections (Getting Started, Project Structure, Build & Package) + UI Theming + Variables & Expressions + Annotated Example Game + Deploy config
 
+### Phase 7: Fix critical bugs: var substitution in menus + save/load variable restoration
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 6
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 7 to break down)
+
 ---
 
 ## Phase 6 — Documentation Site
@@ -98,8 +108,6 @@ Plans:
 
 Plans:
 - [x] 06-01-PLAN.md — mdBook scaffolding + all scripting reference pages + user guides + annotated example
-
----
 
 ## Phase 4 — Engine Features
 **Goal:** Feature parity with Ren'Py baseline.
