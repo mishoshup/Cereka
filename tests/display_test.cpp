@@ -10,8 +10,12 @@ struct DisplayTest : ::testing::Test
 {
     void SetUp() override
     {
-        ASSERT_TRUE(SDL_InitSubSystem(SDL_INIT_VIDEO))
-            << "SDL_InitSubSystem(SDL_INIT_VIDEO) failed: " << SDL_GetError();
+        if (!SDL_InitSubSystem(SDL_INIT_VIDEO)) {
+            SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
+            ASSERT_TRUE(SDL_InitSubSystem(SDL_INIT_VIDEO))
+                << "SDL_InitSubSystem(SDL_INIT_VIDEO) failed with dummy driver: "
+                << SDL_GetError();
+        }
     }
 
     void TearDown() override
