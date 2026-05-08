@@ -130,7 +130,15 @@ void DialogueState::update(float dt,
                 else
                     result = rhs;  // "=" plain assignment
                 si.numVariables[ins.a] = result;
-                si.variables[ins.a] = std::to_string(result);
+                {
+                    std::string s = std::to_string(result);
+                    auto dot = s.find('.');
+                    if (dot != std::string::npos) {
+                        s.erase(s.find_last_not_of('0') + 1);
+                        if (s.back() == '.') s.pop_back();
+                    }
+                    si.variables[ins.a] = s;
+                }
                 si.pc++;
                 continue;
             }
@@ -142,7 +150,14 @@ void DialogueState::update(float dt,
                 auto rit = si.variables.find(ins.b);
                 if (rit != si.variables.end())
                     rhs = rit->second;
-                if (val != rhs) {
+                bool eq = (val == rhs);
+                if (!eq) {
+                    auto lf = safe_stof(val);
+                    auto rf = safe_stof(rhs);
+                    if (lf && rf && *lf == *rf)
+                        eq = true;
+                }
+                if (!eq) {
                     si.skipMode = true;
                     si.skipDepth = 1;
                 }
@@ -157,7 +172,14 @@ void DialogueState::update(float dt,
                 auto rit = si.variables.find(ins.b);
                 if (rit != si.variables.end())
                     rhs = rit->second;
-                if (val == rhs) {
+                bool eq = (val == rhs);
+                if (!eq) {
+                    auto lf = safe_stof(val);
+                    auto rf = safe_stof(rhs);
+                    if (lf && rf && *lf == *rf)
+                        eq = true;
+                }
+                if (eq) {
                     si.skipMode = true;
                     si.skipDepth = 1;
                 }
