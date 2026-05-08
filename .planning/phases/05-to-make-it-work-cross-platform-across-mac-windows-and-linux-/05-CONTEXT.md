@@ -6,9 +6,16 @@
 <domain>
 ## Phase Boundary
 
-Fix macOS resolution and rendering distortion. Windows and Linux work correctly — macOS has inconsistent window sizing and the game renders distorted inside the window even when the window frame itself appears correct.
+Fix macOS display issues. Windows and Linux work correctly — macOS has:
+1. Inconsistent window sizing — game renders distorted inside the window even when the window frame appears correct
+2. Text not displayed in dialogue text box on macOS
 
-Root cause: HiDPI/Retina pixel density mismatch. macOS uses physical pixels (@2x typically) while SDL3 rendering operations use logical points. The rendering pipeline mixes coordinate spaces across operations.
+Root cause (distortion): HiDPI/Retina pixel density mismatch. macOS uses physical pixels (@2x typically) while SDL3 rendering operations use logical points. The rendering pipeline mixes coordinate spaces across operations.
+
+Root cause (font): Unknown — likely one of:
+- SDL3_ttf + Metal renderer texture format incompatibility on macOS
+- Font file path resolution failure on macOS bundle layout
+- TTF_RenderText_Blended surface-to-texture conversion produces wrong format under Metal
 
 </domain>
 
@@ -36,15 +43,24 @@ Root cause: HiDPI/Retina pixel density mismatch. macOS uses physical pixels (@2x
 - The issue is not the backend choice, it's that logical presentation isn't configured
 - No backend switching needed
 
-### D-04: Testing — Headless renderer unit test
+### D-04: Font Investigation — macOS Text Rendering
+- Font not displayed in dialogue text box on macOS but works on Linux/Windows
+- Suspect 1: `TTF_RenderText_Blended` → `SDL_CreateTextureFromSurface` — the surface pixel format may not be compatible with Metal renderer (needs SDL_PIXELFORMAT_ARGB8888 with premultiplied alpha)
+- Suspect 2: Font file not found — directory_iterator on "assets/fonts" may resolve differently on macOS bundle
+- Suspect 3: `TTF_OpenFont` returns null silently and the empty-font guard in CreateTextTexture returns nullptr
+- Fix: Add macOS-specific format conversion after surface creation, or use `TTF_RenderText_Blended` with explicit format
+
+### D-05: Testing — Headless renderer unit test
 - SDL3 supports `SDL_WINDOW_HIDDEN` — create offscreen window + renderer
 - Set logical presentation at various sizes
-- Verify `SDL_GetRenderLogicalPresentationOutputSize()` returns expected physical dimensions
+- Verify `SDL_GetRenderLogicalPresentationRect()` returns expected rect with correct aspect ratio
+- Verify coordinate conversion via `SDL_RenderCoordinatesToWindow/FromWindow`
 - Catch sizing regressions without a display
 - Manual visual verification on macOS for final sign-off
 
 ### the agent's Discretion
 - Exact letterbox color (black is standard for VNs)
+- Font fix approach if multiple options exist
 
 </decisions>
 

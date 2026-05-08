@@ -33,6 +33,8 @@ bool Impl::InitGame(const char *title,
     if (!sdlRenderer)
         throw engine::error("All renderer attempts failed");
 
+    SDL_SetRenderLogicalPresentation(sdlRenderer, screenWidth, screenHeight, SDL_LOGICAL_PRESENTATION_LETTERBOX);
+
     m_renderCtx = std::make_unique<SdlRenderContext>(sdlRenderer, screenWidth, screenHeight);
 
     LoadFont(uiCfg.fontSize);
