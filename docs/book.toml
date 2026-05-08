@@ -2,7 +2,6 @@
 title = "Cereka Documentation"
 authors = ["Cereka Team"]
 language = "en"
-multilingual = false
 
 [output.html]
 default-theme = "ayu"

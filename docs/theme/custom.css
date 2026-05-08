@@ -1,0 +1,57 @@
+/* Cereka Docs — Custom mdBook Theme */
+
+:root {
+    --cereka-primary: #4a9eff;
+    --cereka-secondary: #7c4dff;
+    --cereka-accent: #ff6d00;
+}
+
+/* Code blocks styling */
+code {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: 0.9em;
+}
+
+/* .crka language hint styling */
+pre code.text {
+    border-left: 3px solid var(--cereka-primary);
+    padding-left: 1em;
+}
+
+/* Table styling */
+table {
+    width: 100%;
+}
+
+th {
+    background-color: var(--cereka-primary);
+    color: white;
+}
+
+/* Sidebar styling */
+.sidebar {
+    background: var(--cereka-primary);
+}
+
+.sidebar .chapter-item a {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.sidebar .chapter-item a:hover {
+    color: #ffffff;
+}
+
+/* Highlight current page in sidebar */
+.sidebar .chapter-item.current a {
+    color: #ffffff;
+    font-weight: bold;
+}
+
+/* Content area links */
+.content a {
+    color: var(--cereka-primary);
+}
+
+.content a:hover {
+    color: var(--cereka-secondary);
+}
