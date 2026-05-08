@@ -129,6 +129,16 @@ RunLuaCompiler(const std::string &scriptText)
             ins.op = Op::LOAD_MENU;
         else if (op == "CHECKPOINT_STORE")
             ins.op = Op::CHECKPOINT_STORE;
+        else if (op == "PLAY_BGM_FADE")
+            ins.op = Op::PLAY_BGM_FADE;
+        else if (op == "STOP_BGM_FADE")
+            ins.op = Op::STOP_BGM_FADE;
+        else if (op == "BGM_CROSSFADE")
+            ins.op = Op::BGM_CROSSFADE;
+        else if (op == "SG_SET")
+            ins.op = Op::SG_SET;
+        else if (op == "SG_REMOVE")
+            ins.op = Op::SG_REMOVE;
         else if (op == "CHECKPOINT_LOAD")
             ins.op = Op::CHECKPOINT_LOAD;
         else {
