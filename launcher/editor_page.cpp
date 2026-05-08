@@ -42,8 +42,8 @@ void EditorPage::buildUi()
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
 
-    m_splitter = new QSplitter(Qt::Horizontal, this);
-    m_splitter->setHandleWidth(1);
+    m_mainSplitter = new QSplitter(Qt::Horizontal, this);
+    m_mainSplitter->setHandleWidth(1);
 
     // ── File tree ─────────────────────────────────────────────────────────────
     m_fileTree = new QListWidget();
@@ -71,44 +71,38 @@ void EditorPage::buildUi()
        .arg(Theme::BgItemHover));
     connect(m_fileTree, &QListWidget::itemClicked,
             this, &EditorPage::onFileTreeClicked);
-    m_splitter->addWidget(m_fileTree);
+    m_mainSplitter->addWidget(m_fileTree);
 
-    // ── Tab widget ────────────────────────────────────────────────────────────
-    m_tabWidget = new QTabWidget();
-    m_tabWidget->setTabsClosable(true);
-    m_tabWidget->setMovable(true);
-    m_tabWidget->setStyleSheet(QString(R"(
-        QTabWidget::pane {
-            border: none; background-color: %1;
-        }
-        QTabBar::tab {
-            background-color: %2; color: %3; padding: 6px 14px;
-            border: none; border-right: 1px solid %4;
-            font-size: 12px; min-width: 80px;
-        }
-        QTabBar::tab:selected {
-            background-color: %1; color: %5;
-            border-bottom: 2px solid %6;
-        }
-        QTabBar::tab:hover:!selected {
-            background-color: %7;
-        }
-    )").arg(Theme::BgBase)
-       .arg(Theme::BgSurface)
-       .arg(Theme::TextMuted)
-       .arg(Theme::BorderDivider)
-       .arg(Theme::TextPrimary)
-       .arg(Theme::Gold)
-       .arg(Theme::BgSurfaceHover));
-    connect(m_tabWidget, &QTabWidget::tabCloseRequested,
-            this, &EditorPage::onTabCloseRequested);
-    connect(m_tabWidget, &QTabWidget::currentChanged,
+    // ── Editor area: custom tab bar + stacked widget ───────────────────────────
+    m_editorArea = new QWidget();
+    auto *editorLayout = new QVBoxLayout(m_editorArea);
+    editorLayout->setContentsMargins(0, 0, 0, 0);
+    editorLayout->setSpacing(0);
+
+    // Custom tab bar (replaces QTabWidget's internal tab bar)
+    m_tabBar = new EditorTabBar();
+    editorLayout->addWidget(m_tabBar);
+
+    // Stacked widget holds all editor widgets (one per open tab)
+    m_editorStack = new QStackedWidget();
+    m_editorStack->setStyleSheet(QString(
+        "background-color: %1;"
+    ).arg(Theme::BgBase));
+    editorLayout->addWidget(m_editorStack, 1);
+
+    // Connect tab bar signals
+    connect(m_tabBar, &QTabBar::currentChanged,
             this, &EditorPage::onTabChanged);
-    m_splitter->addWidget(m_tabWidget);
+    connect(m_tabBar, &QTabBar::tabCloseRequested,
+            this, &EditorPage::onTabCloseRequested);
+    connect(m_tabBar, &EditorTabBar::splitRightRequested,
+            this, &EditorPage::onTabBarSplitRequested);
 
-    m_splitter->setStretchFactor(0, 0);
-    m_splitter->setStretchFactor(1, 1);
-    layout->addWidget(m_splitter, 1);
+    m_mainSplitter->addWidget(m_editorArea);
+
+    m_mainSplitter->setStretchFactor(0, 0);
+    m_mainSplitter->setStretchFactor(1, 1);
+    layout->addWidget(m_mainSplitter, 1);
 
     // ── Status bar ────────────────────────────────────────────────────────────
     m_statusBar = new QLabel();
@@ -126,7 +120,14 @@ void EditorPage::setProjectPath(const fs::path &path)
     m_projectPath = path;
 
     // Clear existing state
-    m_tabWidget->clear();
+    while (m_tabBar->count() > 0) {
+        int idx = m_tabBar->count() - 1;
+        m_tabBar->removeTab(idx);
+    }
+    while (m_editorStack->count() > 0) {
+        QWidget *w = m_editorStack->widget(0);
+        m_editorStack->removeWidget(w);
+    }
     m_tabs.clear();
     m_fileTree->clear();
     m_statusBar->clear();
@@ -144,7 +145,14 @@ void EditorPage::setProjectPath(const fs::path &path)
 void EditorPage::clearProject()
 {
     m_projectPath.clear();
-    m_tabWidget->clear();
+    while (m_tabBar->count() > 0) {
+        int idx = m_tabBar->count() - 1;
+        m_tabBar->removeTab(idx);
+    }
+    while (m_editorStack->count() > 0) {
+        QWidget *w = m_editorStack->widget(0);
+        m_editorStack->removeWidget(w);
+    }
     m_tabs.clear();
     m_fileTree->clear();
     m_statusBar->setText("No project loaded");
@@ -191,9 +199,9 @@ QStringList EditorPage::findCrkaFiles(const fs::path &dir) const
 
 // ── Tab management ────────────────────────────────────────────────────────────
 
-EditorPage::EditorTab *EditorPage::currentTab()
+EditorTab *EditorPage::currentTab()
 {
-    int idx = m_tabWidget->currentIndex();
+    int idx = m_tabBar->currentIndex();
     if (idx < 0 || idx >= m_tabs.size())
         return nullptr;
     return &m_tabs[idx];
@@ -213,7 +221,8 @@ int EditorPage::addTab(const QString &filePath)
     // Check if already open
     int existing = findTabByPath(filePath);
     if (existing >= 0) {
-        m_tabWidget->setCurrentIndex(existing);
+        m_tabBar->setCurrentIndex(existing);
+        m_editorStack->setCurrentIndex(existing);
         return existing;
     }
 
@@ -255,9 +264,15 @@ int EditorPage::addTab(const QString &filePath)
     m_tabs.append(tab);
     int idx = m_tabs.size() - 1;
 
+    // Add tab to tab bar (with file path as tab data for Copy Path)
     QString tabLabel = QFileInfo(filePath).fileName();
-    m_tabWidget->addTab(editor, tabLabel);
-    m_tabWidget->setCurrentIndex(idx);
+    m_tabBar->addTab(tabLabel);
+    m_tabBar->setTabData(idx, filePath);
+    m_tabBar->setCurrentIndex(idx);
+
+    // Add editor to stacked widget
+    m_editorStack->addWidget(editor);
+    m_editorStack->setCurrentIndex(idx);
 
     // Notify LSP
     if (m_lspClient && m_lspClient->isRunning())
@@ -277,8 +292,28 @@ void EditorPage::closeTab(int index)
     if (m_lspClient && m_lspClient->isRunning())
         m_lspClient->didClose(tab.uri);
 
-    m_tabWidget->removeTab(index);
+    // Remove from tab bar
+    m_tabBar->removeTab(index);
+
+    // Remove from stacked widget (the editor widget is owned by m_tabs,
+    // and will be deleted when m_tabs is cleared)
+    QWidget *w = m_editorStack->widget(index);
+    if (w)
+        m_editorStack->removeWidget(w);
+
     m_tabs.removeAt(index);
+}
+
+void EditorPage::updateTabLabel(int index)
+{
+    if (index < 0 || index >= m_tabs.size())
+        return;
+
+    const EditorTab &tab = m_tabs[index];
+    QString label = QFileInfo(tab.filePath).fileName();
+    if (tab.modified)
+        label += " ●";
+    m_tabBar->setTabText(index, label);
 }
 
 // ── Tab slots ─────────────────────────────────────────────────────────────────
@@ -299,8 +334,10 @@ void EditorPage::onTabCloseRequested(int index)
 
 void EditorPage::onTabChanged(int index)
 {
-    Q_UNUSED(index);
-    // Could update status bar with current file info
+    // Sync stacked widget with tab bar selection
+    if (index >= 0 && index < m_editorStack->count())
+        m_editorStack->setCurrentIndex(index);
+
     auto *tab = currentTab();
     if (tab) {
         m_statusBar->setText(QFileInfo(tab->filePath).fileName()
@@ -316,6 +353,10 @@ void EditorPage::onEditorTextChanged()
 
     tab->modified = true;
     m_autosaveTimer->start();
+
+    // Update tab with modified indicator
+    int idx = m_tabBar->currentIndex();
+    updateTabLabel(idx);
 }
 
 void EditorPage::onAutosaveTimeout()
@@ -340,12 +381,9 @@ void EditorPage::onAutosaveTimeout()
     tab->version++;
     tab->modified = false;
 
-    // Update tab label
-    int idx = m_tabWidget->currentIndex();
-    if (idx >= 0) {
-        QString label = QFileInfo(tab->filePath).fileName();
-        m_tabWidget->setTabText(idx, label);
-    }
+    // Update tab label (removes ● indicator)
+    int idx = m_tabBar->currentIndex();
+    updateTabLabel(idx);
     m_statusBar->setText(QFileInfo(tab->filePath).fileName());
 }
 
@@ -418,7 +456,8 @@ void EditorPage::onGoToDefinition(const QString &uri, int line, int col)
             }
 
             if (tabIdx >= 0) {
-                m_tabWidget->setCurrentIndex(tabIdx);
+                m_tabBar->setCurrentIndex(tabIdx);
+                m_editorStack->setCurrentIndex(tabIdx);
 
                 // Scroll to line
                 auto *editor = m_tabs[tabIdx].editor;
@@ -464,6 +503,23 @@ void EditorPage::onCompletionTriggered(const QString &uri, int line, int col)
                 tab->editor->showCompletions(items);
             }
         });
+}
+
+// ── Split-pane slots (stubs for Task 2) ───────────────────────────────────────
+
+void EditorPage::onSplitRight()
+{
+    // Will be implemented in Task 2
+}
+
+void EditorPage::onMergeSplit()
+{
+    // Will be implemented in Task 2
+}
+
+void EditorPage::onTabBarSplitRequested()
+{
+    onSplitRight();
 }
 
 // ── Open file (for cross-file navigation) ────────────────────────────────────
