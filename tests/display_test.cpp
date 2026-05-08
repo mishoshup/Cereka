@@ -291,3 +291,58 @@ TEST_F(DisplayTest, FontRenderRichTextEndToEnd)
     SDL_DestroyWindow(tr.window);
     TTF_Quit();
 }
+
+// Simulates the DrawRichText word-wrapping loop to guard against regressions
+TEST_F(DisplayTest, RichTextWordWrapLoopPlacesSegments)
+{
+    ASSERT_TRUE(TTF_Init()) << SDL_GetError();
+
+    std::string fontPath = FindFont();
+    ASSERT_FALSE(fontPath.empty());
+
+    TTF_Font *font = TTF_OpenFont(fontPath.c_str(), 24);
+    ASSERT_NE(font, nullptr);
+
+    auto tr = CreateTestRenderer(1280, 720);
+    ASSERT_NE(tr.renderer, nullptr);
+
+    ASSERT_TRUE(SDL_SetRenderLogicalPresentation(tr.renderer, 1280, 720,
+                                                 SDL_LOGICAL_PRESENTATION_LETTERBOX));
+
+    float lineHeight = (float)TTF_GetFontHeight(font);
+    EXPECT_GT(lineHeight, 0);
+
+    // The old bug: an unconditional break after TTF_MeasureString prevented
+    // the loop body from ever executing. Verify that measure + place works.
+    // Use a narrow width to force wrapping into multiple segments.
+    const char *text = "Hello world this wraps";
+    size_t textLen = strlen(text);
+    size_t offset = 0;
+    float maxWidth = 150.0f;
+    int segmentCount = 0;
+
+    while (offset < textLen) {
+        int measuredWidth = 0;
+        size_t extentSz = 0;
+        const char *textPtr = text + offset;
+        size_t remaining = textLen - offset;
+
+        ASSERT_TRUE(TTF_MeasureString(font, textPtr, remaining,
+                                      (int)maxWidth,
+                                      &measuredWidth, &extentSz));
+
+        int extent = (int)extentSz;
+        ASSERT_GT(extent, 0) << "extent should be > 0 at offset " << offset;
+        ASSERT_GT(measuredWidth, 0) << "measuredWidth should be > 0 at offset " << offset;
+
+        segmentCount++;
+        offset += (size_t)extent;
+    }
+
+    EXPECT_GT(segmentCount, 1) << "Should have wrapped into multiple segments at 150px width";
+
+    TTF_CloseFont(font);
+    SDL_DestroyRenderer(tr.renderer);
+    SDL_DestroyWindow(tr.window);
+    TTF_Quit();
+}

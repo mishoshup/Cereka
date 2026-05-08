@@ -192,7 +192,6 @@ float SdlRenderContext::DrawRichText(
                                    &measuredWidth, &extentSz))
                 break;
             extent = (int)extentSz;
-                break;
 
             if (extent == 0) {
                 currentX = x;
