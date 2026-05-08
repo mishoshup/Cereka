@@ -1,0 +1,512 @@
+#include "lsp_client.hpp"
+
+#include <QDir>
+#include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
+#include <QTimer>
+#include <QCoreApplication>
+
+#include <algorithm>
+#include <cctype>
+#include <cstring>
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+static QString pathToUri(const QString &localPath)
+{
+    return QUrl::fromLocalFile(localPath).toString();
+}
+
+static QString uriToPath(const QString &uri)
+{
+    return QUrl(uri).toLocalFile();
+}
+
+// ── Constructor / destructor ──────────────────────────────────────────────────
+
+LspClient::LspClient(QObject *parent)
+    : QObject(parent)
+{
+}
+
+LspClient::~LspClient()
+{
+    stop();
+}
+
+// ── Start / stop / status ─────────────────────────────────────────────────────
+
+bool LspClient::start(const QString &binaryPath)
+{
+    if (m_process)
+        stop();
+
+    m_binaryPath = binaryPath;
+    m_initialized = false;
+    m_intentionalStop = false;
+
+    if (!QFileInfo::exists(binaryPath)) {
+        emit connectionFailed();
+        return false;
+    }
+
+    m_process = new QProcess(this);
+    m_process->setProcessChannelMode(QProcess::SeparateChannels);
+    m_process->setReadChannel(QProcess::StandardOutput);
+
+    connect(m_process, &QProcess::readyReadStandardOutput,
+            this, &LspClient::onReadyRead);
+    connect(m_process, &QProcess::errorOccurred,
+            this, &LspClient::onProcessError);
+    connect(m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &LspClient::onProcessFinished);
+
+    m_process->start(binaryPath, QStringList());
+
+    if (!m_process->waitForStarted(5000)) {
+        delete m_process;
+        m_process = nullptr;
+        emit connectionFailed();
+        return false;
+    }
+
+    return true;
+}
+
+void LspClient::stop()
+{
+    m_intentionalStop = true;
+
+    if (!m_process)
+        return;
+
+    if (m_process->state() != QProcess::NotRunning) {
+        // Send shutdown request, then exit notification
+        QJsonObject params;
+        int id = sendRequest("shutdown", params, [this](QJsonObject) {
+            // After shutdown response, send exit notification
+            QJsonObject empty;
+            sendNotification("exit", empty);
+            if (m_process) {
+                m_process->closeWriteChannel();
+                if (!m_process->waitForFinished(2000))
+                    m_process->kill();
+            }
+        });
+
+        // Give the process time to respond
+        if (!m_process->waitForFinished(3000)) {
+            m_process->kill();
+            m_process->waitForFinished(1000);
+        }
+    }
+
+    m_pendingRequests.clear();
+    m_buffer.clear();
+    delete m_process;
+    m_process = nullptr;
+}
+
+bool LspClient::isRunning() const
+{
+    return m_process && m_process->state() == QProcess::Running;
+}
+
+// ── LSP lifecycle ─────────────────────────────────────────────────────────────
+
+void LspClient::initialize()
+{
+    if (!isRunning())
+        return;
+
+    QJsonObject params;
+    params["processId"] = QCoreApplication::applicationPid();
+    params["rootUri"] = QJsonValue::Null;
+
+    QJsonObject capabilities;
+    capabilities["textDocumentSync"] = 1; // Full sync
+    QJsonObject completionOpts;
+    completionOpts["triggerCharacters"] = QJsonArray{"."};
+    capabilities["completionProvider"] = completionOpts;
+    capabilities["definitionProvider"] = true;
+    capabilities["hoverProvider"] = true;
+    capabilities["referencesProvider"] = true;
+    capabilities["documentSymbolProvider"] = true;
+    params["capabilities"] = capabilities;
+
+    sendRequest("initialize", params, [this](QJsonObject resp) {
+        // Check for capabilities we care about
+        m_initialized = true;
+        resetReconnect();
+        initialized();
+        emit initializedOk();
+    });
+}
+
+void LspClient::initialized()
+{
+    QJsonObject params;
+    sendNotification("initialized", params);
+}
+
+void LspClient::didOpen(const QString &uri, const QString &text)
+{
+    QJsonObject textDoc;
+    textDoc["uri"] = uri;
+    textDoc["languageId"] = "cereka";
+    textDoc["version"] = 1;
+    textDoc["text"] = text;
+
+    QJsonObject params;
+    params["textDocument"] = textDoc;
+
+    sendNotification("textDocument/didOpen", params);
+}
+
+void LspClient::didChange(const QString &uri, const QString &text, int version)
+{
+    QJsonObject textDoc;
+    textDoc["uri"] = uri;
+    textDoc["version"] = version;
+
+    QJsonObject change;
+    change["text"] = text;
+
+    QJsonArray contentChanges;
+    contentChanges.append(change);
+
+    QJsonObject params;
+    params["textDocument"] = textDoc;
+    params["contentChanges"] = contentChanges;
+
+    sendNotification("textDocument/didChange", params);
+}
+
+void LspClient::didClose(const QString &uri)
+{
+    QJsonObject textDoc;
+    textDoc["uri"] = uri;
+
+    QJsonObject params;
+    params["textDocument"] = textDoc;
+
+    sendNotification("textDocument/didClose", params);
+}
+
+// ── LSP requests ──────────────────────────────────────────────────────────────
+
+int LspClient::completion(const QString &uri, int line, int col, LspCallback cb)
+{
+    // Cancel any pending completion request
+    // We find the last completion request and remove it from pending map
+    // by iterating backwards (completions use method "textDocument/completion")
+    for (auto it = m_pendingRequests.begin(); it != m_pendingRequests.end(); ) {
+        // Can't check method without storing it — we just store method string per pending request
+        // For simplicity we rely on the caller to handle stale results
+        ++it;
+    }
+
+    QJsonObject pos;
+    pos["line"] = line;
+    pos["character"] = col;
+
+    QJsonObject textDoc;
+    textDoc["uri"] = uri;
+
+    QJsonObject params;
+    params["textDocument"] = textDoc;
+    params["position"] = pos;
+
+    return sendRequest("textDocument/completion", params, std::move(cb));
+}
+
+int LspClient::definition(const QString &uri, int line, int col, LspCallback cb)
+{
+    QJsonObject pos;
+    pos["line"] = line;
+    pos["character"] = col;
+
+    QJsonObject textDoc;
+    textDoc["uri"] = uri;
+
+    QJsonObject params;
+    params["textDocument"] = textDoc;
+    params["position"] = pos;
+
+    return sendRequest("textDocument/definition", params, std::move(cb));
+}
+
+int LspClient::hover(const QString &uri, int line, int col, LspCallback cb)
+{
+    QJsonObject pos;
+    pos["line"] = line;
+    pos["character"] = col;
+
+    QJsonObject textDoc;
+    textDoc["uri"] = uri;
+
+    QJsonObject params;
+    params["textDocument"] = textDoc;
+    params["position"] = pos;
+
+    return sendRequest("textDocument/hover", params, std::move(cb));
+}
+
+int LspClient::references(const QString &uri, int line, int col, LspCallback cb)
+{
+    QJsonObject pos;
+    pos["line"] = line;
+    pos["character"] = col;
+
+    QJsonObject textDoc;
+    textDoc["uri"] = uri;
+
+    QJsonObject params;
+    params["textDocument"] = textDoc;
+    params["position"] = pos;
+
+    QJsonObject context;
+    context["includeDeclaration"] = true;
+    params["context"] = context;
+
+    return sendRequest("textDocument/references", params, std::move(cb));
+}
+
+int LspClient::documentSymbol(const QString &uri, LspCallback cb)
+{
+    QJsonObject textDoc;
+    textDoc["uri"] = uri;
+
+    QJsonObject params;
+    params["textDocument"] = textDoc;
+
+    return sendRequest("textDocument/documentSymbol", params, std::move(cb));
+}
+
+// ── Binary resolution ─────────────────────────────────────────────────────────
+
+QString LspClient::resolveBinary()
+{
+    // 1. Development path: ~/dev/tree-sitter-cereka/lsp/dist/cereka-lsp
+    QString homeDev = QDir::homePath()
+        + "/dev/tree-sitter-cereka/lsp/dist/cereka-lsp";
+#ifdef _WIN32
+    homeDev += ".exe";
+#endif
+    if (QFileInfo::exists(homeDev))
+        return homeDev;
+
+    // 2. Relative to launcher binary: <exeDir>/../../tree-sitter-cereka/lsp/dist/cereka-lsp
+    QString exeDir = QCoreApplication::applicationDirPath();
+    QString relPath = exeDir + "/../../tree-sitter-cereka/lsp/dist/cereka-lsp";
+#ifdef _WIN32
+    relPath += ".exe";
+#endif
+    if (QFileInfo::exists(relPath))
+        return relPath;
+
+    return {};
+}
+
+// ── Slots ─────────────────────────────────────────────────────────────────────
+
+void LspClient::onReadyRead()
+{
+    m_buffer.append(m_process->readAllStandardOutput());
+    processBuffer();
+}
+
+void LspClient::onProcessError(QProcess::ProcessError error)
+{
+    if (error == QProcess::FailedToStart) {
+        emit connectionFailed();
+    }
+}
+
+void LspClient::onProcessFinished(int exitCode, QProcess::ExitStatus status)
+{
+    if (m_intentionalStop)
+        return;
+
+    // Unexpected crash — attempt reconnect
+    emit connectionFailed();
+    scheduleReconnect();
+}
+
+// ── Internal: JSON-RPC frame handling ─────────────────────────────────────────
+
+int LspClient::sendRequest(const QString &method, const QJsonObject &params,
+                           LspCallback cb)
+{
+    int id = m_requestId++;
+
+    QJsonObject msg;
+    msg["jsonrpc"] = "2.0";
+    msg["id"] = id;
+    msg["method"] = method;
+    msg["params"] = params;
+
+    if (cb)
+        m_pendingRequests[id] = std::move(cb);
+
+    QByteArray body = QJsonDocument(msg).toJson(QJsonDocument::Compact);
+    QByteArray frame = "Content-Length: " + QByteArray::number(body.size())
+                       + "\r\n\r\n" + body;
+
+    if (m_process && m_process->state() == QProcess::Running) {
+        m_process->write(frame);
+    }
+
+    return id;
+}
+
+void LspClient::sendNotification(const QString &method,
+                                 const QJsonObject &params)
+{
+    QJsonObject msg;
+    msg["jsonrpc"] = "2.0";
+    msg["method"] = method;
+    if (!params.isEmpty())
+        msg["params"] = params;
+
+    QByteArray body = QJsonDocument(msg).toJson(QJsonDocument::Compact);
+    QByteArray frame = "Content-Length: " + QByteArray::number(body.size())
+                       + "\r\n\r\n" + body;
+
+    if (m_process && m_process->state() == QProcess::Running) {
+        m_process->write(frame);
+    }
+}
+
+void LspClient::handleMessage(const QJsonObject &msg)
+{
+    // Response (has "id" + "result" or "error")
+    if (msg.contains("id") && !msg["id"].isNull()) {
+        int id = msg["id"].toInt();
+        auto it = m_pendingRequests.find(id);
+        if (it != m_pendingRequests.end()) {
+            LspCallback cb = std::move(it->second);
+            m_pendingRequests.erase(it);
+            if (cb)
+                cb(msg);
+        }
+        return;
+    }
+
+    // Notification (no "id")
+    QString method = msg["method"].toString();
+    QJsonObject params = msg["params"].toObject();
+
+    if (method == "textDocument/publishDiagnostics") {
+        QString uri = params["uri"].toString();
+        QJsonArray diags = params["diagnostics"].toArray();
+        QList<LspDiagnostic> results;
+
+        for (const QJsonValue &v : diags) {
+            QJsonObject d = v.toObject();
+            QJsonObject range = d["range"].toObject();
+            QJsonObject start = range["start"].toObject();
+            QJsonObject end = range["end"].toObject();
+
+            LspDiagnostic diag;
+            diag.line = start["line"].toInt();
+            diag.col = start["character"].toInt();
+            diag.endLine = end["line"].toInt();
+            diag.endCol = end["character"].toInt();
+            diag.message = d["message"].toString();
+            diag.severity = d["severity"].toInt(1) == 1 ? "Error"
+                          : d["severity"].toInt(2) == 2 ? "Warning"
+                          : d["severity"].toInt(3) == 3 ? "Information"
+                                                        : "Hint";
+            results.append(diag);
+        }
+
+        emit diagnosticsReceived(uri, results);
+    } else if (method == "window/showMessage") {
+        QString type = params["type"].toInt() == 1 ? "Error"
+                      : params["type"].toInt() == 2 ? "Warning"
+                      : params["type"].toInt() == 3 ? "Info"
+                                                    : "Log";
+        QString msgText = params["message"].toString();
+        emit messageReceived(type, msgText);
+    }
+}
+
+void LspClient::processBuffer()
+{
+    while (true) {
+        // Find "Content-Length: " header
+        static const char HEADER[] = "Content-Length: ";
+        int headerPos = m_buffer.indexOf(HEADER);
+        if (headerPos < 0)
+            break;
+
+        // Parse content length
+        int afterHeader = headerPos + static_cast<int>(std::strlen(HEADER));
+        int endOfLine = m_buffer.indexOf("\r\n", afterHeader);
+        if (endOfLine < 0)
+            break; // Header incomplete
+
+        QByteArray lenStr = m_buffer.mid(afterHeader, endOfLine - afterHeader);
+        bool ok = false;
+        int contentLen = lenStr.trimmed().toInt(&ok);
+        if (!ok || contentLen <= 0)
+            break;
+
+        // Skip header line and blank line: Content-Length: N\r\n\r\n
+        int bodyStart = endOfLine + 2; // Skip \r\n after header value
+        // There should be another \r\n (blank line) before the body
+        // We search for \r\n\r\n after the header
+        int headerEnd = m_buffer.indexOf("\r\n\r\n", bodyStart);
+        if (headerEnd < 0)
+            break;
+        bodyStart = headerEnd + 4; // Skip the \r\n\r\n
+
+        // Check if we have the full body
+        if (bodyStart + contentLen > m_buffer.size())
+            break; // Body incomplete, wait for more data
+
+        QByteArray body = m_buffer.mid(bodyStart, contentLen);
+
+        // Parse JSON
+        QJsonParseError err;
+        QJsonDocument doc = QJsonDocument::fromJson(body, &err);
+        if (err.error == QJsonParseError::NoError && doc.isObject()) {
+            handleMessage(doc.object());
+        }
+
+        // Remove processed bytes from buffer
+        int total = bodyStart + contentLen;
+        m_buffer.remove(0, total);
+    }
+}
+
+// ── Reconnection ──────────────────────────────────────────────────────────────
+
+void LspClient::scheduleReconnect()
+{
+    if (m_intentionalStop)
+        return;
+
+    m_reconnectAttempt++;
+    int delay = std::min(
+        INITIAL_RECONNECT_DELAY_MS * (1 << (m_reconnectAttempt - 1)),
+        MAX_RECONNECT_DELAY_MS);
+
+    QTimer::singleShot(delay, this, [this]() {
+        if (m_intentionalStop)
+            return;
+
+        // Re-create process
+        if (start(m_binaryPath))
+            initialize();
+    });
+}
+
+void LspClient::resetReconnect()
+{
+    m_reconnectAttempt = 0;
+}
