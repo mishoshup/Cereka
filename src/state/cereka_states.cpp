@@ -138,7 +138,11 @@ void DialogueState::update(float dt,
             case compiler::Op::IF_EQ: {
                 auto it = si.variables.find(ins.a);
                 std::string val = (it != si.variables.end()) ? it->second : "";
-                if (val != ins.b) {
+                std::string rhs = ins.b;
+                auto rit = si.variables.find(ins.b);
+                if (rit != si.variables.end())
+                    rhs = rit->second;
+                if (val != rhs) {
                     si.skipMode = true;
                     si.skipDepth = 1;
                 }
@@ -149,7 +153,11 @@ void DialogueState::update(float dt,
             case compiler::Op::IF_NEQ: {
                 auto it = si.variables.find(ins.a);
                 std::string val = (it != si.variables.end()) ? it->second : "";
-                if (val == ins.b) {
+                std::string rhs = ins.b;
+                auto rit = si.variables.find(ins.b);
+                if (rit != si.variables.end())
+                    rhs = rit->second;
+                if (val == rhs) {
                     si.skipMode = true;
                     si.skipDepth = 1;
                 }

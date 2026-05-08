@@ -1,0 +1,16 @@
+set str_five "5"
+$ int_five = 5
+
+if str_five == str_five
+    narrate "Var equals itself"
+endif
+
+if str_five != int_five
+    narrate "String != numeric (strict)"
+endif
+
+if str_five == 5
+    narrate "Literal int parse"
+endif
+
+end

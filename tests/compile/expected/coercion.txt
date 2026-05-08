@@ -1,0 +1,12 @@
+a=str_five b=5 col=1 line=1 op=SET_VAR
+a=int_five b== c=5 col=1 line=2 op=SET_VAR_NUM
+a=str_five b=str_five col=1 line=4 op=IF_EQ
+b=Var equals itself col=5 line=5 op=NARRATE
+col=1 line=6 op=ENDIF
+a=str_five b=int_five col=1 line=8 op=IF_NEQ
+b=String != numeric (strict) col=5 line=9 op=NARRATE
+col=1 line=10 op=ENDIF
+a=str_five b=5 col=1 line=12 op=IF_EQ
+b=Literal int parse col=5 line=13 op=NARRATE
+col=1 line=14 op=ENDIF
+col=1 line=16 op=END
