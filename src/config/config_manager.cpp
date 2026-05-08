@@ -67,6 +67,8 @@ static const PropertyDef PROPERTY_TABLE[] = {
     {"button.w", PropType::Float, "Button width"},
     {"button.h", PropType::Float, "Button height"},
     {"button.text_color", PropType::Color, "Button text color (r g b a)"},
+    {"button.y", PropType::Dim, "Y position of first button (pixels or percentage%)"},
+    {"button.spacing", PropType::Float, "Vertical spacing between buttons (pixels)"},
 
     // ------------------------------------------------------------------------
     // Font properties
@@ -225,6 +227,10 @@ std::string ConfigManager::getValue(const std::string &key) const
         return serializers::serializeFloat(ctx_.uiCfg->button.h);
     if (key == "button.text_color")
         return serializers::serializeColor(ctx_.uiCfg->button.textColor);
+    if (key == "button.y")
+        return serializeDim(ctx_.uiCfg->button.y);
+    if (key == "button.spacing")
+        return serializers::serializeFloat(ctx_.uiCfg->button.spacing);
 
     if (key == "font.size")
         return serializers::serializeInt(ctx_.uiCfg->fontSize);
@@ -321,6 +327,12 @@ void ConfigManager::apply(const std::string &key,
     }
     else if (key == "button.text_color") {
         handlers::applyColor(ctx_, parsed, &ctx_.uiCfg->button.textColor);
+    }
+    else if (key == "button.y") {
+        handlers::applyDim(ctx_, parsed, &ctx_.uiCfg->button.y);
+    }
+    else if (key == "button.spacing") {
+        ctx_.uiCfg->button.spacing = parsed.floatVal;
     }
 
     // ---- Font ----

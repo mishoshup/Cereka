@@ -141,6 +141,11 @@ bool Impl::PollEvent(cereka::CerekaEvent &e)
             e.mouseX = sdl.button.x;
             e.mouseY = sdl.button.y;
             return true;
+        case SDL_EVENT_MOUSE_MOTION:
+            e.type = cereka::CerekaEvent::MouseMove;
+            e.mouseX = sdl.motion.x;
+            e.mouseY = sdl.motion.y;
+            return true;
         default:
             e = {cereka::CerekaEvent::Unknown, 0};
             return true;

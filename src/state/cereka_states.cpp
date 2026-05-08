@@ -5,6 +5,7 @@
 #include "cereka_states.hpp"
 #include "cereka_engine_impl.hpp"
 #include "cereka_safe_parse.hpp"
+#include <algorithm>
 
 namespace cereka {
 
@@ -395,25 +396,154 @@ void MenuState::update(float dt,
 void MenuState::handleEvent(const CerekaEvent &event,
                             ICerekaStateContext &ctx)
 {
-    if (event.type != CerekaEvent::MouseDown)
-        return;
-
     auto &impl = static_cast<Impl &>(ctx);
-    int idx = impl.menu.HitTest(
-        event.mouseX, event.mouseY, impl.screenWidth, impl.screenHeight,
-        impl.uiCfg.button.w, impl.uiCfg.button.h);
-    if (idx < 0)
-        return;
+    auto &menu = impl.menu;
 
-    if (impl.menu.IsExit(idx)) {
+    // ---- Mouse motion: update hovered index ----
+    if (event.type == CerekaEvent::MouseMove) {
+        int idx = menu.HitTest(
+            (int)event.mouseX, (int)event.mouseY,
+            impl.screenWidth, impl.screenHeight,
+            impl.uiCfg.button.w, impl.uiCfg.button.h,
+            impl.uiCfg.button.y, impl.uiCfg.button.spacing);
+        menu.SetHoveredIndex(idx);
+        // Mouse movement transfers selection to hover position
+        if (idx >= 0)
+            menu.SetSelectedIndex(idx);
+        return;
+    }
+
+    // ---- Keyboard navigation ----
+    if (event.type == CerekaEvent::KeyDown) {
+        if (event.key == SDLK_UP || event.key == SDLK_DOWN) {
+            int count = (int)menu.ButtonCount();
+            if (count == 0) return;
+
+            int bpp = MenuSystem::ButtonsPerPage(
+                (float)impl.screenHeight, impl.uiCfg.button.y,
+                impl.uiCfg.button.h, impl.uiCfg.button.spacing);
+
+            int sel = menu.SelectedIndex();
+            int newSel = sel;
+
+            if (event.key == SDLK_DOWN) {
+                // Next button or next page
+                if (sel + 1 < count) {
+                    newSel = sel + 1;
+                } else if (menu.CurrentPage() < menu.TotalPages() - 1) {
+                    // Wrap to next page
+                    menu.SetCurrentPage(menu.CurrentPage() + 1);
+                    newSel = menu.CurrentPage() * bpp;
+                }
+            } else {
+                // SDLK_UP: prev button or prev page
+                if (sel > 0) {
+                    newSel = sel - 1;
+                } else if (menu.CurrentPage() > 0) {
+                    menu.SetCurrentPage(menu.CurrentPage() - 1);
+                    int pageStart = menu.CurrentPage() * bpp;
+                    int pageEnd = std::min(pageStart + bpp, count);
+                    newSel = pageEnd - 1;
+                }
+            }
+
+            if (newSel != sel) {
+                menu.SetSelectedIndex(newSel);
+                menu.SetHoveredIndex(newSel);
+
+                // Clamp page if selection moved across page boundary
+                int newPage = newSel / bpp;
+                if (newPage != menu.CurrentPage())
+                    menu.SetCurrentPage(newPage);
+            }
+            return;
+        }
+
+        if (event.key == SDLK_RETURN || event.key == SDLK_SPACE) {
+            int sel = menu.SelectedIndex();
+            if (sel < 0 || sel >= (int)menu.ButtonCount())
+                return;
+
+            activateButton(impl, menu, sel, ctx);
+            return;
+        }
+
+        // Left/Right for page navigation
+        if (event.key == SDLK_LEFT || event.key == SDLK_RIGHT) {
+            int dir = (event.key == SDLK_RIGHT) ? 1 : -1;
+            int newPage = menu.CurrentPage() + dir;
+            if (newPage >= 0 && newPage < menu.TotalPages()) {
+                menu.SetCurrentPage(newPage);
+                int bpp = MenuSystem::ButtonsPerPage(
+                    (float)impl.screenHeight, impl.uiCfg.button.y,
+                    impl.uiCfg.button.h, impl.uiCfg.button.spacing);
+                int newSel = std::min(newPage * bpp, (int)menu.ButtonCount() - 1);
+                menu.SetSelectedIndex(newSel);
+                menu.SetHoveredIndex(newSel);
+            }
+            return;
+        }
+    }
+
+    // ---- Mouse click: select button ----
+    if (event.type == CerekaEvent::MouseDown) {
+        int idx = menu.HitTest(
+            (int)event.mouseX, (int)event.mouseY,
+            impl.screenWidth, impl.screenHeight,
+            impl.uiCfg.button.w, impl.uiCfg.button.h,
+            impl.uiCfg.button.y, impl.uiCfg.button.spacing);
+
+        if (idx < 0)
+            return;
+
+        // Check page navigation sentinels
+        int btnCount = (int)menu.ButtonCount();
+        if (idx == btnCount) {
+            // "next page" sentinel
+            if (menu.CurrentPage() < menu.TotalPages() - 1) {
+                menu.SetCurrentPage(menu.CurrentPage() + 1);
+                int bpp = MenuSystem::ButtonsPerPage(
+                    (float)impl.screenHeight, impl.uiCfg.button.y,
+                    impl.uiCfg.button.h, impl.uiCfg.button.spacing);
+                int newSel = menu.CurrentPage() * bpp;
+                menu.SetSelectedIndex(newSel);
+                menu.SetHoveredIndex(newSel);
+            }
+            return;
+        }
+        if (idx == btnCount + 1) {
+            // "prev page" sentinel
+            if (menu.CurrentPage() > 0) {
+                menu.SetCurrentPage(menu.CurrentPage() - 1);
+                int bpp = MenuSystem::ButtonsPerPage(
+                    (float)impl.screenHeight, impl.uiCfg.button.y,
+                    impl.uiCfg.button.h, impl.uiCfg.button.spacing);
+                int pageStart = menu.CurrentPage() * bpp;
+                int pageEnd = std::min(pageStart + bpp, btnCount);
+                menu.SetSelectedIndex(pageEnd - 1);
+                menu.SetHoveredIndex(pageEnd - 1);
+            }
+            return;
+        }
+
+        activateButton(impl, menu, idx, ctx);
+    }
+}
+
+void MenuState::activateButton(CerekaImpl &impl,
+                                const MenuSystem &menu,
+                                int idx,
+                                ICerekaStateContext &ctx)
+{
+    if (menu.IsExit(idx)) {
         impl.ExitMenu();
         ctx.changeState(CerekaState::Finished);
         return;
     }
 
-    const std::string &target = impl.menu.Target(idx);
+    const std::string &target = menu.Target(idx);
     impl.scriptInterpreter.pc =
-        target.empty() ? impl.menu.EndPC() : impl.scriptInterpreter.labelMap[target];
+        target.empty() ? menu.EndPC() : impl.scriptInterpreter.labelMap[target];
     impl.ExitMenu();
     ctx.changeState(CerekaState::Running);
 }

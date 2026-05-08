@@ -165,6 +165,16 @@ void UIManager::DrawDialogueBox(const DialogueSystem &dialogue,
 // UIManager::DrawMenuButtons
 // ============================================================================
 
+static Color brightenColor(Color c, int amount)
+{
+    Color result;
+    result.r = (uint8_t)std::min(255, (int)c.r + amount);
+    result.g = (uint8_t)std::min(255, (int)c.g + amount);
+    result.b = (uint8_t)std::min(255, (int)c.b + amount);
+    result.a = c.a;
+    return result;
+}
+
 void UIManager::DrawMenuButtons(const MenuSystem &menu,
                                 const UiConfig &uiCfg)
 {
@@ -176,31 +186,108 @@ void UIManager::DrawMenuButtons(const MenuSystem &menu,
 
     const float bw = uiCfg.button.w;
     const float bh = uiCfg.button.h;
-    const float spacing = 20.0f;
-    float y = screenH * 0.4f;
+    const float spacing = uiCfg.button.spacing;
+    const Dim &buttonY = uiCfg.button.y;
+    int hovered = menu.HoveredIndex();
+
+    // Pagination: compute visible range
+    int totalButtons = (int)menu.ButtonCount();
+    int bpp = MenuSystem::ButtonsPerPage((float)screenH, buttonY, bh, spacing);
+    int page = menu.CurrentPage();
+    int totalPages = (totalButtons + bpp - 1) / bpp;
+    // Sync total pages back to menu (needed by MenuState for navigation bounds)
+    // We don't have a non-const ref, so handle at state level
+
+    int startIdx = page * bpp;
+    int endIdx = std::min(startIdx + bpp, totalButtons);
+
     const auto &buttonTexts = menu.Texts();
+    float baseX = (float)screenW / 2.0f - bw / 2.0f;
+    float y0 = buttonY.resolve((float)screenH);
 
-    for (size_t i = 0; i < buttonTexts.size(); ++i) {
-        Rect btn{(float)screenW / 2.0f - bw / 2.0f, y, bw, bh};
+    // Draw page-up indicator if not on first page
+    if (page > 0) {
+        float indY = y0 - bh * 0.5f;
+        Rect ind{(float)screenW / 2.0f - 40.0f, indY, 80.0f, bh * 0.5f};
+        m_renderCtx->SetBlendMode(true);
+        m_renderCtx->FillRect(ind, Color{80, 80, 120, 200});
+        auto upTex = m_renderCtx->CreateTextTexture(
+            m_font, "\xe2\x96\xb2 Back", Color{180, 200, 255, 255});
+        if (upTex) {
+            float tw = upTex->Width();
+            float th = upTex->Height();
+            Rect tr{baseX, indY + (bh * 0.5f - th) / 2.0f, tw, th};
+            m_renderCtx->DrawTexture(*upTex, nullptr, &tr);
+        }
+    }
 
-        if (uiCfg.button.image) {
+    // Draw visible buttons
+    for (int i = startIdx; i < endIdx; ++i) {
+        int localIdx = i - startIdx;
+        float y = y0 + (float)localIdx * (bh + spacing);
+        Rect btn{baseX, y, bw, bh};
+
+        bool isHovered = (i == hovered);
+        bool isSelected = (i == menu.SelectedIndex());
+
+        if (isHovered && uiCfg.button.hoverImage) {
+            // Hover image takes priority
+            m_renderCtx->DrawTexture(*uiCfg.button.hoverImage, nullptr, &btn);
+        } else if (uiCfg.button.image) {
+            // Normal image
             m_renderCtx->DrawTexture(*uiCfg.button.image, nullptr, &btn);
         } else {
             m_renderCtx->SetBlendMode(true);
-            m_renderCtx->FillRect(btn, uiCfg.button.color);
+            Color fillColor = isHovered ? brightenColor(uiCfg.button.color, 50)
+                                        : uiCfg.button.color;
+            m_renderCtx->FillRect(btn, fillColor);
+
+            // Selected but not hovered: draw a subtle border
+            if (isSelected && !isHovered) {
+                // Top edge
+                m_renderCtx->FillRect(Rect{btn.x, btn.y, btn.w, 2.0f},
+                                       Color{255, 255, 255, 120});
+                // Bottom edge
+                m_renderCtx->FillRect(Rect{btn.x, btn.y + btn.h - 2.0f, btn.w, 2.0f},
+                                       Color{255, 255, 255, 120});
+            }
         }
 
-        auto textTex = m_renderCtx->CreateTextTexture(
-            m_font, buttonTexts[i], uiCfg.button.textColor);
+        Color textCol = isHovered ? brightenColor(uiCfg.button.textColor, 60)
+                                  : uiCfg.button.textColor;
+        auto textTex = m_renderCtx->CreateTextTexture(m_font, buttonTexts[i], textCol);
         if (textTex) {
             float tw2 = textTex->Width();
             float th2 = textTex->Height();
-            Rect tr{(float)screenW / 2.0f - tw2 / 2.0f,
+            Rect tr{baseX + (bw - tw2) / 2.0f,
                     y + bh / 2.0f - th2 / 2.0f,
                     tw2, th2};
             m_renderCtx->DrawTexture(*textTex, nullptr, &tr);
         }
-        y += bh + spacing;
+
+        // Hovered button: draw border indicator
+        if (isHovered) {
+            Color borderCol = brightenColor(uiCfg.button.color, 100);
+            m_renderCtx->FillRect(Rect{btn.x, btn.y, btn.w, 3.0f}, borderCol);
+            m_renderCtx->FillRect(Rect{btn.x, btn.y + btn.h - 3.0f, btn.w, 3.0f}, borderCol);
+        }
+    }
+
+    // Draw page-down indicator if more pages exist
+    if (page < totalPages - 1) {
+        int lastLocal = std::min(bpp, endIdx - startIdx) - 1;
+        float indY = y0 + (float)lastLocal * (bh + spacing) + bh;
+        Rect ind{(float)screenW / 2.0f - 40.0f, indY, 80.0f, bh * 0.5f};
+        m_renderCtx->SetBlendMode(true);
+        m_renderCtx->FillRect(ind, Color{80, 80, 120, 200});
+        auto downTex = m_renderCtx->CreateTextTexture(
+            m_font, "\xe2\x96\xbc More", Color{180, 200, 255, 255});
+        if (downTex) {
+            float tw = downTex->Width();
+            float th = downTex->Height();
+            Rect tr{baseX, indY + (bh * 0.5f - th) / 2.0f, tw, th};
+            m_renderCtx->DrawTexture(*downTex, nullptr, &tr);
+        }
     }
 }
 

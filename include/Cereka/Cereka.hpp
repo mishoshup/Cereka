@@ -7,7 +7,7 @@
 namespace cereka {
 
 struct CerekaEvent {
-    enum Type { Quit, KeyDown, MouseDown, Unknown };
+    enum Type { Quit, KeyDown, MouseDown, MouseMove, Unknown };
     Type type = Unknown;
     int key = 0;
     float mouseX = 0.f;

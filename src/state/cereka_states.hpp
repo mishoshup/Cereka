@@ -46,6 +46,12 @@ class MenuState : public CerekaStateBase<CerekaState::InMenu> {
     void handleEvent(const CerekaEvent &event,
                      ICerekaStateContext &ctx) override;
     void draw(ICerekaStateContext &ctx) const override;
+
+   private:
+    static void activateButton(class CerekaImpl &impl,
+                                const class MenuSystem &menu,
+                                int idx,
+                                ICerekaStateContext &ctx);
 };
 
 // ============================================================================

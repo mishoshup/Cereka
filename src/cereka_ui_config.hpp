@@ -87,6 +87,8 @@ struct UiConfig {
         float w = 600.0f;
         float h = 80.0f;
         cereka::Color textColor = {255, 255, 255, 255};
+        Dim y = {0.4f, true};    // Y position of first button (default 40%)
+        float spacing = 20.0f;   // Vertical gap between buttons
     } button;
 
     int fontSize = 36;

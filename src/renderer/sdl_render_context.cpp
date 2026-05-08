@@ -9,6 +9,7 @@
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <iostream>
+#include <string_view>
 
 namespace cereka {
 
@@ -182,30 +183,82 @@ float SdlRenderContext::DrawRichText(
 
         while (offset < textLen) {
             int measuredWidth = 0;
-            int extent = 0;
+            size_t extentSz = 0;
             const char *textPtr = seg.text.c_str() + offset;
             size_t remaining = textLen - offset;
+            float lineRemaining = maxWidth - (currentX - x);
 
-            size_t extentSz = 0;
             if (!TTF_MeasureString(font, textPtr, remaining,
-                                   (int)(maxWidth - (currentX - x)),
+                                   (int)lineRemaining,
                                    &measuredWidth, &extentSz))
                 break;
-            extent = (int)extentSz;
 
-            if (extent == 0) {
-                // No glyph fits in the remaining width — can't progress on this line.
-                // If this is the start of a line, break entirely to avoid infinite loop.
-                if (currentX == x)
-                    break;
+            if (extentSz == 0) {
+                // No glyph fits in the remaining width.
+                if (currentX == x) {
+                    // Even a single glyph doesn't fit at the start of a line.
+                    // Force-advance at least one byte to prevent infinite loop
+                    // (REVIEW-RENDERER.md CR-03). Handle UTF-8: skip past any
+                    // continuation bytes to land on the next codepoint start.
+                    size_t toSkip = 1;
+                    while (offset + toSkip < textLen &&
+                           (seg.text[offset + toSkip] & 0xC0) == 0x80)
+                        toSkip++;
+                    offset += toSkip;
+                    currentX = x;
+                    currentY += lineHeight;
+                    continue;
+                }
+                // Wrap to next line and retry the same text position.
                 currentX = x;
                 currentY += lineHeight;
                 continue;
             }
 
-            placed.push_back({&seg, offset, offset + (size_t)extent, currentX, currentY});
+            // --- Word-wrap: scan back for word boundary ---
+            // TTF_MeasureString breaks at any glyph boundary, which can split a
+            // word across two lines.  If we didn't fit everything, look for the
+            // last space character in the fitted range and break there instead.
+            // For CJK text (which doesn't use spaces between words) and for
+            // single long words wider than the line, this falls through to the
+            // glyph-level break from TTF_MeasureString.
+            if (extentSz < remaining) {
+                std::string_view fitted(textPtr, extentSz);
+                auto lastSpace = fitted.rfind(' ');
+
+                if (lastSpace != std::string_view::npos) {
+                    if (lastSpace == 0) {
+                        // First character is a space at the start of the line
+                        // (happens after a previous word-wrap). Skip it.
+                        offset += 1;
+                        continue;
+                    }
+
+                    // Break at the last word boundary.  Place text up to the
+                    // space (exclusive), then advance past the space so the
+                    // next word starts cleanly on the following line.
+                    size_t wordEnd = lastSpace;  // bytes to place
+                    size_t newExtentSz = 0;
+                    int newMeasuredWidth = 0;
+                    TTF_MeasureString(font, textPtr, wordEnd,
+                                      (int)lineRemaining,
+                                      &newMeasuredWidth, &newExtentSz);
+                    if (newExtentSz > 0) {
+                        placed.push_back({&seg, offset, offset + newExtentSz,
+                                          currentX, currentY});
+                        currentX += (float)newMeasuredWidth;
+                        offset += newExtentSz + 1; // +1 skips the space
+                        continue;
+                    }
+                }
+                // No space found (long word) or re-measure failed.
+                // Fall through to place the glyph-level break.
+            }
+            // --- End word-wrap adjustment ---
+
+            placed.push_back({&seg, offset, offset + extentSz, currentX, currentY});
             currentX += (float)measuredWidth;
-            offset += (size_t)extent;
+            offset += extentSz;
         }
     }
 
