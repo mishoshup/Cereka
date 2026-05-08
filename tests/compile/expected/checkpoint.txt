@@ -1,0 +1,8 @@
+a=hp b=100 col=1 line=1 op=SET_VAR
+a=potion b=yes col=1 line=2 op=SET_VAR
+a=before_boss col=1 line=4 op=CHECKPOINT_STORE
+a=hp b=0 col=1 line=5 op=SET_VAR
+a=potion b=no col=1 line=6 op=SET_VAR
+a=before_boss col=1 line=7 op=CHECKPOINT_LOAD
+b=HP restored. col=1 line=9 op=NARRATE
+col=1 line=10 op=END

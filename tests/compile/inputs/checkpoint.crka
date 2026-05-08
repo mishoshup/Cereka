@@ -1,0 +1,10 @@
+set hp "100"
+set potion "yes"
+
+checkpoint store "before_boss"
+set hp "0"
+set potion "no"
+checkpoint load "before_boss"
+
+narrate "HP restored."
+end

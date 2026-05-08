@@ -123,6 +123,8 @@ save_menu                        — show 10-slot save overlay (ESC cancels)
 load_menu                        — show 10-slot load overlay (ESC cancels)
 save <1-10>                      — silent save to slot N
 load <1-10>                      — silent load from slot N
+checkpoint store "<name>"        — snapshot all variables into named checkpoint (in-memory)
+checkpoint load "<name>"         — restore variables from named checkpoint (no PC rewind)
 
 ; UI theming (usually in ui.crka, included at top of main.crka)
 ui textbox

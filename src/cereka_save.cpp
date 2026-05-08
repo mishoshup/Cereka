@@ -128,7 +128,7 @@ bool Impl::SaveGame(int slot)
     // Write JSON to file
     std::string buffer;
     auto result = glz::write_file_json(data, savePath(slot), buffer);
-    return !result;  // error_ctx::operator bool returns true on error
+    return !result;
 }
 
 // ---------------------------------------------------------------------------
@@ -142,16 +142,13 @@ bool Impl::LoadGame(int slot)
     std::string buffer;
     auto result = glz::read_file_json(data, savePath(slot), buffer);
     if (result) {
-        // Glaze error — malformed JSON, missing file, or schema mismatch
         return false;
     }
 
-    // Validate version (graceful: v1 is the only version in alpha)
-    if (data.version < 1 || data.version > 1) {
-        // Unknown version — attempt best-effort load anyway
-    }
+    if (data.version < 1 || data.version > 1)
+        {}
 
-    // Tear down current visual/audio state
+    // Tear down current state
     scene.Clear();
     audio.StopBGM();
     scriptInterpreter.variables.clear();
@@ -161,7 +158,7 @@ bool Impl::LoadGame(int slot)
     scriptInterpreter.skipMode = false;
     scriptInterpreter.skipDepth = 0;
 
-    // Restore script state — clamp PC to valid program range
+    // Restore script state
     scriptInterpreter.pc = std::min(data.programCounter,
                                      scriptInterpreter.program.empty()
                                          ? 0
@@ -170,7 +167,7 @@ bool Impl::LoadGame(int slot)
     scriptInterpreter.variables = data.variables;
     scriptInterpreter.numVariables = data.numVariables;
 
-    // Restore scene state
+    // Restore scene
     if (!data.background.empty())
         scene.ShowBackground(data.background);
     for (auto &ch : data.characters)
@@ -180,14 +177,14 @@ bool Impl::LoadGame(int slot)
     if (!data.bgm.empty())
         audio.PlayBGM(data.bgm);
 
-    // Restore state machine — clear overlays and set the restored state directly
+    // Restore state machine
     m_stateMachine.clearOverlays();
     m_stateMachine.changeState(parseState(data.state));
 
-    // Rollback buffer is invalid after load
+    // Rollback buffer invalid after load
     rollbackManager.clear();
 
-    // Restore dialogue state
+    // Restore dialogue
     dialogue.SetSpeaker(data.speaker);
     dialogue.SetName(data.name);
     dialogue.SetText(data.text);

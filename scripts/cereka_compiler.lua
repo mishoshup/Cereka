@@ -438,6 +438,20 @@ local function parse_load(ctx)
     return { kind = "Load", slot = n.value, line = kw.lineno, col = kw.col }
 end
 
+local function parse_checkpoint(ctx)
+    local kw = take(ctx)  -- "checkpoint"
+    local sub = expect(ctx, "IDENT", nil, "expected 'store' or 'load' after 'checkpoint'")
+    if sub.value == "store" then
+        local name_t = expect(ctx, "STRING", nil, 'expected name string after checkpoint store')
+        return { kind = "CheckpointStore", name = name_t.value, line = kw.lineno, col = kw.col }
+    elseif sub.value == "load" then
+        local name_t = expect(ctx, "STRING", nil, 'expected name string after checkpoint load')
+        return { kind = "CheckpointLoad", name = name_t.value, line = kw.lineno, col = kw.col }
+    else
+        die(sub.lineno, sub.col, "expected 'store' or 'load', got '" .. sub.value .. "'")
+    end
+end
+
 local function parse_menu_button(ctx)
     local kw = take(ctx)  -- "button"
     local text_t = expect(ctx, "STRING", nil, 'expected "text" after button')
@@ -484,6 +498,7 @@ local STMT_HANDLERS = {
     load_menu = parse_single_keyword("LoadMenu"),
     save      = parse_save,
     load      = parse_load,
+    checkpoint = parse_checkpoint,
 }
 
 local MENU_HANDLERS = {
@@ -732,6 +747,12 @@ LOWERERS = {
     end,
     Load = function(n, out)
         emit(out, { op = "LOAD", a = n.slot, line = n.line, col = n.col })
+    end,
+    CheckpointStore = function(n, out)
+        emit(out, { op = "CHECKPOINT_STORE", a = n.name, line = n.line, col = n.col })
+    end,
+    CheckpointLoad = function(n, out)
+        emit(out, { op = "CHECKPOINT_LOAD", a = n.name, line = n.line, col = n.col })
     end,
     Menu = function(n, out)
         emit(out, { op = "MENU", line = n.line, col = n.col })

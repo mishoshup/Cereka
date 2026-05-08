@@ -127,6 +127,10 @@ RunLuaCompiler(const std::string &scriptText)
             ins.op = Op::SAVE_MENU;
         else if (op == "LOAD_MENU")
             ins.op = Op::LOAD_MENU;
+        else if (op == "CHECKPOINT_STORE")
+            ins.op = Op::CHECKPOINT_STORE;
+        else if (op == "CHECKPOINT_LOAD")
+            ins.op = Op::CHECKPOINT_LOAD;
         else {
             std::cerr << "[CEREKA] Unknown op: " << op << "\n";
             continue;

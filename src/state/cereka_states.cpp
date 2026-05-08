@@ -287,12 +287,28 @@ void DialogueState::update(float dt,
                     auto r = safe_stoi(ins.a);
                     if (r) slot = *r;
                 }
-                if (slot >= 1 && slot <= 10) {
-                    size_t resumePC = si.pc + 1;
+                if (slot >= 1 && slot <= 10)
                     impl.LoadGame(slot);
-                    si.pc = resumePC;
-                }
                 return;
+            }
+
+            case compiler::Op::CHECKPOINT_STORE: {
+                CheckpointData cp;
+                cp.variables = si.variables;
+                cp.numVariables = si.numVariables;
+                si.checkpoints[ins.a] = std::move(cp);
+                si.pc++;
+                continue;
+            }
+
+            case compiler::Op::CHECKPOINT_LOAD: {
+                auto it = si.checkpoints.find(ins.a);
+                if (it != si.checkpoints.end()) {
+                    si.variables = it->second.variables;
+                    si.numVariables = it->second.numVariables;
+                }
+                si.pc++;
+                continue;
             }
 
             case compiler::Op::END:

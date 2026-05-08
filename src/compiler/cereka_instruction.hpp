@@ -44,6 +44,8 @@ enum class Op {
     PLAY_BGM_FADE,
     STOP_BGM_FADE,
     BGM_CROSSFADE,
+    CHECKPOINT_STORE,
+    CHECKPOINT_LOAD,
 };
 
 struct ChoiceOption {

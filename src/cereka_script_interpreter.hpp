@@ -10,6 +10,11 @@
 
 namespace cereka {
 
+struct CheckpointData {
+    std::unordered_map<std::string, std::string> variables;
+    std::unordered_map<std::string, float> numVariables;
+};
+
 // Holds the execution state of a running .crka script — the program,
 // program counter, call stack, variables, labels, and skip-mode flags —
 // and knows how to evaluate expressions against those variables.
@@ -26,6 +31,8 @@ class ScriptInterpreter {
     std::unordered_map<std::string, std::string> variables;
     std::unordered_map<std::string, float> numVariables;
     std::vector<size_t> callStack;
+
+    std::unordered_map<std::string, CheckpointData> checkpoints;
 
     size_t pc = 0;
     bool scriptFinished = false;
