@@ -129,7 +129,10 @@ class CerekaStateMachine {
             case CerekaState::Quit:            return "Quit";
             case CerekaState::SaveMenuState:   return "SaveMenu";
             case CerekaState::LoadMenuState:   return "LoadMenu";
-            case CerekaState::HistoryState:    return "HistoryState";
+            case CerekaState::HistoryState:          return "HistoryState";
+            case CerekaState::PauseMenuState:        return "PauseMenu";
+            case CerekaState::ConfirmOverwriteState: return "ConfirmOverwrite";
+            case CerekaState::SettingsMenuState:     return "SettingsMenu";
         }
         return "?";
     }
@@ -254,13 +257,45 @@ class CerekaStateMachine {
         return !overlayStack_.empty();
     }
 
-    // Returns the state that was active before the topmost overlay was pushed.
-    // When no overlay is active, returns currentType().
-    // Used by save serialization to capture the gameplay state rather than
-    // the overlay state (e.g. SaveMenuState).
+    // Returns the underlying gameplay state, walking past any overlay-only
+    // states (pause menu, save/load, settings, history, confirm dialog).
+    // Used by save serialization to capture the true game state rather than
+    // the overlay state.
     [[nodiscard]] CerekaState effectiveState() const
     {
-        return overlayStack_.empty() ? currentType_ : overlayStack_.back().first;
+        if (overlayStack_.empty())
+            return currentType_;
+
+        // Walk the stack from bottom to top to find the first state that
+        // is a genuine gameplay state (Running, WaitingForInput, InMenu,
+        // Fading, Finished, Quit).
+        std::vector<CerekaState> skipStates = {
+            CerekaState::PauseMenuState,
+            CerekaState::SaveMenuState,
+            CerekaState::LoadMenuState,
+            CerekaState::HistoryState,
+            CerekaState::ConfirmOverwriteState,
+            CerekaState::SettingsMenuState
+        };
+
+        auto isSkip = [&](CerekaState s) {
+            for (auto ss : skipStates)
+                if (s == ss) return true;
+            return false;
+        };
+
+        // Check the current (top) state first
+        if (!isSkip(currentType_))
+            return currentType_;
+
+        // Walk stack from bottom (first pushed) to top (last pushed)
+        for (const auto &pair : overlayStack_) {
+            if (!isSkip(pair.first))
+                return pair.first;
+        }
+
+        // Fallback: all states are overlays, return the bottom of the stack
+        return overlayStack_.front().first;
     }
 
     void clearOverlays()

@@ -47,6 +47,10 @@ bool Impl::InitGame(const char *title,
     scene.Init(*m_renderCtx);
     audio.Init();
 
+    // --- Persistent settings ---
+    settingsManager.Load();
+    settingsManager.Apply(dialogue, audio);
+
     // --- State machine ---
     m_stateMachine.setHeadless(headless);
     m_stateMachine.setContext(*this);
@@ -57,6 +61,9 @@ bool Impl::InitGame(const char *title,
     m_stateMachine.registerState<SaveMenuState>();
     m_stateMachine.registerState<LoadMenuState>();
     m_stateMachine.registerState<HistoryState>();
+    m_stateMachine.registerState<PauseMenuState>();
+    m_stateMachine.registerState<ConfirmOverwriteState>();
+    m_stateMachine.registerState<SettingsMenuState>();
     m_stateMachine.registerState<FinishedState>();
     m_stateMachine.registerState<QuitState>();
     m_stateMachine.setInitialState(CerekaState::Running);
@@ -290,11 +297,11 @@ void Impl::HandleEvent(const CerekaEvent &e)
         return;
     }
 
-    // Escape during normal play opens save menu
+    // Escape during normal play opens pause menu
     if (e.type == CerekaEvent::KeyDown && e.key == SDLK_ESCAPE) {
         auto cur = m_stateMachine.currentType();
         if (cur == CerekaState::WaitingForInput || cur == CerekaState::Running) {
-            pushOverlay(CerekaState::SaveMenuState);
+            pushOverlay(CerekaState::PauseMenuState);
             return;
         }
     }

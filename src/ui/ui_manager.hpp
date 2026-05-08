@@ -8,6 +8,7 @@
 
 #include "renderer/irender_context.hpp"
 #include "scene_graph.hpp"
+#include "cereka_save_data.hpp"
 #include <string>
 
 struct TTF_Font;
@@ -38,8 +39,28 @@ public:
                          const UiConfig &uiCfg);
     void DrawFadeOverlay(const SceneManager &scene);
     void DrawSaveLoadOverlay(bool isSaving,
-                             const std::string (&timestamps)[10],
+                             const SlotMetadata (&slots)[10],
                              const UiConfig &uiCfg);
+
+    // Pause menu overlay
+    struct PauseButtonLayout {
+        int buttonCount = 5;
+        float panelX, panelY, panelW, panelH, btnY0, btnH, btnSpacing;
+    };
+    PauseButtonLayout calcPauseLayout(int screenW, int screenH) const;
+    void DrawPauseOverlay(const UiConfig &uiCfg);
+    int HitTestPauseButton(int mx, int my, int screenW, int screenH) const;
+
+    // Confirm overwrite dialog
+    struct ConfirmLayout {
+        float panelX, panelY, panelW, panelH;
+        float yesX, yesY, yesW, yesH;
+        float noX, noY, noW, noH;
+    };
+    ConfirmLayout calcConfirmLayout(int screenW, int screenH) const;
+    void DrawConfirmOverwriteDialog(int slot, const UiConfig &uiCfg);
+    /// Returns 0 = miss, 1 = Yes, 2 = No
+    int HitTestConfirmButton(int mx, int my, int screenW, int screenH) const;
 
     // History overlay
     void DrawHistoryOverlay(const std::vector<std::string> &historyTexts);

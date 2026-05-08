@@ -6,6 +6,8 @@
 #include "Cereka/exceptions.hpp"
 #include "cereka_audio_manager.hpp"
 #include "cereka_rollback_manager.hpp"
+#include "cereka_save_data.hpp"
+#include "cereka_settings_manager.hpp"
 #include "config/config_manager.hpp"
 #include "ui/ui_manager.hpp"
 #include "cereka_dialogue_system.hpp"
@@ -113,12 +115,18 @@ class CerekaImpl : public ICerekaStateContext {
     // save.cpp
     bool SaveGame(int slot);
     bool LoadGame(int slot);
-    std::string GetSlotTimestamp(int slot);
+    SlotMetadata GetSlotMetadata(int slot);
     void DrawSaveLoadOverlay(bool isSaving);
     int HitTestSaveSlot(int mx,
                         int my);
     int historyHitTest(int mx,
                        int my);
+
+    // settings_manager.cpp
+    SettingsManager settingsManager;
+
+    // Temporary state for confirm-overwrite dialog
+    int pendingConfirmSlot_ = -1;
 
     // test.cpp
     CerekaState CurrentState() const { return m_stateMachine.currentType(); }

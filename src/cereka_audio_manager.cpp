@@ -2,6 +2,7 @@
 #include "cereka_safe_parse.hpp"
 
 #include <SDL3/SDL.h>
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 
@@ -50,6 +51,23 @@ void AudioManager::Shutdown()
     mixer = nullptr;
     MIX_Quit();
     initialized = false;
+}
+
+void AudioManager::applyBgmVolume()
+{
+    if (bgmTrack)
+        MIX_SetTrackGain(bgmTrack, bgmVolume_);
+}
+
+void AudioManager::SetBgmVolume(float vol)
+{
+    bgmVolume_ = std::clamp(vol, 0.0f, 1.0f);
+    applyBgmVolume();
+}
+
+void AudioManager::SetSfxVolume(float vol)
+{
+    sfxVolume_ = std::clamp(vol, 0.0f, 1.0f);
 }
 
 void AudioManager::destroyBgmHandles()
@@ -116,6 +134,8 @@ void AudioManager::PlayBGM(const std::string &filename, float fadeDuration)
         fadeState_.timer = 0.0f;
         fadeState_.duration = fadeDuration;
         fadeState_.curve = FadeCurve::Linear;
+    } else {
+        applyBgmVolume();
     }
 }
 
@@ -229,7 +249,7 @@ void AudioManager::Update(float dt)
 
     switch (fadeState_.state) {
         case BgmFade::State::FadingOut: {
-            float gain = applyCurve(1.0f - t, fadeState_.curve);
+            float gain = applyCurve(1.0f - t, fadeState_.curve) * bgmVolume_;
             MIX_SetTrackGain(bgmTrack, gain);
             if (t >= 1.0f) {
                 destroyBgmHandles();
@@ -239,18 +259,18 @@ void AudioManager::Update(float dt)
             break;
         }
         case BgmFade::State::FadingIn: {
-            float gain = applyCurve(t, fadeState_.curve);
+            float gain = applyCurve(t, fadeState_.curve) * bgmVolume_;
             MIX_SetTrackGain(bgmTrack, gain);
             if (t >= 1.0f) {
-                MIX_SetTrackGain(bgmTrack, 1.0f);
+                applyBgmVolume();
                 fadeState_ = {};
             }
             break;
         }
         case BgmFade::State::CrossfadeOut: {
-            float gain = applyCurve(1.0f - t, fadeState_.curve);
+            float gain = applyCurve(1.0f - t, fadeState_.curve) * bgmVolume_;
             MIX_SetTrackGain(fadeState_.oldTrack, gain);
-            float newGain = applyCurve(t, fadeState_.curve);
+            float newGain = applyCurve(t, fadeState_.curve) * bgmVolume_;
             MIX_SetTrackGain(bgmTrack, newGain);
             if (t >= 1.0f) {
                 MIX_StopTrack(fadeState_.oldTrack, 0);
@@ -258,7 +278,7 @@ void AudioManager::Update(float dt)
                 MIX_DestroyAudio(fadeState_.oldAudio);
                 fadeState_.oldTrack = nullptr;
                 fadeState_.oldAudio = nullptr;
-                MIX_SetTrackGain(bgmTrack, 1.0f);
+                applyBgmVolume();
                 fadeState_ = {};
             }
             break;

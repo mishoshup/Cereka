@@ -37,8 +37,15 @@ class AudioManager {
     const std::string &BgmPath() const { return bgmPath; }
     bool IsInitialized() const { return initialized; }
 
+    // Volume control (0.0 — 1.0)
+    void SetBgmVolume(float vol);
+    float BgmVolume() const { return bgmVolume_; }
+    void SetSfxVolume(float vol);
+    float SfxVolume() const { return sfxVolume_; }
+
    private:
     void destroyBgmHandles();
+    void applyBgmVolume();
 
     bool initialized = false;
     MIX_Mixer *mixer = nullptr;
@@ -47,6 +54,8 @@ class AudioManager {
     std::string bgmPath;
     std::unordered_map<std::string, MIX_Audio *> sfxCache;
     BgmFade fadeState_;
+    float bgmVolume_ = 1.0f;
+    float sfxVolume_ = 1.0f;
 };
 
 }  // namespace cereka

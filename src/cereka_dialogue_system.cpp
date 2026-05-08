@@ -16,11 +16,11 @@ void DialogueSystem::Tick(float dt)
     if (text.empty() || displayedChars >= (int)text.length())
         return;
     typewriterTimer += dt;
-    int charsToAdd = (int)(typewriterTimer * CHARS_PER_SECOND);
+    int charsToAdd = (int)(typewriterTimer * charsPerSecond);
     if (charsToAdd <= 0)
         return;
     displayedChars += charsToAdd;
-    typewriterTimer -= charsToAdd / CHARS_PER_SECOND;
+    typewriterTimer -= charsToAdd / charsPerSecond;
     if (displayedChars > (int)text.length())
         displayedChars = (int)text.length();
 }

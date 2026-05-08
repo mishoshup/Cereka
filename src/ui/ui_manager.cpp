@@ -372,7 +372,7 @@ void UIManager::DrawHistoryOverlay(const std::vector<std::string> &historyTexts)
 }
 
 void UIManager::DrawSaveLoadOverlay(bool isSaving,
-                                    const std::string (&timestamps)[10],
+                                    const SlotMetadata (&slots)[10],
                                     const UiConfig &uiCfg)
 {
     int screenW = m_renderCtx->Width();
@@ -404,18 +404,32 @@ void UIManager::DrawSaveLoadOverlay(bool isSaving,
 
         drawRect(slotRect.x, slotRect.y, slotRect.w, slotRect.h, Color{40, 44, 66, 210});
 
-        const std::string &ts = timestamps[i];
-        std::string label = "Slot " + std::to_string(i + 1) + "   "
-                          + (ts.empty() ? "Empty" : ts);
+        const SlotMetadata &meta = slots[i];
+        bool hasData = !meta.timestamp.empty();
 
+        // Slot number + timestamp (first line)
+        std::string line1 = "Slot " + std::to_string(i + 1)
+                          + (hasData ? "   " + meta.timestamp : "   Empty");
         auto slotTex = m_renderCtx->CreateTextTexture(
-            m_font, label,
-            ts.empty() ? Color{100, 100, 100, 255} : Color{220, 220, 220, 255});
+            m_font, line1,
+            hasData ? Color{220, 220, 220, 255} : Color{100, 100, 100, 255});
         if (slotTex) {
             float tw = slotTex->Width();
             float th = slotTex->Height();
-            Rect dst{slotRect.x + 10.0f, slotY + (slotH - th) * 0.5f, tw, th};
+            Rect dst{slotRect.x + 10.0f, slotY + 4.0f, tw, th};
             m_renderCtx->DrawTexture(*slotTex, nullptr, &dst);
+        }
+
+        // Scene description (second line, smaller visual weight)
+        if (hasData && !meta.sceneDescription.empty()) {
+            auto sceneTex = m_renderCtx->CreateTextTexture(
+                m_font, meta.sceneDescription, Color{160, 160, 180, 255});
+            if (sceneTex) {
+                float tw = sceneTex->Width();
+                float th = sceneTex->Height();
+                Rect dst{slotRect.x + 10.0f, slotY + slotH - th - 4.0f, tw, th};
+                m_renderCtx->DrawTexture(*sceneTex, nullptr, &dst);
+            }
         }
     }
 
@@ -460,6 +474,194 @@ UIManager::SaveOverlayLayout UIManager::calcSaveLayout(int screenW, int screenH)
     l.panelY = (screenH - l.panelH) * 0.5f;
     l.slotH = (l.panelH - 60.0f) / 10.0f;
     return l;
+}
+
+// ============================================================================
+// UIManager::DrawPauseOverlay
+// ============================================================================
+
+static const char *PAUSE_BUTTON_LABELS[] = {
+    "Continue", "Save", "Load", "Settings", "Quit to Menu"
+};
+
+UIManager::PauseButtonLayout UIManager::calcPauseLayout(int screenW, int screenH) const
+{
+    PauseButtonLayout l{};
+    l.buttonCount = 5;
+    l.panelW = std::min(500.0f, screenW * 0.6f);
+    l.btnH = 60.0f;
+    l.btnSpacing = 12.0f;
+    float contentH = l.buttonCount * l.btnH + (l.buttonCount - 1) * l.btnSpacing + 80.0f;
+    l.panelH = contentH;
+    l.panelX = (screenW - l.panelW) * 0.5f;
+    l.panelY = (screenH - l.panelH) * 0.5f;
+    l.btnY0 = l.panelY + 45.0f;
+    return l;
+}
+
+void UIManager::DrawPauseOverlay(const UiConfig &uiCfg)
+{
+    int screenW = m_renderCtx->Width();
+    int screenH = m_renderCtx->Height();
+
+    auto layout = calcPauseLayout(screenW, screenH);
+
+    // Dim background
+    m_renderCtx->SetBlendMode(true);
+    m_renderCtx->FillScreen(Color{0, 0, 0, 160});
+
+    // Panel background
+    drawRect(layout.panelX, layout.panelY, layout.panelW, layout.panelH,
+             Color{20, 22, 38, 230});
+
+    // Title
+    auto titleTex = m_renderCtx->CreateTextTexture(
+        m_font, "PAUSED", Color{180, 200, 255, 255});
+    if (titleTex) {
+        float tw = titleTex->Width();
+        float th = titleTex->Height();
+        Rect dst{layout.panelX + (layout.panelW - tw) * 0.5f,
+                 layout.panelY + 8.0f, tw, th};
+        m_renderCtx->DrawTexture(*titleTex, nullptr, &dst);
+    }
+
+    // Buttons
+    float btnW = layout.panelW * 0.75f;
+    for (int i = 0; i < layout.buttonCount; ++i) {
+        float by = layout.btnY0 + i * (layout.btnH + layout.btnSpacing);
+        float bx = layout.panelX + (layout.panelW - btnW) * 0.5f;
+
+        drawRect(bx, by, btnW, layout.btnH, Color{40, 44, 66, 210});
+
+        auto btnTex = m_renderCtx->CreateTextTexture(
+            m_font, PAUSE_BUTTON_LABELS[i], Color{220, 220, 220, 255});
+        if (btnTex) {
+            float tw = btnTex->Width();
+            float th = btnTex->Height();
+            Rect dst{bx + (btnW - tw) * 0.5f, by + (layout.btnH - th) * 0.5f, tw, th};
+            m_renderCtx->DrawTexture(*btnTex, nullptr, &dst);
+        }
+    }
+
+    // ESC hint
+    auto hintTex = m_renderCtx->CreateTextTexture(
+        m_font, "ESC to resume", Color{120, 120, 120, 255});
+    if (hintTex) {
+        float tw = hintTex->Width();
+        float th = hintTex->Height();
+        Rect dst{layout.panelX + (layout.panelW - tw) * 0.5f,
+                 layout.panelY + layout.panelH - th - 8.0f, tw, th};
+        m_renderCtx->DrawTexture(*hintTex, nullptr, &dst);
+    }
+}
+
+int UIManager::HitTestPauseButton(int mx, int my, int screenW, int screenH) const
+{
+    auto layout = calcPauseLayout(screenW, screenH);
+    float btnW = layout.panelW * 0.75f;
+
+    for (int i = 0; i < layout.buttonCount; ++i) {
+        float by = layout.btnY0 + i * (layout.btnH + layout.btnSpacing);
+        float bx = layout.panelX + (layout.panelW - btnW) * 0.5f;
+        if ((float)mx >= bx && (float)mx <= bx + btnW &&
+            (float)my >= by && (float)my <= by + layout.btnH)
+            return i;
+    }
+    return -1;
+}
+
+// ============================================================================
+// UIManager::DrawConfirmOverwriteDialog
+// ============================================================================
+
+UIManager::ConfirmLayout UIManager::calcConfirmLayout(int screenW, int screenH) const
+{
+    ConfirmLayout l{};
+    l.panelW = 420.0f;
+    l.panelH = 200.0f;
+    l.panelX = (screenW - l.panelW) * 0.5f;
+    l.panelY = (screenH - l.panelH) * 0.5f;
+    l.yesW = 140.0f;
+    l.yesH = 50.0f;
+    l.noW = 140.0f;
+    l.noH = 50.0f;
+    float gap = 30.0f;
+    float totalBtnW = l.yesW + gap + l.noW;
+    float baseX = l.panelX + (l.panelW - totalBtnW) * 0.5f;
+    l.yesX = baseX;
+    l.yesY = l.panelY + 110.0f;
+    l.noX = baseX + l.yesW + gap;
+    l.noY = l.panelY + 110.0f;
+    return l;
+}
+
+void UIManager::DrawConfirmOverwriteDialog(int slot, const UiConfig &uiCfg)
+{
+    int screenW = m_renderCtx->Width();
+    int screenH = m_renderCtx->Height();
+
+    m_renderCtx->SetBlendMode(true);
+    m_renderCtx->FillScreen(Color{0, 0, 0, 180});
+
+    auto l = calcConfirmLayout(screenW, screenH);
+    drawRect(l.panelX, l.panelY, l.panelW, l.panelH, Color{30, 32, 48, 240});
+
+    // Prompt text
+    std::string prompt = "Overwrite Slot " + std::to_string(slot) + "?";
+    auto promptTex = m_renderCtx->CreateTextTexture(
+        m_font, prompt, Color{255, 255, 255, 255});
+    if (promptTex) {
+        float tw = promptTex->Width();
+        float th = promptTex->Height();
+        Rect dst{l.panelX + (l.panelW - tw) * 0.5f, l.panelY + 30.0f, tw, th};
+        m_renderCtx->DrawTexture(*promptTex, nullptr, &dst);
+    }
+
+    std::string sub = "This save has existing data.";
+    auto subTex = m_renderCtx->CreateTextTexture(
+        m_font, sub, Color{200, 200, 200, 255});
+    if (subTex) {
+        float tw = subTex->Width();
+        float th = subTex->Height();
+        Rect dst{l.panelX + (l.panelW - tw) * 0.5f, l.panelY + 65.0f, tw, th};
+        m_renderCtx->DrawTexture(*subTex, nullptr, &dst);
+    }
+
+    // Yes button
+    drawRect(l.yesX, l.yesY, l.yesW, l.yesH, Color{50, 120, 50, 230});
+    auto yesTex = m_renderCtx->CreateTextTexture(
+        m_font, "Yes, Overwrite", Color{255, 255, 255, 255});
+    if (yesTex) {
+        float tw = yesTex->Width();
+        float th = yesTex->Height();
+        Rect dst{l.yesX + (l.yesW - tw) * 0.5f, l.yesY + (l.yesH - th) * 0.5f, tw, th};
+        m_renderCtx->DrawTexture(*yesTex, nullptr, &dst);
+    }
+
+    // No button
+    drawRect(l.noX, l.noY, l.noW, l.noH, Color{100, 50, 50, 230});
+    auto noTex = m_renderCtx->CreateTextTexture(
+        m_font, "Cancel", Color{255, 255, 255, 255});
+    if (noTex) {
+        float tw = noTex->Width();
+        float th = noTex->Height();
+        Rect dst{l.noX + (l.noW - tw) * 0.5f, l.noY + (l.noH - th) * 0.5f, tw, th};
+        m_renderCtx->DrawTexture(*noTex, nullptr, &dst);
+    }
+}
+
+int UIManager::HitTestConfirmButton(int mx, int my, int screenW, int screenH) const
+{
+    auto l = calcConfirmLayout(screenW, screenH);
+    // Yes
+    if ((float)mx >= l.yesX && (float)mx <= l.yesX + l.yesW &&
+        (float)my >= l.yesY && (float)my <= l.yesY + l.yesH)
+        return 1;
+    // No
+    if ((float)mx >= l.noX && (float)mx <= l.noX + l.noW &&
+        (float)my >= l.noY && (float)my <= l.noY + l.noH)
+        return 2;
+    return 0;
 }
 
 }  // namespace cereka

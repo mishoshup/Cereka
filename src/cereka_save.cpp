@@ -38,6 +38,9 @@ static std::string stateToString(CerekaState s)
         case CerekaState::SaveMenuState:   return "SaveMenu";
         case CerekaState::LoadMenuState:   return "LoadMenu";
         case CerekaState::HistoryState:    return "HistoryState";
+        case CerekaState::PauseMenuState:        return "PauseMenu";
+        case CerekaState::ConfirmOverwriteState: return "ConfirmOverwrite";
+        case CerekaState::SettingsMenuState:     return "SettingsMenu";
     }
     return "Running";
 }
@@ -52,6 +55,9 @@ static CerekaState parseState(const std::string &label)
     if (label == "Quit") return CerekaState::Quit;
     if (label == "SaveMenu") return CerekaState::SaveMenuState;
     if (label == "LoadMenu") return CerekaState::LoadMenuState;
+    if (label == "PauseMenu") return CerekaState::PauseMenuState;
+    if (label == "ConfirmOverwrite") return CerekaState::ConfirmOverwriteState;
+    if (label == "SettingsMenu") return CerekaState::SettingsMenuState;
     return CerekaState::Running;
 }
 
@@ -120,6 +126,25 @@ bool Impl::SaveGame(int slot)
     data.name = dialogue.Name();
     data.text = dialogue.Text();
     data.displayedChars = dialogue.DisplayedChars();
+
+    // Scene description for save slot UI
+    {
+        std::string desc;
+        if (!data.background.empty()) {
+            desc = data.background;
+            // Strip directory prefix
+            auto slash = desc.find('/');
+            if (slash != std::string::npos) desc = desc.substr(slash + 1);
+        }
+        if (!data.characters.empty()) {
+            if (!desc.empty()) desc += " + ";
+            desc += std::to_string(data.characters.size()) + " char(s)";
+            // Append first character ID
+            desc += " (" + data.characters[0].id + ")";
+        }
+        if (desc.empty()) desc = "(no scene)";
+        data.sceneDescription = desc;
+    }
 
     // Skip mode
     data.skipMode = scriptInterpreter.skipMode;
@@ -198,17 +223,20 @@ bool Impl::LoadGame(int slot)
 }
 
 // ---------------------------------------------------------------------------
-// GetSlotTimestamp — reads just the timestamp from a save file
+// GetSlotMetadata — reads summary metadata from a save slot
 // ---------------------------------------------------------------------------
 
-std::string Impl::GetSlotTimestamp(int slot)
+cereka::SlotMetadata Impl::GetSlotMetadata(int slot)
 {
+    SlotMetadata meta;
     SerializableSaveData data;
     std::string buffer;
     auto result = glz::read_file_json(data, savePath(slot), buffer);
     if (result)
-        return "";
-    return data.timestamp;
+        return meta;
+    meta.timestamp = data.timestamp;
+    meta.sceneDescription = data.sceneDescription;
+    return meta;
 }
 
 // ---------------------------------------------------------------------------
@@ -217,10 +245,10 @@ std::string Impl::GetSlotTimestamp(int slot)
 
 void Impl::DrawSaveLoadOverlay(bool isSaving)
 {
-    std::string timestamps[10];
+    SlotMetadata slots[10];
     for (int i = 1; i <= 10; i++)
-        timestamps[i - 1] = GetSlotTimestamp(i);
-    ui.DrawSaveLoadOverlay(isSaving, timestamps, uiCfg);
+        slots[i - 1] = GetSlotMetadata(i);
+    ui.DrawSaveLoadOverlay(isSaving, slots, uiCfg);
 }
 
 // ---------------------------------------------------------------------------

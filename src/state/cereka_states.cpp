@@ -589,8 +589,15 @@ void SaveMenuState::handleEvent(const CerekaEvent &event,
     if (event.type == CerekaEvent::MouseDown) {
         int slot = impl.HitTestSaveSlot((int)event.mouseX, (int)event.mouseY);
         if (slot >= 1 && slot <= 10) {
-            impl.SaveGame(slot);
-            ctx.popOverlay();
+            // Check if slot has existing data — ask for confirmation
+            auto meta = impl.GetSlotMetadata(slot);
+            if (!meta.timestamp.empty()) {
+                impl.pendingConfirmSlot_ = slot;
+                ctx.pushOverlay(CerekaState::ConfirmOverwriteState);
+            } else {
+                impl.SaveGame(slot);
+                ctx.popOverlay();
+            }
         }
     }
 }
@@ -616,9 +623,12 @@ void LoadMenuState::handleEvent(const CerekaEvent &event,
     if (event.type == CerekaEvent::MouseDown) {
         int slot = impl.HitTestSaveSlot((int)event.mouseX, (int)event.mouseY);
         if (slot >= 1 && slot <= 10) {
-            impl.LoadGame(slot);  // restores pc, variables, state via m_stateMachine
-            // No overlay cleanup needed — LoadGame already called
-            // clearOverlays() + changeState() on m_stateMachine.
+            auto meta = impl.GetSlotMetadata(slot);
+            if (!meta.timestamp.empty()) {
+                impl.LoadGame(slot);  // restores pc, variables, state via m_stateMachine
+                // No overlay cleanup needed — LoadGame already called
+                // clearOverlays() + changeState() on m_stateMachine.
+            }
         }
     }
 }
@@ -627,6 +637,261 @@ void LoadMenuState::draw(ICerekaStateContext &ctx) const
 {
     auto &impl = static_cast<Impl &>(ctx);
     impl.DrawSaveLoadOverlay(false);
+}
+
+// ============================================================================
+// PauseMenuState — Pause menu overlay
+// ============================================================================
+
+void PauseMenuState::handleEvent(const CerekaEvent &event,
+                                  ICerekaStateContext &ctx)
+{
+    auto &impl = static_cast<Impl &>(ctx);
+
+    if (event.type == CerekaEvent::KeyDown && event.key == SDLK_ESCAPE) {
+        ctx.popOverlay();
+        return;
+    }
+
+    if (event.type == CerekaEvent::MouseDown) {
+        int btn = impl.ui.HitTestPauseButton(
+            (int)event.mouseX, (int)event.mouseY,
+            impl.screenWidth, impl.screenHeight);
+        if (btn < 0)
+            return;
+
+        switch (btn) {
+            case 0: // Continue
+                ctx.popOverlay();
+                return;
+            case 1: // Save
+                ctx.pushOverlay(CerekaState::SaveMenuState);
+                return;
+            case 2: // Load
+                ctx.pushOverlay(CerekaState::LoadMenuState);
+                return;
+            case 3: // Settings
+                ctx.pushOverlay(CerekaState::SettingsMenuState);
+                return;
+            case 4: // Quit to Menu
+                ctx.changeState(CerekaState::Finished);
+                return;
+        }
+    }
+}
+
+void PauseMenuState::draw(ICerekaStateContext &ctx) const
+{
+    auto &impl = static_cast<Impl &>(ctx);
+    impl.ui.DrawPauseOverlay(impl.uiCfg);
+}
+
+// ============================================================================
+// ConfirmOverwriteState — "Overwrite Slot N?" dialog
+// ============================================================================
+
+void ConfirmOverwriteState::handleEvent(const CerekaEvent &event,
+                                         ICerekaStateContext &ctx)
+{
+    auto &impl = static_cast<Impl &>(ctx);
+
+    if (event.type == CerekaEvent::KeyDown && event.key == SDLK_ESCAPE) {
+        ctx.popOverlay(); // cancel confirm, back to save menu
+        return;
+    }
+
+    if (event.type == CerekaEvent::MouseDown) {
+        int result = impl.ui.HitTestConfirmButton(
+            (int)event.mouseX, (int)event.mouseY,
+            impl.screenWidth, impl.screenHeight);
+        if (result == 0)
+            return;
+
+        if (result == 1) {
+            // Yes — save and pop both confirm + save overlays
+            impl.SaveGame(impl.pendingConfirmSlot_);
+            impl.pendingConfirmSlot_ = -1;
+            ctx.popOverlay(); // pop confirm
+            ctx.popOverlay(); // pop save menu
+        } else {
+            // No — just pop confirm, back to save menu
+            ctx.popOverlay();
+        }
+    }
+}
+
+void ConfirmOverwriteState::draw(ICerekaStateContext &ctx) const
+{
+    auto &impl = static_cast<Impl &>(ctx);
+    impl.ui.DrawConfirmOverwriteDialog(impl.pendingConfirmSlot_, impl.uiCfg);
+}
+
+// ============================================================================
+// SettingsMenuState — Settings display overlay
+// ============================================================================
+
+void SettingsMenuState::cycleSetting(int row, CerekaImpl &impl)
+{
+    auto &s = impl.settingsManager.Get();
+    switch (row) {
+        case 0: { // Text Speed
+            static const float speeds[] = {30.0f, 60.0f, 90.0f, 120.0f, 200.0f};
+            int idx = 0;
+            for (int i = 0; i < 5; ++i) {
+                if (s.textSpeed <= speeds[i] + 1.0f) { idx = i; break; }
+                idx = i;
+            }
+            idx = (idx + 1) % 5;
+            s.textSpeed = speeds[idx];
+            break;
+        }
+        case 1: { // BGM Volume
+            s.bgmVolume = std::min(1.0f, s.bgmVolume + 0.25f);
+            if (s.bgmVolume > 1.0f + 0.01f) s.bgmVolume = 0.0f;
+            break;
+        }
+        case 2: { // SFX Volume
+            s.sfxVolume = std::min(1.0f, s.sfxVolume + 0.25f);
+            if (s.sfxVolume > 1.0f + 0.01f) s.sfxVolume = 0.0f;
+            break;
+        }
+        case 3: // Auto Advance
+            s.autoAdvance = !s.autoAdvance;
+            break;
+        case 4: // Skip Unseen
+            s.skipUnseen = !s.skipUnseen;
+            break;
+    }
+    impl.settingsManager.Apply(impl.dialogue, impl.audio);
+    impl.settingsManager.Save();
+}
+
+void SettingsMenuState::handleEvent(const CerekaEvent &event,
+                                     ICerekaStateContext &ctx)
+{
+    auto &impl = static_cast<Impl &>(ctx);
+
+    if (event.type == CerekaEvent::KeyDown && event.key == SDLK_ESCAPE) {
+        ctx.popOverlay(); // back to pause menu
+        return;
+    }
+
+    if (event.type == CerekaEvent::MouseDown) {
+        // Hit-test the 5 setting rows
+        int screenW = impl.screenWidth;
+        int screenH = impl.screenHeight;
+        float panelW = std::min(550.0f, screenW * 0.65f);
+        float rowH = 50.0f;
+        float contentH = 5.0f * rowH + 4.0f * 6.0f + 80.0f;
+        float panelH = contentH;
+        float panelX = (screenW - panelW) * 0.5f;
+        float panelY = (screenH - panelH) * 0.5f;
+        float y0 = panelY + 45.0f;
+        float mx = (float)event.mouseX;
+        float my = (float)event.mouseY;
+
+        if (mx >= panelX + 10.0f && mx <= panelX + panelW - 10.0f) {
+            for (int row = 0; row < 5; ++row) {
+                float ry = y0 + row * (rowH + 6.0f);
+                if (my >= ry && my <= ry + rowH) {
+                    cycleSetting(row, impl);
+                    return;
+                }
+            }
+        }
+    }
+}
+
+void SettingsMenuState::draw(ICerekaStateContext &ctx) const
+{
+    auto &impl = static_cast<Impl &>(ctx);
+    int screenW = impl.screenWidth;
+    int screenH = impl.screenHeight;
+
+    // Dim background
+    impl.m_renderCtx->SetBlendMode(true);
+    impl.m_renderCtx->FillScreen(Color{0, 0, 0, 160});
+
+    float panelW = std::min(550.0f, screenW * 0.65f);
+    float rowH = 50.0f;
+    float rowGap = 6.0f;
+    float contentH = 5.0f * rowH + 4.0f * rowGap + 80.0f;
+    float panelH = contentH;
+    float panelX = (screenW - panelW) * 0.5f;
+    float panelY = (screenH - panelH) * 0.5f;
+
+    // Panel background
+    impl.m_renderCtx->SetBlendMode(true);
+    impl.m_renderCtx->FillRect(
+        Rect{panelX, panelY, panelW, panelH},
+        Color{20, 22, 38, 230});
+
+    // Title
+    auto titleTex = impl.m_renderCtx->CreateTextTexture(
+        impl.font, "SETTINGS", Color{180, 200, 255, 255});
+    if (titleTex) {
+        float tw = titleTex->Width();
+        float th = titleTex->Height();
+        Rect dst{panelX + (panelW - tw) * 0.5f, panelY + 8.0f, tw, th};
+        impl.m_renderCtx->DrawTexture(*titleTex, nullptr, &dst);
+    }
+
+    // Read settings
+    const auto &s = impl.settingsManager.Get();
+
+    // Setting row labels
+    static const char *SETTING_LABELS[] = {
+        "Text Speed", "BGM Volume", "SFX Volume", "Auto Advance", "Skip Unseen"
+    };
+    float y0 = panelY + 45.0f;
+
+    for (int i = 0; i < 5; ++i) {
+        float ry = y0 + i * (rowH + rowGap);
+        impl.m_renderCtx->SetBlendMode(true);
+        impl.m_renderCtx->FillRect(
+            Rect{panelX + 10.0f, ry, panelW - 20.0f, rowH},
+            Color{40, 44, 66, 210});
+
+        // Build value string
+        std::string valStr;
+        switch (i) {
+            case 0: valStr = std::to_string((int)s.textSpeed) + " cps"; break;
+            case 1: valStr = std::to_string((int)(s.bgmVolume * 100.0f)) + "%"; break;
+            case 2: valStr = std::to_string((int)(s.sfxVolume * 100.0f)) + "%"; break;
+            case 3: valStr = s.autoAdvance ? "ON" : "OFF"; break;
+            case 4: valStr = s.skipUnseen ? "ON" : "OFF"; break;
+        }
+
+        // Row label
+        auto labelTex = impl.m_renderCtx->CreateTextTexture(
+            impl.font, SETTING_LABELS[i], Color{220, 220, 220, 255});
+        if (labelTex) {
+            float tw = labelTex->Width();
+            float th = labelTex->Height();
+            Rect dst{panelX + 20.0f, ry + (rowH - th) * 0.5f, tw, th};
+            impl.m_renderCtx->DrawTexture(*labelTex, nullptr, &dst);
+        }
+
+        // Value text (right-aligned)
+        auto valTex = impl.m_renderCtx->CreateTextTexture(
+            impl.font, valStr, Color{160, 200, 255, 255});
+        if (valTex) {
+            float tw = valTex->Width();
+            float th = valTex->Height();
+            Rect dst{panelX + panelW - 20.0f - tw, ry + (rowH - th) * 0.5f, tw, th};
+            impl.m_renderCtx->DrawTexture(*valTex, nullptr, &dst);
+        }
+    }
+
+    // ESC hint
+    auto hintTex = impl.m_renderCtx->CreateTextTexture(
+        impl.font, "ESC to return | Click a row to change", Color{120, 120, 120, 255});
+    if (hintTex) {
+        float tw = hintTex->Width();
+        float th = hintTex->Height();
+        Rect dst{panelX + (panelW - tw) * 0.5f, panelY + panelH - th - 8.0f, tw, th};
+        impl.m_renderCtx->DrawTexture(*hintTex, nullptr, &dst);
+    }
 }
 
 // ============================================================================

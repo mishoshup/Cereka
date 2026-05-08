@@ -44,6 +44,7 @@ struct SerializableSaveData {
     int displayedChars = 0;
     bool skipMode = false;
     int skipDepth = 0;
+    std::string sceneDescription;  // human-readable: "bg filename + characters"
 
     struct glaze {
         using T = SerializableSaveData;
@@ -63,7 +64,8 @@ struct SerializableSaveData {
             "text", &T::text,
             "displayedChars", &T::displayedChars,
             "skipMode", &T::skipMode,
-            "skipDepth", &T::skipDepth);
+            "skipDepth", &T::skipDepth,
+            "sceneDescription", &T::sceneDescription);
     };
 };
 
@@ -96,6 +98,15 @@ struct SerializableSaveData {
     }
     return false;
 }
+
+// ============================================================================
+// SlotMetadata — Summary info for one save slot (no full read needed)
+// ============================================================================
+
+struct SlotMetadata {
+    std::string timestamp;
+    std::string sceneDescription;
+};
 
 }  // namespace cereka
 

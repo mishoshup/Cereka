@@ -15,6 +15,10 @@ class DialogueSystem {
     const std::string &Text() const { return text; }
     int DisplayedChars() const { return displayedChars; }
 
+    /// Text speed in characters per second (default 60.0)
+    void SetTextSpeed(float cps) { charsPerSecond = cps; }
+    float TextSpeed() const { return charsPerSecond; }
+
     // Mutators for save/load round-trip.
     void SetSpeaker(std::string s) { speaker = std::move(s); }
     void SetName(std::string s) { name = std::move(s); }
@@ -22,7 +26,7 @@ class DialogueSystem {
     void SetDisplayedChars(int n) { displayedChars = n; }
 
    private:
-    static constexpr float CHARS_PER_SECOND = 60.0f;
+    float charsPerSecond = 60.0f;
 
     std::string speaker;
     std::string name;

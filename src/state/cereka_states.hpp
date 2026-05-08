@@ -89,6 +89,43 @@ class LoadMenuState : public CerekaStateBase<CerekaState::LoadMenuState> {
 };
 
 // ============================================================================
+// PauseMenuState — Pause menu overlay (Continue, Save, Load, Settings, Quit)
+// ============================================================================
+
+class PauseMenuState : public CerekaStateBase<CerekaState::PauseMenuState> {
+   public:
+    void handleEvent(const CerekaEvent &event,
+                     ICerekaStateContext &ctx) override;
+    void draw(ICerekaStateContext &ctx) const override;
+};
+
+// ============================================================================
+// ConfirmOverwriteState — "Overwrite Slot N?" dialog overlay
+// ============================================================================
+
+class ConfirmOverwriteState : public CerekaStateBase<CerekaState::ConfirmOverwriteState> {
+   public:
+    void handleEvent(const CerekaEvent &event,
+                     ICerekaStateContext &ctx) override;
+    void draw(ICerekaStateContext &ctx) const override;
+};
+
+// ============================================================================
+// SettingsMenuState — Settings display overlay
+// ============================================================================
+
+class SettingsMenuState : public CerekaStateBase<CerekaState::SettingsMenuState> {
+   public:
+    void handleEvent(const CerekaEvent &event,
+                     ICerekaStateContext &ctx) override;
+    void draw(ICerekaStateContext &ctx) const override;
+
+   private:
+    /// Cycle a setting value when its row is clicked
+    void cycleSetting(int row, class CerekaImpl &impl);
+};
+
+// ============================================================================
 // HistoryState — Dialogue history overlay
 // ============================================================================
 
