@@ -194,6 +194,10 @@ float SdlRenderContext::DrawRichText(
             extent = (int)extentSz;
 
             if (extent == 0) {
+                // No glyph fits in the remaining width — can't progress on this line.
+                // If this is the start of a line, break entirely to avoid infinite loop.
+                if (currentX == x)
+                    break;
                 currentX = x;
                 currentY += lineHeight;
                 continue;
