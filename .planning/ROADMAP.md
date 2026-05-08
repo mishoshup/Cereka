@@ -76,6 +76,18 @@ Plans:
 Plans:
 - [ ] TBD (run /gsd-plan-phase 5 to break down)
 
+### Phase 6: the complete documentation and a proper documentation site. like how all engine have documentation
+
+**Goal:** Create a complete game-author documentation site for Cereka v1.0 using mdBook, deployed on Cloudflare Pages with a custom domain. Author docs cover the full .crka scripting language, UI theming, project structure, build/packaging, and an annotated example game.
+
+**Requirements**: D-03 (7 sections), D-04 (annotated example game)
+**Depends on:** Phase 5
+**Plans:** 2 plans
+
+Plans:
+- [ ] 06-01-PLAN.md — mdBook scaffolding + complete Scripting Reference (38 ops across 10 category pages)
+- [ ] 06-02-PLAN.md — User guide sections (Getting Started, Project Structure, Build & Package) + UI Theming + Variables & Expressions + Annotated Example Game + Deploy config
+
 ---
 
 ## Phase 4 — Engine Features
