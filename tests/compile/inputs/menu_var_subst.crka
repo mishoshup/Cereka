@@ -1,0 +1,11 @@
+set item_name "Golden Sword"
+set item_count 3
+
+narrate "Choose an item."
+menu
+    button "Use {item_name}" goto use
+    button "Drop {item_name}" exit
+
+label use
+    narrate "You use the item."
+end

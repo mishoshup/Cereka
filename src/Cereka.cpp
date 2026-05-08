@@ -228,7 +228,7 @@ void Impl::EnterMenu()
             scan++;
         }
         else if (ins.op == compiler::Op::BUTTON) {
-            texts.push_back(ins.a);
+            texts.push_back(SubstituteVariables(ins.a));
             targets.push_back(ins.b);
             exits.push_back(ins.exit_button);
             scan++;

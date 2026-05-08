@@ -1,0 +1,9 @@
+a=item_name b=Golden Sword col=1 line=1 op=SET_VAR
+a=item_count b=3 col=1 line=2 op=SET_VAR
+b=Choose an item. col=1 line=4 op=NARRATE
+col=1 line=5 op=MENU
+a=Use {item_name} b=use col=5 exit_button=false line=6 op=BUTTON
+a=Drop {item_name} b= col=5 exit_button=true line=7 op=BUTTON
+a=use col=1 line=9 op=LABEL
+b=You use the item. col=5 line=10 op=NARRATE
+col=1 line=11 op=END
