@@ -49,4 +49,12 @@ target_link_libraries(cereka_test PRIVATE
 
 # Discover tests (optional - can also run directly)
 include(GoogleTest)
-# gtest_discover_tests(cereka_test) # Disabled due to DLL path issues
+if(WIN32)
+    set_property(TARGET cereka_test APPEND_STRING PROPERTY
+        VS_DEBUGGER_ENVIRONMENT "PATH=$<SHELL_PATH:$<TARGET_FILE_DIR:Cereka>>\;$ENV{PATH}")
+    gtest_discover_tests(cereka_test
+        EXTRA_ARGS --gtest_catch_exceptions=0
+    )
+else()
+    gtest_discover_tests(cereka_test)
+endif()
