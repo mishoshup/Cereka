@@ -97,7 +97,8 @@ TEST_F(VMTest, IfTrueElseSkipped) {
 
 TEST_F(VMTest, DeeplyNestedIfElse) {
     // Three levels of nesting, outer is false.
-    // No instruction inside the skipped block should execute.
+    // No instruction inside the skipped block should execute,
+    // BUT the ELSE body for the outermost IF should execute.
     std::vector<Instruction> program = {
         {Op::IF_EQ, "outer", "yes"},      // false
             {Op::IF_EQ, "mid", "yes"},     // skipped
@@ -120,10 +121,15 @@ TEST_F(VMTest, DeeplyNestedIfElse) {
     engine.scriptInterpreter.variables["outer"] = "no";
     engine.scriptInterpreter.variables["mid"] = "yes";
     engine.scriptInterpreter.variables["inner"] = "yes";
-    // State machine is already initialized to Running in SetUp
 
+    // Tick 1: ELSE at depth 1 exits skip mode → "outer else" executes
     engine.m_stateMachine.update(1.0f / 60.0f);
+    EXPECT_EQ(engine.m_stateMachine.currentType(), CerekaState::WaitingForInput);
+    EXPECT_EQ(engine.dialogue.Text(), "outer else");
 
+    // Tick 2: continue past ENDIF → "after all" executes
+    engine.m_stateMachine.changeState(CerekaState::Running);
+    engine.m_stateMachine.update(1.0f / 60.0f);
     EXPECT_EQ(engine.m_stateMachine.currentType(), CerekaState::WaitingForInput);
     EXPECT_EQ(engine.dialogue.Text(), "after all");
 }

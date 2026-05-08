@@ -28,6 +28,16 @@ void DialogueState::update(float dt,
                 ins.op == compiler::Op::IF_GT || ins.op == compiler::Op::IF_LT ||
                 ins.op == compiler::Op::IF_GE || ins.op == compiler::Op::IF_LE) {
                 si.skipDepth++;
+            } else if (ins.op == compiler::Op::ELSE) {
+                // ELSE at the outermost skip depth means the IF body is done
+                // and the ELSE body should execute (exit skip mode).
+                if (si.skipDepth == 1) {
+                    si.skipMode = false;
+                    si.skipDepth = 0;
+                    si.pc++;
+                    continue;
+                }
+                // Nested ELSE: still inside a skipped outer block, keep skipping
             } else if (ins.op == compiler::Op::ENDIF) {
                 si.skipDepth--;
                 if (si.skipDepth == 0)
@@ -87,19 +97,33 @@ void DialogueState::update(float dt,
                 si.pc++;
                 return;
 
-            case compiler::Op::JUMP:
-                si.pc = si.labelMap[ins.a];
+            case compiler::Op::JUMP: {
+                auto it = si.labelMap.find(ins.a);
+                if (it != si.labelMap.end()) {
+                    si.pc = it->second;
+                } else {
+                    std::cerr << "[CEREKA] JUMP to unknown label: " << ins.a << "\n";
+                    si.pc++;
+                }
                 continue;
+            }
 
-            case compiler::Op::CALL:
+            case compiler::Op::CALL: {
                 if (si.callStack.size() >= 32) {
                     std::cerr << "[CEREKA] Call stack overflow (max 32)\n";
                     ctx.changeState(CerekaState::Finished);
                     return;
                 }
-                si.callStack.push_back(si.pc + 1);
-                si.pc = si.labelMap[ins.a];
+                auto it = si.labelMap.find(ins.a);
+                if (it != si.labelMap.end()) {
+                    si.callStack.push_back(si.pc + 1);
+                    si.pc = it->second;
+                } else {
+                    std::cerr << "[CEREKA] CALL to unknown label: " << ins.a << "\n";
+                    si.pc++;
+                }
                 continue;
+            }
 
             case compiler::Op::RETURN:
                 if (!si.callStack.empty()) {
@@ -317,9 +341,12 @@ void DialogueState::update(float dt,
                     auto r = safe_stoi(ins.a);
                     if (r) slot = *r;
                 }
-                if (slot >= 1 && slot <= 10)
-                    impl.LoadGame(slot);
-                return;
+                if (slot >= 1 && slot <= 10) {
+                    if (impl.LoadGame(slot))
+                        return;  // LoadGame restored PC from save data
+                }
+                si.pc++;
+                continue;
             }
 
             case compiler::Op::CHECKPOINT_STORE: {
