@@ -87,7 +87,8 @@ class CerekaImpl : public ICerekaStateContext {
     bool InitGame(const char *title,
                   int width,
                   int height,
-                  bool fullscreen);
+                  bool fullscreen,
+                  bool headless = false);
     void ShutDown();
     bool PollEvent(CerekaEvent &e);
     void Present();
@@ -118,6 +119,11 @@ class CerekaImpl : public ICerekaStateContext {
                         int my);
     int historyHitTest(int mx,
                        int my);
+
+    // test.cpp
+    CerekaState CurrentState() const { return m_stateMachine.currentType(); }
+    bool SelectMenuOption(int idx);
+    std::vector<std::string> ButtonLabels() const { return menu.Texts(); }
 
     // ui_config.cpp
     void ApplyUiSet(const std::string &key,

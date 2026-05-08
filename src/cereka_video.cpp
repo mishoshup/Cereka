@@ -30,11 +30,14 @@ void deinit_video()
 void create_window(const char *title,
                    bool fullscreen,
                    int width,
-                   int height)
+                   int height,
+                   bool hidden)
 {
     Uint32 flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
     if (fullscreen)
         flags |= SDL_WINDOW_FULLSCREEN;
+    if (hidden)
+        flags |= SDL_WINDOW_HIDDEN;
 
     video::width  = width;
     video::height = height;

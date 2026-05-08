@@ -26,6 +26,8 @@ src/                 — Cereka static library (engine)
   config/            — data-driven Property Map config (config_manager + property_handlers + property_types)
   compiler/          — Op enum, Instruction struct, Lua compiler bridge
 runner/              — CerekaGame executable (game loop)
+  --headless           — run without SDL window
+  --script file.spec.crka — declarative test spec (implies headless)
 launcher/            — CerekaLauncher (Qt6) — project manager, dev-runner, packaging
 scripts/             — cereka_compiler.lua (Lua → Instruction[] compiler, embedded at build time)
 tests/               — GoogleTest C++ unit tests + Lua compile-output snapshots (tests/compile/)
@@ -119,12 +121,17 @@ else                             — optional, runs when the if was false
 endif
 
 ; Save / Load
-save_menu                        — show 10-slot save overlay (ESC cancels)
-load_menu                        — show 10-slot load overlay (ESC cancels)
 save <1-10>                      — silent save to slot N
 load <1-10>                      — silent load from slot N
 checkpoint store "<name>"        — snapshot all variables into named checkpoint (in-memory)
 checkpoint load "<name>"         — restore variables from named checkpoint (no PC rewind)
+
+; Spec test (.spec.crka)
+wait "text"                      — wait until dialogue contains text (default 5s timeout)
+wait N "text"                    — wait with custom timeout in seconds
+click button:"label"             — click button by exact label text
+click button:N                   — click Nth button (1-based)
+assert "text"                    — fail if text found (exit non-zero)
 
 ; UI theming (usually in ui.crka, included at top of main.crka)
 ui textbox

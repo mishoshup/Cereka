@@ -37,7 +37,8 @@ class CerekaEngine {
     bool InitGame(const char *title,
                   int w,
                   int h,
-                  bool fullscreen = false);
+                  bool fullscreen = false,
+                  bool headless = false);
     void ShutDown();
 
     bool PollEvent(CerekaEvent &e);
@@ -58,6 +59,9 @@ class CerekaEngine {
     const std::string &CurrentText() const;
     size_t ButtonCount() const;
     size_t ProgramCounter() const;
+    CerekaState CurrentState() const;
+    bool SelectMenuOption(int idx);
+    std::vector<std::string> ButtonLabels() const;
 
     bool IsGameFinished() const;
     bool IsGameQuit() const;

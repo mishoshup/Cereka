@@ -8,6 +8,7 @@ using namespace cereka::compiler;
 using namespace cereka::video;
 using namespace cereka::text_renderer;
 using namespace cereka::engine;
+using namespace cereka;
 
 // Forward declaration for static helper used in InitGame
 static SDL_Renderer *CreateBestRenderer(SDL_Window *win);
@@ -19,10 +20,11 @@ static SDL_Renderer *CreateBestRenderer(SDL_Window *win);
 bool Impl::InitGame(const char *title,
                     int width,
                     int height,
-                    bool fullscreen)
+                    bool fullscreen,
+                    bool headless)
 {
     video::init_video();
-    video::create_window(title, fullscreen, width, height);
+    video::create_window(title, fullscreen, width, height, headless);
     window = video::window;
     screenWidth = video::width;
     screenHeight = video::height;
@@ -46,6 +48,7 @@ bool Impl::InitGame(const char *title,
     audio.Init();
 
     // --- State machine ---
+    m_stateMachine.setHeadless(headless);
     m_stateMachine.setContext(*this);
     m_stateMachine.registerState<DialogueState>();
     m_stateMachine.registerState<WaitingForInputState>();
@@ -247,6 +250,27 @@ void Impl::ExitMenu()
 }
 
 // ---------------------------------------------------------------------------
+// Test API — SelectMenuOption triggers a menu button by index directly
+// ---------------------------------------------------------------------------
+
+bool Impl::SelectMenuOption(int idx)
+{
+    if (!menu.IsOpen() || idx < 0 || idx >= (int)menu.ButtonCount())
+        return false;
+
+    if (menu.IsExit(idx)) {
+        ExitMenu();
+    } else {
+        const auto &target = menu.Target(idx);
+        size_t nextPC = target.empty() ? menu.EndPC() : scriptInterpreter.labelMap[target];
+        scriptInterpreter.pc = nextPC;
+        ExitMenu();
+    }
+    m_stateMachine.changeState(CerekaState::Running);
+    return true;
+}
+
+// ---------------------------------------------------------------------------
 // Event handling — delegates to state machine
 // ---------------------------------------------------------------------------
 
@@ -334,9 +358,10 @@ cereka::CerekaEngine::~CerekaEngine()
 bool cereka::CerekaEngine::InitGame(const char *title,
                                     int w,
                                     int h,
-                                    bool fullscreen)
+                                    bool fullscreen,
+                                    bool headless)
 {
-    return pImplementation->InitGame(title, w, h, fullscreen);
+    return pImplementation->InitGame(title, w, h, fullscreen, headless);
 }
 
 void cereka::CerekaEngine::ShutDown()
@@ -404,6 +429,21 @@ size_t cereka::CerekaEngine::ButtonCount() const
 size_t cereka::CerekaEngine::ProgramCounter() const
 {
     return pImplementation->scriptInterpreter.pc;
+}
+
+CerekaState cereka::CerekaEngine::CurrentState() const
+{
+    return pImplementation->CurrentState();
+}
+
+bool cereka::CerekaEngine::SelectMenuOption(int idx)
+{
+    return pImplementation->SelectMenuOption(idx);
+}
+
+std::vector<std::string> cereka::CerekaEngine::ButtonLabels() const
+{
+    return pImplementation->ButtonLabels();
 }
 
 bool cereka::CerekaEngine::IsGameFinished() const

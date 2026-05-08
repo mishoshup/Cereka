@@ -162,8 +162,9 @@ class CerekaStateMachine {
         if (!currentState_ || !ctx_)
             return;
 
-        std::cout << "[STATE] " << stateLabel(currentType_) << " -> " << stateLabel(newType)
-                  << "\n";
+        if (!headless_)
+            std::cout << "[STATE] " << stateLabel(currentType_) << " -> " << stateLabel(newType)
+                      << "\n";
 
         currentState_->onExit(*ctx_);
         currentState_ = nullptr;
@@ -176,13 +177,16 @@ class CerekaStateMachine {
         }
     }
 
+    void setHeadless(bool v) { headless_ = v; }
+
     void pushOverlay(CerekaState overlayType)
     {
         if (!ctx_)
             return;
 
-        std::cout << "[STATE] " << stateLabel(currentType_) << " -> pushOverlay("
-                  << stateLabel(overlayType) << ")\n";
+        if (!headless_)
+            std::cout << "[STATE] " << stateLabel(currentType_) << " -> pushOverlay("
+                      << stateLabel(overlayType) << ")\n";
 
         overlayStack_.push_back({currentType_, currentState_});
 
@@ -199,8 +203,9 @@ class CerekaStateMachine {
         if (!ctx_ || overlayStack_.empty())
             return;
 
-        std::cout << "[STATE] popOverlay(" << stateLabel(currentType_) << ") -> "
-                  << stateLabel(overlayStack_.back().first) << "\n";
+        if (!headless_)
+            std::cout << "[STATE] popOverlay(" << stateLabel(currentType_) << ") -> "
+                      << stateLabel(overlayStack_.back().first) << "\n";
 
         if (currentState_) {
             currentState_->onExit(*ctx_);
@@ -260,7 +265,8 @@ class CerekaStateMachine {
 
     void clearOverlays()
     {
-        std::cout << "[STATE] clearOverlays (was: " << stateLabel(currentType_) << ")\n";
+        if (!headless_)
+            std::cout << "[STATE] clearOverlays (was: " << stateLabel(currentType_) << ")\n";
         if (currentState_) {
             currentState_->onExit(*ctx_);
         }
@@ -269,10 +275,11 @@ class CerekaStateMachine {
 
    private:
     ICerekaStateContext *ctx_ = nullptr;
-    CerekaState currentType_ = CerekaState::Running;
+    CerekaState currentType_ = CerekaState::Quit;
     ICerekaState *currentState_ = nullptr;
-    std::unordered_map<CerekaState, std::unique_ptr<ICerekaState>> states_;
     std::vector<std::pair<CerekaState, ICerekaState *>> overlayStack_;
+    std::unordered_map<CerekaState, std::unique_ptr<ICerekaState>> states_;
+    bool headless_ = false;
 };
 
 }  // namespace cereka

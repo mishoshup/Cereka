@@ -98,6 +98,26 @@ Plans:
 Plans:
 - [ ] TBD (run /gsd-plan-phase 7 to break down)
 
+### Phase 8: Fix inconsistent type coercion: string var vs literal int in comparison
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 7
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 8 to break down)
+
+### Phase 9: headless mode
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 8
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 9 to break down)
+
 ---
 
 ## Phase 6 — Documentation Site
