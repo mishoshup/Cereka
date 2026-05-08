@@ -231,6 +231,39 @@ The LSP binary is released independently from the engine (separate repository,
 separate versioning). For convenience it is bundled with complete launcher
 releases.
 
+### Tree-sitter Grammar Sync
+
+The tree-sitter grammar at `tree-sitter-cereka/grammar.js` should stay in sync
+with the compiler's keyword set (`scripts/cereka_compiler.lua`, specifically
+`STMT_HANDLERS` and `IF_OPS`). The sync mechanism works as follows:
+
+**Source of truth:** `scripts/ops.json` — a JSON manifest of every .crka keyword,
+operator, and UI element name, extracted manually from the Lua compiler.
+
+**Generator script:** `scripts/gen_tree_sitter_grammar.js` — reads ops.json and
+updates grammar.js. It replaces content inside `// AUTO-GENERATED` markers for
+simple choice lists (comparison ops, arithmetic ops, UI elements) and validates
+that statement keywords have matching grammar rules.
+
+**Convenience wrapper:** `scripts/update_grammar.sh` — runs the generator and
+optionally rebuilds the WASM binary (`--rebuild`).
+
+**When to sync:** After adding a new keyword/op to `STMT_HANDLERS` or `IF_OPS`
+in `cereka_compiler.lua`:
+
+1. Update `scripts/ops.json` with the new keyword (and any new ops/operators).
+2. Run `./scripts/update_grammar.sh` to update the auto-generated sections.
+3. Add any missing grammar rules that the validator warns about.
+4. If the grammar changed, rebuild the WASM binary with `--rebuild`.
+
+The tree-sitter grammar path defaults to `../tree-sitter-cereka/grammar.js`
+relative to `scripts/`. Override with `GRAMMAR_PATH=/path/to/grammar.js`.
+
+**Marked sections in grammar.js:**
+- `// AUTO-GENERATED: comparison_op` — if-block comparison operators
+- `// AUTO-GENERATED: arithmetic_op` — binary expression operators
+- `// AUTO-GENERATED: ui_element` — ui block element names
+
 ## Testing
 Two independent suites:
 
