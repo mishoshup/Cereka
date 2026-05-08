@@ -145,3 +145,133 @@ Plans:
 - [x] 04-02-PLAN.md — Text Markup (tag parser, rich text renderer, IRenderContext integration)
 - [x] 04-03-PLAN.md — Audio Fade (timer-based volume ramping, fade curve math, crossfade)
 - [x] 04-04-PLAN.md — Rollback + Dialogue History (ring buffer, HistoryState overlay)
+
+---
+
+## Backlog
+
+### Phase 999.1: Scripting language enhancements (BACKLOG)
+
+**Goal:** Add else-if, &&, ||, switch/case, while loops, random(), wait N, and array support to .crka.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.2: Button/menu overhaul (BACKLOG)
+
+**Goal:** Auto-pagination for overflow buttons, hover state rendering, configurable Y start position and spacing via ui button block.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.3: Word-wrap fix (BACKLOG)
+
+**Goal:** Fix TTF_MeasureString wrapping at glyph boundaries — scan back for word boundary before wrapping.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.4: Settings & persistent data system (BACKLOG)
+
+**Goal:** settings.json + persistent.json with .crka API (set_setting, get_setting, persistent set/get). Auto-wire volume to AudioManager, text speed to DialogueSystem, fullscreen toggle.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.5: Pause menu & settings overlay (BACKLOG)
+
+**Goal:** ESC overlay with Continue/Save/Load/Settings/Quit. Settings overlay with sliders (text speed, volume) and toggles (auto-advance, fullscreen).
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.6: Save/load UX improvements (BACKLOG)
+
+**Goal:** Scene metadata in save slots (bg/character name), confirm overwrite dialog, quick save/load ops.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.7: Launcher IDE Tier 1-2: script editor + dashboard (BACKLOG)
+
+**Goal:** Syntax-highlighted .crka editor with line numbers, code folding, auto-complete, go-to-definition, error diagnostics, project dashboard with metadata and template gallery.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.8: Launcher IDE Tier 3-4: visual dialogue editor + asset browser (BACKLOG)
+
+**Goal:** Node graph editor for .crka flow (labels as nodes, buttons as connections), timeline view, asset browser with thumbnails, audio waveform preview, drag-to-insert.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.9: Launcher IDE Tier 5-6: UI theme designer + debugger (BACKLOG)
+
+**Goal:** WYSIWYG theme editor with split code/preview, color picker, font selector. Script debugger with breakpoints, step-over, variable inspector, call stack viewer, profiling.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.10: Launcher IDE Tier 7-9: preview + plugins + git (BACKLOG)
+
+**Goal:** In-editor dialogue preview panel, plugin system with API, template/asset gallery, git integration with diff viewer for .crka files.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.11: Animation system — ATL language (BACKLOG)
+
+**Goal:** Declarative animation language for character/bg transitions: dissolve, zoom, rotate, move. Timing curves, chained animations, parallel animations.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.12: Accessibility & input (BACKLOG)
+
+**Goal:** Controller/gamepad support, font size scaling, subtitle background, colorblind mode, full key remapping.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.13: Dialogue UX enhancements (BACKLOG)
+
+**Goal:** Configurable typewriter speed (per-game/per-player), auto-advance mode (configurable delay), text speed per instruction, skip-read (already-read vs all).
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.14: Whiteout game completion (BACKLOG)
+
+**Goal:** Clean up nested if hell with else-if, refine UI theme, complete prologue content pipeline, full spike test coverage, packaging flow.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
