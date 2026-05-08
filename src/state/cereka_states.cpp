@@ -287,8 +287,11 @@ void DialogueState::update(float dt,
                     auto r = safe_stoi(ins.a);
                     if (r) slot = *r;
                 }
-                if (slot >= 1 && slot <= 10)
-                    impl.LoadGame(slot);  // restores pc and state from file
+                if (slot >= 1 && slot <= 10) {
+                    size_t resumePC = si.pc + 1;
+                    impl.LoadGame(slot);
+                    si.pc = resumePC;
+                }
                 return;
             }
 
