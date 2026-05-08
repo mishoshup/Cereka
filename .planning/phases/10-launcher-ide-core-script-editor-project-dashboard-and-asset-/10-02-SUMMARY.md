@@ -122,6 +122,12 @@ None - no external service configuration required.
 - Ready for Plan 10-03 (project dashboard widgets, build status panel) or 10-04 (asset browser)
 - File tree shows .crka files via recursive_directory_iterator — no filtering yet (all .crka files shown flat; subdirectory structure could be added)
 
+## Self-Check: PASSED
+
+- [x] All 9 created files exist on disk
+- [x] All 5 commits present in git log
+- [x] Launcher builds without errors (CerekaLauncher target)
+
 ---
 
 *Phase: 10-launcher-ide-core*
