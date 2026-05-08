@@ -8,7 +8,7 @@ else()
     list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/Qt/${CEREKA_QT_VERSION}/linux_gcc_64")
 endif()
 
-find_package(Qt6 COMPONENTS Widgets REQUIRED)
+find_package(Qt6 COMPONENTS Widgets Multimedia REQUIRED)
 
 set(CMAKE_AUTOMOC ON)
 
@@ -47,13 +47,14 @@ add_executable(CerekaLauncher WIN32
     main.cpp
     config.cpp
     project_manager.cpp
+    project_metadata.cpp
 )
 
 target_include_directories(CerekaLauncher PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-target_link_libraries(CerekaLauncher PRIVATE Qt6::Widgets)
+target_link_libraries(CerekaLauncher PRIVATE Qt6::Widgets Qt6::Multimedia)
 
 target_compile_features(CerekaLauncher PRIVATE cxx_std_17)
 
