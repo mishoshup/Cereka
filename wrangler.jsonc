@@ -1,0 +1,7 @@
+{
+  "name": "cereka-docs",
+  "compatibility_date": "2026-05-08",
+  "assets": {
+    "directory": "./_site"
+  }
+}
