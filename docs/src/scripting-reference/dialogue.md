@@ -41,6 +41,18 @@ narrate "The sun cast long shadows across the cobblestone streets."
 
 Narration supports text markup and variable substitution, just like `say`.
 
+### Word Wrap
+
+Dialogue text automatically wraps at the configured textbox width. The wrap width can be customized in your UI theme:
+
+```crka
+ui textbox
+    wrap_width 90%     ; wrap at 90% of screen width
+    text_margin_x 40   ; horizontal padding inside textbox
+```
+
+If `wrap_width` is not specified, it defaults to 90% of the screen width. Text that exceeds the wrap width is broken at word boundaries — words are never split mid-character. The engine's word-wrap algorithm measures each line with `TTF_MeasureString` to ensure accurate pixel-perfect wrapping for the loaded font.
+
 ```crka
 set town "Elmswood"
 narrate "Welcome to {town}."
