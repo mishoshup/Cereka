@@ -3,6 +3,8 @@
 #include "embedded_assets.h"
 #include "templates.hpp"
 
+#include <QDateTime>
+
 #include <algorithm>
 #include <fstream>
 
@@ -140,6 +142,12 @@ entry      = assets/scripts/main.crka
                     kMontserratTtf_len))
         return false;
 
+    // Write .cereka/project.json with fresh UUID
+    {
+        ProjectMetadata meta = ProjectMetadata::create(name);
+        meta.save(projectPath);
+    }
+
     return loadProject(projectPath);
 }
 
@@ -195,6 +203,15 @@ bool ProjectManager::initProject(const fs::path &path)
     writeIfMissing(
         path / "assets/fonts/Montserrat-Medium.ttf", kMontserratTtf, kMontserratTtf_len);
 
+    // Create metadata if it doesn't exist yet
+    {
+        fs::path metaFile = path / ".cereka" / "project.json";
+        if (!fs::exists(metaFile)) {
+            ProjectMetadata meta = ProjectMetadata::create(name);
+            meta.save(path);
+        }
+    }
+
     return loadProject(path);
 }
 
@@ -243,6 +260,8 @@ bool ProjectManager::renameProject(const fs::path &oldPath,
     if (m_currentPath == oldPath) {
         m_currentPath = newPath;
         m_currentTitle = newName;
+        m_metadata.title = newName;
+        m_metadata.save(m_currentPath);
     }
 
     return true;
@@ -256,6 +275,14 @@ bool ProjectManager::loadProject(const fs::path &projectPath)
     fs::path cfgPath = projectPath / "game.cfg";
     if (fs::exists(cfgPath))
         loadGameCfg(cfgPath);
+
+    // Load project metadata
+    m_metadata.load(projectPath);
+
+    // Update the lastOpened timestamp
+    m_metadata.lastOpened =
+        QDateTime::currentDateTimeUtc().toString(Qt::ISODate).toStdString();
+    m_metadata.save(projectPath);
 
     return true;
 }

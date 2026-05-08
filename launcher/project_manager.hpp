@@ -1,5 +1,7 @@
 #pragma once
 
+#include "project_metadata.hpp"
+
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -32,6 +34,10 @@ class ProjectManager {
     {
         return m_currentPath;
     }
+    const ProjectMetadata &currentMetadata() const
+    {
+        return m_metadata;
+    }
 
    private:
     ProjectManager() = default;
@@ -43,4 +49,5 @@ class ProjectManager {
 
     fs::path m_currentPath;
     std::string m_currentTitle;
+    ProjectMetadata m_metadata;
 };
