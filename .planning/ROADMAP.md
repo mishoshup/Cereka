@@ -66,6 +66,16 @@ Plans:
 - [x] 03-03-PLAN.md — UIManager Extraction (D-03)
 - [x] 03-04-PLAN.md — State Machine Unification (D-02)
 
+### Phase 5: to make it work cross platform across mac windows and linux, bcs windows and linux is good now. just macos since the resolution is weird. and unconvencitonal. somehow even if window resolution ok, the game inside the window is distorted
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 4
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 5 to break down)
+
 ---
 
 ## Phase 4 — Engine Features
@@ -80,7 +90,7 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Scene Graph (SceneNode tree, compiler ops, UIManager draw)
-- [ ] 04-02-PLAN.md — Text Markup (tag parser, rich text renderer, IRenderContext integration)
-- [ ] 04-03-PLAN.md — Audio Fade (timer-based volume ramping, fade curve math, crossfade)
-- [ ] 04-04-PLAN.md — Rollback + Dialogue History (ring buffer, HistoryState overlay)
+- [x] 04-01-PLAN.md — Scene Graph (SceneNode tree, compiler ops, UIManager draw)
+- [x] 04-02-PLAN.md — Text Markup (tag parser, rich text renderer, IRenderContext integration)
+- [x] 04-03-PLAN.md — Audio Fade (timer-based volume ramping, fade curve math, crossfade)
+- [x] 04-04-PLAN.md — Rollback + Dialogue History (ring buffer, HistoryState overlay)
