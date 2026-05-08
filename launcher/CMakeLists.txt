@@ -45,9 +45,13 @@ ${EMBED_FONT}
 
 add_executable(CerekaLauncher WIN32
     main.cpp
+    code_editor.cpp
     config.cpp
+    editor_page.cpp
+    lsp_client.cpp
     project_manager.cpp
     project_metadata.cpp
+    syntax_highlighter.cpp
 )
 
 target_include_directories(CerekaLauncher PRIVATE

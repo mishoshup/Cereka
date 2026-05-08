@@ -24,6 +24,7 @@
 #include <QWidget>
 
 #include "config.hpp"
+#include "editor_page.hpp"
 #include "embedded_assets.h"
 #include "project_manager.hpp"
 #include "theme.hpp"
@@ -159,7 +160,8 @@ public:
         m_contentStack->addWidget(buildWelcomeScreen());           // PageWelcome
         m_contentStack->addWidget(buildEmptyState());              // PageEmpty
         m_contentStack->addWidget(buildProjectDetail());           // PageProject
-        m_contentStack->addWidget(buildEditorPlaceholder());       // PageEditor
+        m_editorPage = new EditorPage();
+        m_contentStack->addWidget(m_editorPage);                   // PageEditor
         m_contentStack->addWidget(buildAssetBrowserPlaceholder()); // PageAssetBrowser
         root->addWidget(m_contentStack, 1);
 
@@ -550,33 +552,6 @@ private:
 
     // ── Placeholder pages ────────────────────────────────────────────────────
 
-    QWidget *buildEditorPlaceholder()
-    {
-        QWidget *w = new QWidget();
-        w->setStyleSheet(QString("background-color: %1;").arg(Theme::BgBase));
-        QVBoxLayout *v = new QVBoxLayout(w);
-        v->setAlignment(Qt::AlignCenter);
-        v->setSpacing(12);
-
-        QLabel *icon = new QLabel("◈");
-        icon->setStyleSheet(QString("color: %1; font-size: 48px;").arg(Theme::TextGlyph));
-        icon->setAlignment(Qt::AlignCenter);
-        v->addWidget(icon);
-
-        QLabel *title = new QLabel("Script Editor");
-        title->setFont(boldFont(Theme::FontTitle));
-        title->setStyleSheet(QString("color: %1;").arg(Theme::TextDim));
-        title->setAlignment(Qt::AlignCenter);
-        v->addWidget(title);
-
-        QLabel *desc = new QLabel("coming soon");
-        desc->setStyleSheet(QString("color: %1; font-size: 13px;").arg(Theme::TextFaint));
-        desc->setAlignment(Qt::AlignCenter);
-        v->addWidget(desc);
-
-        return w;
-    }
-
     QWidget *buildAssetBrowserPlaceholder()
     {
         QWidget *w = new QWidget();
@@ -642,6 +617,11 @@ private:
         bool hasGame = ProjectManager::instance().currentHasGameCfg();
         m_gameActionsWidget->setVisible(hasGame);
         m_initWidget->setVisible(!hasGame);
+
+        // Update editor page with project scripts
+        if (m_editorPage)
+            m_editorPage->setProjectPath(path);
+
         fadeToPage(PageProject);
     }
 
@@ -1110,6 +1090,8 @@ private:
     QWidget       *m_initWidget        = nullptr;
     QPushButton   *m_initBtn           = nullptr;
     QTextEdit     *m_log               = nullptr;
+
+    EditorPage *m_editorPage = nullptr;
 
     QGraphicsOpacityEffect *m_contentOpacity = nullptr;
     QPropertyAnimation     *m_fadeAnim       = nullptr;
