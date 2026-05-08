@@ -6,3 +6,4 @@ cereka-*.zip
 # old toolchain draft superseded by cmake/toolchains/ucrt64.cmake
 cmake/Toolchain-ucrt64.cmake
 cereka_debug.txt
+docs/book/

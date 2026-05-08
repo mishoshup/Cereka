@@ -1,0 +1,19 @@
+[book]
+title = "Cereka Documentation"
+authors = ["Cereka Team"]
+language = "en"
+
+[output.html]
+default-theme = "ayu"
+preferred-dark-theme = "navy"
+mathjax-support = false
+git-repository-url = "https://github.com/mishoshup/Cereka"
+edit-url-template = "https://github.com/mishoshup/Cereka/edit/main/docs/src/{path}"
+site-url = "/"
+
+[output.html.search]
+limit-results = 30
+teaser-word-count = 20
+
+[output.html.print]
+enable = true
