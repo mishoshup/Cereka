@@ -70,8 +70,8 @@ void SceneGraph::updateTransforms()
 
 void SceneGraph::updateNode(SceneNode &node, const SceneNode::Transform &parentAccum)
 {
-    node.world.x = node.local.x;
-    node.world.y = node.local.y;
+    node.world.x = parentAccum.x + node.local.x * parentAccum.scaleX;
+    node.world.y = parentAccum.y + node.local.y * parentAccum.scaleY;
     node.world.scaleX = parentAccum.scaleX * node.local.scaleX;
     node.world.scaleY = parentAccum.scaleY * node.local.scaleY;
     node.world.rotationDeg = parentAccum.rotationDeg + node.local.rotationDeg;
