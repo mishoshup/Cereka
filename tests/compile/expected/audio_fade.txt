@@ -1,0 +1,5 @@
+a=theme.ogg b=2.0 col=1 line=2 op=PLAY_BGM_FADE
+b=1.5 col=1 line=3 op=STOP_BGM_FADE
+a=next.ogg b=1.0 col=1 line=4 op=BGM_CROSSFADE
+a=instant.ogg col=1 line=5 op=PLAY_BGM
+col=1 line=6 op=STOP_BGM
