@@ -1,6 +1,7 @@
 #include "editor_page.hpp"
 #include "theme.hpp"
 
+#include <QApplication>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -9,12 +10,15 @@
 #include <QJsonObject>
 #include <QMessageBox>
 #include <QScrollBar>
+#include <QShortcut>
 #include <QTextStream>
 #include <QVBoxLayout>
 
 #include <algorithm>
 
-// ── Constructor / destructor ──────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// ── Constructor / destructor ─────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
 
 EditorPage::EditorPage(QWidget *parent)
     : QWidget(parent)
@@ -34,7 +38,9 @@ EditorPage::~EditorPage()
     stopLspClient();
 }
 
-// ── UI construction ───────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// ── UI construction ──────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
 
 void EditorPage::buildUi()
 {
@@ -42,10 +48,11 @@ void EditorPage::buildUi()
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
 
+    // ── Outer splitter: file tree | editor area ─────────────────────────────
     m_mainSplitter = new QSplitter(Qt::Horizontal, this);
     m_mainSplitter->setHandleWidth(1);
 
-    // ── File tree ─────────────────────────────────────────────────────────────
+    // ── File tree ───────────────────────────────────────────────────────────
     m_fileTree = new QListWidget();
     m_fileTree->setFixedWidth(200);
     m_fileTree->setStyleSheet(QString(R"(
@@ -73,93 +80,296 @@ void EditorPage::buildUi()
             this, &EditorPage::onFileTreeClicked);
     m_mainSplitter->addWidget(m_fileTree);
 
-    // ── Editor area: custom tab bar + stacked widget ───────────────────────────
-    m_editorArea = new QWidget();
-    auto *editorLayout = new QVBoxLayout(m_editorArea);
-    editorLayout->setContentsMargins(0, 0, 0, 0);
-    editorLayout->setSpacing(0);
+    // ── Editor splitter (holds 1 or 2 panels) ───────────────────────────────
+    m_editorSplitter = new QSplitter(Qt::Horizontal);
+    m_editorSplitter->setHandleWidth(1);
+    m_editorSplitter->setChildrenCollapsible(false);
 
-    // Custom tab bar (replaces QTabWidget's internal tab bar)
-    m_tabBar = new EditorTabBar();
-    editorLayout->addWidget(m_tabBar);
+    // Create the initial (only) panel
+    createPanel(0);
 
-    // Stacked widget holds all editor widgets (one per open tab)
-    m_editorStack = new QStackedWidget();
-    m_editorStack->setStyleSheet(QString(
-        "background-color: %1;"
-    ).arg(Theme::BgBase));
-    editorLayout->addWidget(m_editorStack, 1);
-
-    // Connect tab bar signals
-    connect(m_tabBar, &QTabBar::currentChanged,
-            this, &EditorPage::onTabChanged);
-    connect(m_tabBar, &QTabBar::tabCloseRequested,
-            this, &EditorPage::onTabCloseRequested);
-    connect(m_tabBar, &EditorTabBar::splitRightRequested,
-            this, &EditorPage::onTabBarSplitRequested);
-
-    m_mainSplitter->addWidget(m_editorArea);
-
+    m_mainSplitter->addWidget(m_editorSplitter);
     m_mainSplitter->setStretchFactor(0, 0);
     m_mainSplitter->setStretchFactor(1, 1);
     layout->addWidget(m_mainSplitter, 1);
 
-    // ── Status bar ────────────────────────────────────────────────────────────
+    // ── Ctrl+\ to split/merge ───────────────────────────────────────────────
+    auto *splitShortcut = new QShortcut(QKeySequence("Ctrl+\\"), this);
+    connect(splitShortcut, &QShortcut::activated, this, [this]() {
+        if (m_panelCount >= 2)
+            onMergeSplit();
+        else
+            onSplitRight();
+    });
+
+    // ── Status bar ──────────────────────────────────────────────────────────
     m_statusBar = new QLabel();
     m_statusBar->setFixedHeight(24);
     m_statusBar->setStyleSheet(QString(
         "background-color: %1; color: %2; font-size: 11px; padding: 0 10px;"
     ).arg(Theme::BgDeep).arg(Theme::TextMicro));
     layout->addWidget(m_statusBar);
+
+    installEventFilter(this);
 }
 
-// ── Project management ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// ── Panel management ─────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+EditorPanel &EditorPage::activePanel()
+{
+    return m_panels[m_activePanel];
+}
+
+EditorPanel &EditorPage::panel(int idx)
+{
+    return m_panels[idx];
+}
+
+EditorPanel &EditorPage::createPanel(int index)
+{
+    EditorPanel &p = m_panels[index];
+    p.container = new QWidget();
+    auto *lay = new QVBoxLayout(p.container);
+    lay->setContentsMargins(0, 0, 0, 0);
+    lay->setSpacing(0);
+
+    // Tab bar
+    p.tabBar = new EditorTabBar();
+    lay->addWidget(p.tabBar);
+
+    // Editor stack
+    p.editorStack = new QStackedWidget();
+    p.editorStack->setStyleSheet(QString(
+        "background-color: %1;"
+    ).arg(Theme::BgBase));
+    lay->addWidget(p.editorStack, 1);
+
+    connectPanelSignals(p);
+
+    // Insert into splitter at the given position
+    if (index < m_editorSplitter->count())
+        m_editorSplitter->insertWidget(index, p.container);
+    else
+        m_editorSplitter->addWidget(p.container);
+
+    return p;
+}
+
+void EditorPage::removePanel(int index)
+{
+    EditorPanel &p = m_panels[index];
+    if (!p.container)
+        return;
+
+    // Remove all tabs (notify LSP close)
+    while (!p.tabs.isEmpty()) {
+        closeTab(p, p.tabs.size() - 1);
+    }
+
+    // Remove from splitter
+    m_editorSplitter->removeWidget(p.container);
+    p.container->deleteLater();
+    p.clear();
+}
+
+void EditorPage::connectPanelSignals(EditorPanel &panel)
+{
+    if (!panel.tabBar || !panel.editorStack)
+        return;
+
+    // Use lambdas with the panel index captured to identify which panel
+    int pIdx = (&panel - m_panels); // pointer arithmetic to get index
+
+    connect(panel.tabBar, &QTabBar::currentChanged, this,
+        [this, pIdx](int index) {
+            if (index >= 0 && index < m_panels[pIdx].editorStack->count())
+                m_panels[pIdx].editorStack->setCurrentIndex(index);
+            onTabChanged(index);
+        });
+
+    connect(panel.tabBar, &QTabBar::tabCloseRequested, this,
+        [this, pIdx](int index) {
+            closeTab(m_panels[pIdx], index);
+        });
+
+    connect(panel.tabBar, &EditorTabBar::splitRightRequested, this,
+        [this, pIdx]() {
+            m_activePanel = pIdx;
+            onSplitRight();
+        });
+
+    connect(panel.tabBar, &EditorTabBar::mergeRequested, this,
+        [this]() {
+            onMergeSplit();
+        });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── Split-pane operations ────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+void EditorPage::onSplitRight()
+{
+    if (m_panelCount >= 2)
+        return; // already split
+
+    EditorPanel &src = activePanel();
+
+    // Create second panel
+    m_panelCount = 2;
+    createPanel(1);
+
+    // Copy the active tab from the source panel to the new panel
+    int srcIdx = src.tabBar->currentIndex();
+    if (srcIdx >= 0 && srcIdx < src.tabs.size()) {
+        const EditorTab &srcTab = src.tabs[srcIdx];
+        addTab(m_panels[1], srcTab.filePath);
+    }
+
+    // Mark both tab bars as being in split mode
+    m_panels[0].tabBar->setSplitActive(true);
+    m_panels[1].tabBar->setSplitActive(true);
+
+    // The new panel becomes active
+    m_activePanel = 1;
+    updatePaneReadOnlyState();
+    m_statusBar->setText("Split view — click to switch focus");
+
+    // Equal split
+    QList<int> sizes = {m_editorSplitter->width() / 2,
+                        m_editorSplitter->width() / 2};
+    m_editorSplitter->setSizes(sizes);
+}
+
+void EditorPage::onMergeSplit()
+{
+    if (m_panelCount < 2)
+        return;
+
+    // Move all tabs from panel 1 to panel 0
+    EditorPanel &src = m_panels[1];
+    EditorPanel &dst = m_panels[0];
+
+    for (const EditorTab &tab : src.tabs) {
+        // Only add if not already in the destination
+        if (findTabByPath(dst, tab.filePath) < 0) {
+            addTab(dst, tab.filePath);
+        }
+    }
+
+    // Mark tab bar as no longer in split mode
+    m_panels[0].tabBar->setSplitActive(false);
+
+    // Remove panel 1
+    removePanel(1);
+    m_panelCount = 1;
+    m_activePanel = 0;
+    updatePaneReadOnlyState();
+    m_statusBar->setText("");
+}
+
+void EditorPage::onTabBarSplitRequested()
+{
+    onSplitRight();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── Focus / read-only tracking ───────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+bool EditorPage::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::FocusIn && m_panelCount >= 2) {
+        // Determine which panel the focused widget belongs to
+        QWidget *focusWidget = qobject_cast<QWidget *>(watched);
+        if (!focusWidget)
+            focusWidget = qobject_cast<QWidget *>(watched->parent());
+
+        // Walk parent chain to find which panel container contains this widget
+        for (int i = 0; i < m_panelCount; ++i) {
+            if (m_panels[i].container
+                && (focusWidget == m_panels[i].container
+                    || m_panels[i].container->isAncestorOf(focusWidget)))
+            {
+                if (m_activePanel != i) {
+                    m_activePanel = i;
+                    updatePaneReadOnlyState();
+                    // Update status bar with active tab info
+                    EditorTab *tab = currentTab(m_panels[i]);
+                    if (tab) {
+                        m_statusBar->setText(
+                            QFileInfo(tab->filePath).fileName()
+                            + (tab->modified ? " ●" : ""));
+                    }
+                }
+                break;
+            }
+        }
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
+void EditorPage::updatePaneReadOnlyState()
+{
+    // Only meaningful in split mode
+    if (m_panelCount < 2)
+        return;
+
+    for (int i = 0; i < m_panelCount; ++i) {
+        bool readonly = (i != m_activePanel);
+        EditorPanel &p = m_panels[i];
+        for (EditorTab &tab : p.tabs) {
+            tab.editor->setReadOnly(readonly);
+        }
+        // Visual indicator on inactive tab bar
+        p.tabBar->setEnabled(!readonly);
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── Project management ───────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
 
 void EditorPage::setProjectPath(const fs::path &path)
 {
     m_projectPath = path;
 
-    // Clear existing state
-    while (m_tabBar->count() > 0) {
-        int idx = m_tabBar->count() - 1;
-        m_tabBar->removeTab(idx);
+    // Clear all panels
+    for (int i = 0; i < m_panelCount; ++i) {
+        removePanel(i);
     }
-    while (m_editorStack->count() > 0) {
-        QWidget *w = m_editorStack->widget(0);
-        m_editorStack->removeWidget(w);
-    }
-    m_tabs.clear();
+    m_panelCount = 1;
+    m_activePanel = 0;
+    createPanel(0);
+
     m_fileTree->clear();
     m_statusBar->clear();
 
-    // Stop old LSP
     stopLspClient();
-
-    // Populate file tree
     populateFileTree();
-
-    // Start LSP
     startLspClient();
 }
 
 void EditorPage::clearProject()
 {
     m_projectPath.clear();
-    while (m_tabBar->count() > 0) {
-        int idx = m_tabBar->count() - 1;
-        m_tabBar->removeTab(idx);
+    for (int i = 0; i < m_panelCount; ++i) {
+        removePanel(i);
     }
-    while (m_editorStack->count() > 0) {
-        QWidget *w = m_editorStack->widget(0);
-        m_editorStack->removeWidget(w);
-    }
-    m_tabs.clear();
+    m_panelCount = 1;
+    m_activePanel = 0;
+    createPanel(0);
+
     m_fileTree->clear();
     m_statusBar->setText("No project loaded");
     stopLspClient();
 }
 
-// ── File tree ─────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// ── File tree ────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
 
 void EditorPage::populateFileTree()
 {
@@ -173,7 +383,6 @@ void EditorPage::populateFileTree()
     QStringList files = findCrkaFiles(scriptsDir);
     std::sort(files.begin(), files.end());
 
-    // Remove existing watcher paths
     if (!m_fsWatcher->files().isEmpty())
         m_fsWatcher->removePaths(m_fsWatcher->files());
 
@@ -197,32 +406,36 @@ QStringList EditorPage::findCrkaFiles(const fs::path &dir) const
     return result;
 }
 
-// ── Tab management ────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// ── Per-panel tab management ─────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
 
-EditorTab *EditorPage::currentTab()
+EditorTab *EditorPage::currentTab(EditorPanel &panel)
 {
-    int idx = m_tabBar->currentIndex();
-    if (idx < 0 || idx >= m_tabs.size())
+    int idx = panel.tabBar ? panel.tabBar->currentIndex() : -1;
+    if (idx < 0 || idx >= panel.tabs.size())
         return nullptr;
-    return &m_tabs[idx];
+    return &panel.tabs[idx];
 }
 
-int EditorPage::findTabByPath(const QString &filePath) const
+int EditorPage::findTabByPath(EditorPanel &panel, const QString &filePath) const
 {
-    for (int i = 0; i < m_tabs.size(); ++i) {
-        if (m_tabs[i].filePath == filePath)
+    for (int i = 0; i < panel.tabs.size(); ++i) {
+        if (panel.tabs[i].filePath == filePath)
             return i;
     }
     return -1;
 }
 
-int EditorPage::addTab(const QString &filePath)
+int EditorPage::addTab(EditorPanel &panel, const QString &filePath)
 {
-    // Check if already open
-    int existing = findTabByPath(filePath);
+    // Check if already open in this panel
+    int existing = findTabByPath(panel, filePath);
     if (existing >= 0) {
-        m_tabBar->setCurrentIndex(existing);
-        m_editorStack->setCurrentIndex(existing);
+        if (panel.tabBar)
+            panel.tabBar->setCurrentIndex(existing);
+        if (panel.editorStack)
+            panel.editorStack->setCurrentIndex(existing);
         return existing;
     }
 
@@ -245,78 +458,106 @@ int EditorPage::addTab(const QString &filePath)
     editor->setPlainText(content);
 
     // Connect signals
-    connect(editor, &CodeEditor::goToDefinitionRequested,
-            this, &EditorPage::onGoToDefinition);
-    connect(editor, &CodeEditor::completionTriggered,
-            this, &EditorPage::onCompletionTriggered);
-    connect(editor, &QPlainTextEdit::textChanged,
-            this, &EditorPage::onEditorTextChanged);
+    int pIdx = (&panel - m_panels); // panel index via pointer arithmetic
+    connect(editor, &CodeEditor::goToDefinitionRequested, this,
+        [this](const QString &uri, int line, int col) {
+            onGoToDefinition(uri, line, col);
+        });
+    connect(editor, &CodeEditor::completionTriggered, this,
+        [this](const QString &uri, int line, int col) {
+            onCompletionTriggered(uri, line, col);
+        });
+    connect(editor, &QPlainTextEdit::textChanged, this,
+        [this, pIdx]() {
+            // Only process text changes from the active panel
+            if (pIdx == m_activePanel) {
+                onEditorTextChanged();
+            }
+        });
 
-    // Build tab entry
+    // Install event filter for focus tracking
+    editor->installEventFilter(this);
+
+    // Build tab entry with pane-specific URI
     EditorTab tab;
     tab.filePath = filePath;
-    tab.uri = localPathToUri(filePath);
+    tab.uri = localPathToUri(filePath, pIdx);
     tab.editor = editor;
     tab.highlighter = highlighter;
     tab.version = 1;
     tab.modified = false;
 
-    m_tabs.append(tab);
-    int idx = m_tabs.size() - 1;
+    panel.tabs.append(tab);
+    int idx = panel.tabs.size() - 1;
 
-    // Add tab to tab bar (with file path as tab data for Copy Path)
-    QString tabLabel = QFileInfo(filePath).fileName();
-    m_tabBar->addTab(tabLabel);
-    m_tabBar->setTabData(idx, filePath);
-    m_tabBar->setCurrentIndex(idx);
+    // Add tab to this panel's tab bar
+    if (panel.tabBar) {
+        QString tabLabel = QFileInfo(filePath).fileName();
+        panel.tabBar->addTab(tabLabel);
+        panel.tabBar->setTabData(idx, filePath);
+        panel.tabBar->setCurrentIndex(idx);
+    }
 
-    // Add editor to stacked widget
-    m_editorStack->addWidget(editor);
-    m_editorStack->setCurrentIndex(idx);
+    // Add editor to this panel's stack
+    if (panel.editorStack) {
+        panel.editorStack->addWidget(editor);
+        panel.editorStack->setCurrentIndex(idx);
+    }
+
+    // Read-only state for inactive panels in split mode
+    if (m_panelCount >= 2 && pIdx != m_activePanel) {
+        editor->setReadOnly(true);
+    }
 
     // Notify LSP
     if (m_lspClient && m_lspClient->isRunning())
-        notifyLspOpen(m_tabs[idx]);
+        notifyLspOpen(panel, tab);
 
     return idx;
 }
 
-void EditorPage::closeTab(int index)
+void EditorPage::closeTab(EditorPanel &panel, int index)
 {
-    if (index < 0 || index >= m_tabs.size())
+    if (index < 0 || index >= panel.tabs.size())
         return;
 
-    EditorTab &tab = m_tabs[index];
+    EditorTab &tab = panel.tabs[index];
 
     // Notify LSP
     if (m_lspClient && m_lspClient->isRunning())
         m_lspClient->didClose(tab.uri);
 
     // Remove from tab bar
-    m_tabBar->removeTab(index);
+    if (panel.tabBar)
+        panel.tabBar->removeTab(index);
 
-    // Remove from stacked widget (the editor widget is owned by m_tabs,
-    // and will be deleted when m_tabs is cleared)
-    QWidget *w = m_editorStack->widget(index);
-    if (w)
-        m_editorStack->removeWidget(w);
+    // Remove from stack
+    if (panel.editorStack) {
+        QWidget *w = panel.editorStack->widget(index);
+        if (w)
+            panel.editorStack->removeWidget(w);
+    }
 
-    m_tabs.removeAt(index);
+    panel.tabs.removeAt(index);
 }
 
-void EditorPage::updateTabLabel(int index)
+void EditorPage::updateTabLabel(EditorPanel &panel, int index)
 {
-    if (index < 0 || index >= m_tabs.size())
+    if (index < 0 || index >= panel.tabs.size())
         return;
 
-    const EditorTab &tab = m_tabs[index];
+    const EditorTab &tab = panel.tabs[index];
     QString label = QFileInfo(tab.filePath).fileName();
     if (tab.modified)
         label += " ●";
-    m_tabBar->setTabText(index, label);
+
+    if (panel.tabBar)
+        panel.tabBar->setTabText(index, label);
 }
 
-// ── Tab slots ─────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// ── Tab slots ────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
 
 void EditorPage::onFileTreeClicked(QListWidgetItem *item)
 {
@@ -324,21 +565,18 @@ void EditorPage::onFileTreeClicked(QListWidgetItem *item)
         return;
 
     QString filePath = item->data(Qt::UserRole).toString();
-    addTab(filePath);
+    addTab(m_panels[m_activePanel], filePath);
 }
 
 void EditorPage::onTabCloseRequested(int index)
 {
-    closeTab(index);
+    closeTab(m_panels[m_activePanel], index);
 }
 
-void EditorPage::onTabChanged(int index)
+void EditorPage::onTabChanged(int /*index*/)
 {
-    // Sync stacked widget with tab bar selection
-    if (index >= 0 && index < m_editorStack->count())
-        m_editorStack->setCurrentIndex(index);
-
-    auto *tab = currentTab();
+    EditorPanel &p = m_panels[m_activePanel];
+    auto *tab = currentTab(p);
     if (tab) {
         m_statusBar->setText(QFileInfo(tab->filePath).fileName()
                              + (tab->modified ? " ●" : ""));
@@ -347,21 +585,22 @@ void EditorPage::onTabChanged(int index)
 
 void EditorPage::onEditorTextChanged()
 {
-    auto *tab = currentTab();
+    EditorPanel &p = m_panels[m_activePanel];
+    auto *tab = currentTab(p);
     if (!tab)
         return;
 
     tab->modified = true;
     m_autosaveTimer->start();
 
-    // Update tab with modified indicator
-    int idx = m_tabBar->currentIndex();
-    updateTabLabel(idx);
+    int idx = p.tabBar ? p.tabBar->currentIndex() : -1;
+    updateTabLabel(p, idx);
 }
 
 void EditorPage::onAutosaveTimeout()
 {
-    auto *tab = currentTab();
+    EditorPanel &p = m_panels[m_activePanel];
+    auto *tab = currentTab(p);
     if (!tab || !tab->modified)
         return;
 
@@ -375,21 +614,22 @@ void EditorPage::onAutosaveTimeout()
 
     // Notify LSP
     if (m_lspClient && m_lspClient->isRunning()) {
-        notifyLspChange(*tab);
+        notifyLspChange(p, *tab);
     }
 
     tab->version++;
     tab->modified = false;
 
-    // Update tab label (removes ● indicator)
-    int idx = m_tabBar->currentIndex();
-    updateTabLabel(idx);
+    int idx = p.tabBar ? p.tabBar->currentIndex() : -1;
+    updateTabLabel(p, idx);
     m_statusBar->setText(QFileInfo(tab->filePath).fileName());
 }
 
-// ── LSP notifications ─────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// ── LSP notifications ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
 
-void EditorPage::notifyLspOpen(const EditorTab &tab)
+void EditorPage::notifyLspOpen(EditorPanel &panel, const EditorTab &tab)
 {
     if (!m_lspClient || !m_lspClient->isRunning())
         return;
@@ -402,7 +642,7 @@ void EditorPage::notifyLspOpen(const EditorTab &tab)
     }
 }
 
-void EditorPage::notifyLspChange(EditorTab &tab)
+void EditorPage::notifyLspChange(EditorPanel &panel, EditorTab &tab)
 {
     if (!m_lspClient || !m_lspClient->isRunning())
         return;
@@ -411,27 +651,44 @@ void EditorPage::notifyLspChange(EditorTab &tab)
     m_lspClient->didChange(tab.uri, content, tab.version);
 }
 
-// ── LSP diagnostics ───────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// ── LSP diagnostics ──────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
 
 void EditorPage::onDiagnosticsReceived(const QString &uri,
                                        const QList<LspDiagnostic> &diagnostics)
 {
     QString localPath = uriToLocalPath(uri);
+    int pIdx = paneFromUri(uri);
 
-    // Find which tab this URI belongs to
-    int tabIdx = findTabByPath(localPath);
-    if (tabIdx < 0)
-        return;
+    // Find which tab in which panel this URI belongs to
+    if (pIdx >= 0 && pIdx < m_panelCount) {
+        int tabIdx = findTabByPath(m_panels[pIdx], localPath);
+        if (tabIdx >= 0) {
+            m_panels[pIdx].tabs[tabIdx].editor->setDiagnostics(diagnostics);
+            return;
+        }
+    }
 
-    m_tabs[tabIdx].editor->setDiagnostics(diagnostics);
+    // Fallback: search all panels
+    for (int i = 0; i < m_panelCount; ++i) {
+        int tabIdx = findTabByPath(m_panels[i], localPath);
+        if (tabIdx >= 0) {
+            m_panels[i].tabs[tabIdx].editor->setDiagnostics(diagnostics);
+            return;
+        }
+    }
 }
 
-// ── LSP definition / completion / hover ───────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// ── LSP definition / completion / hover ──────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
 
 void EditorPage::onGoToDefinition(const QString &uri, int line, int col)
 {
     Q_UNUSED(uri);
-    auto *tab = currentTab();
+    EditorPanel &p = m_panels[m_activePanel];
+    auto *tab = currentTab(p);
     if (!tab || !m_lspClient || !m_lspClient->isRunning())
         return;
 
@@ -449,18 +706,19 @@ void EditorPage::onGoToDefinition(const QString &uri, int line, int col)
 
             QString localPath = uriToLocalPath(targetUri);
 
-            // Open file (or focus existing tab)
-            int tabIdx = findTabByPath(localPath);
+            EditorPanel &p = m_panels[m_activePanel];
+            int tabIdx = findTabByPath(p, localPath);
             if (tabIdx < 0) {
-                tabIdx = addTab(localPath);
+                tabIdx = addTab(p, localPath);
             }
 
             if (tabIdx >= 0) {
-                m_tabBar->setCurrentIndex(tabIdx);
-                m_editorStack->setCurrentIndex(tabIdx);
+                if (p.tabBar)
+                    p.tabBar->setCurrentIndex(tabIdx);
+                if (p.editorStack)
+                    p.editorStack->setCurrentIndex(tabIdx);
 
-                // Scroll to line
-                auto *editor = m_tabs[tabIdx].editor;
+                auto *editor = p.tabs[tabIdx].editor;
                 QTextBlock block = editor->document()->findBlockByNumber(targetLine);
                 if (block.isValid()) {
                     QTextCursor cursor(block);
@@ -477,7 +735,8 @@ void EditorPage::onGoToDefinition(const QString &uri, int line, int col)
 void EditorPage::onCompletionTriggered(const QString &uri, int line, int col)
 {
     Q_UNUSED(uri);
-    auto *tab = currentTab();
+    EditorPanel &p = m_panels[m_activePanel];
+    auto *tab = currentTab(p);
     if (!tab || !m_lspClient || !m_lspClient->isRunning())
         return;
 
@@ -488,7 +747,6 @@ void EditorPage::onCompletionTriggered(const QString &uri, int line, int col)
             QJsonArray completions = result["items"].toArray();
 
             if (completions.isEmpty()) {
-                // Check if result is directly an array
                 QJsonArray arr = resp["result"].toArray();
                 for (const QJsonValue &v : arr) {
                     items.append(v.toObject()["label"].toString());
@@ -505,43 +763,52 @@ void EditorPage::onCompletionTriggered(const QString &uri, int line, int col)
         });
 }
 
-// ── Split-pane slots (stubs for Task 2) ───────────────────────────────────────
-
-void EditorPage::onSplitRight()
-{
-    // Will be implemented in Task 2
-}
-
-void EditorPage::onMergeSplit()
-{
-    // Will be implemented in Task 2
-}
-
-void EditorPage::onTabBarSplitRequested()
-{
-    onSplitRight();
-}
-
+// ══════════════════════════════════════════════════════════════════════════════
 // ── Open file (for cross-file navigation) ────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
 
 void EditorPage::openFile(const QString &filePath)
 {
-    addTab(filePath);
+    addTab(m_panels[m_activePanel], filePath);
 }
 
-// ── URI conversion ────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// ── URI conversion (with pane suffix) ────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
 
-QString EditorPage::localPathToUri(const QString &localPath) const
+QString EditorPage::localPathToUri(const QString &localPath, int pane) const
 {
-    return QUrl::fromLocalFile(localPath).toString();
+    QUrl url = QUrl::fromLocalFile(localPath);
+    // Add pane fragment to distinguish copies in split-pane mode
+    if (m_panelCount >= 2) {
+        url.setFragment(QString("pane=%1").arg(pane));
+    }
+    return url.toString();
 }
 
 QString EditorPage::uriToLocalPath(const QString &uri) const
 {
-    return QUrl(uri).toLocalFile();
+    QUrl url(uri);
+    url.setFragment(QString()); // strip the pane suffix
+    return url.toLocalFile();
 }
 
-// ── LSP lifecycle ─────────────────────────────────────────────────────────────
+int EditorPage::paneFromUri(const QString &uri) const
+{
+    QUrl url(uri);
+    QString fragment = url.fragment();
+    if (fragment.startsWith("pane=")) {
+        bool ok = false;
+        int pane = fragment.mid(5).toInt(&ok);
+        if (ok && pane >= 0 && pane < 2)
+            return pane;
+    }
+    return 0; // default to pane 0
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── LSP lifecycle ────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
 
 void EditorPage::startLspClient()
 {
@@ -577,9 +844,11 @@ void EditorPage::stopLspClient()
     if (!m_lspClient)
         return;
 
-    // Close all documents
-    for (auto &tab : m_tabs) {
-        m_lspClient->didClose(tab.uri);
+    // Close all documents in all panels
+    for (int i = 0; i < m_panelCount; ++i) {
+        for (auto &tab : m_panels[i].tabs) {
+            m_lspClient->didClose(tab.uri);
+        }
     }
 
     m_lspClient->stop();

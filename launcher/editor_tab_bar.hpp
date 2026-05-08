@@ -15,15 +15,26 @@ signals:
     /// Emitted when the user right-clicks and selects "Split Right",
     /// or when a tab is dragged far enough to initiate a split.
     void splitRightRequested();
+    /// Emitted when "Merge Split" is selected from the context menu
+    /// (only available when setSplitActive(true) has been called).
+    void mergeRequested();
+
+public:
+    /// Enable or disable split-pane mode in the context menu.
+    /// When active, "Split Right" is replaced by "Merge Split".
+    void setSplitActive(bool active);
 
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
 
 private:
     int m_contextTabIndex = -1;
+    int m_dragTabIndex = -1;
     QPoint m_dragStartPos;
     bool m_dragging = false;
+    bool m_splitActive = false;
     static constexpr int DRAG_THRESHOLD = 10;
 };

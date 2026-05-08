@@ -50,12 +50,21 @@ void EditorTabBar::contextMenuEvent(QContextMenuEvent *event)
     menu.addSeparator();
     QAction *copyPathAction = menu.addAction("Copy Path");
     menu.addSeparator();
-    QAction *splitAction = menu.addAction("Split Right");
+    QAction *splitAction = nullptr;
+    QAction *mergeAction = nullptr;
+
+    if (m_splitActive) {
+        mergeAction = menu.addAction("Merge Split");
+    } else {
+        splitAction = menu.addAction("Split Right");
+    }
 
     bool onTab = m_contextTabIndex >= 0;
     closeAction->setEnabled(onTab);
     closeOthersAction->setEnabled(onTab && count() > 1);
     copyPathAction->setEnabled(onTab);
+    if (splitAction)
+        splitAction->setEnabled(onTab);
 
     QAction *selected = menu.exec(event->globalPos());
 
@@ -76,6 +85,8 @@ void EditorTabBar::contextMenuEvent(QContextMenuEvent *event)
             QApplication::clipboard()->setText(path);
     } else if (selected == splitAction) {
         emit splitRightRequested();
+    } else if (selected == mergeAction) {
+        emit mergeRequested();
     }
 }
 
@@ -84,6 +95,7 @@ void EditorTabBar::mousePressEvent(QMouseEvent *event)
     if (event->button() == Qt::LeftButton) {
         m_dragStartPos = event->pos();
         m_dragging = false;
+        m_dragTabIndex = tabAt(event->pos());
     }
     QTabBar::mousePressEvent(event);
 }
@@ -97,4 +109,24 @@ void EditorTabBar::mouseMoveEvent(QMouseEvent *event)
         }
     }
     QTabBar::mouseMoveEvent(event);
+}
+
+void EditorTabBar::mouseReleaseEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton && m_dragging) {
+        m_dragging = false;
+        // If the drag ended outside the tab bar bounds, treat it as a
+        // drag-to-split operation (VS Code style)
+        if (m_dragTabIndex >= 0 && !rect().contains(event->pos())) {
+            emit splitRightRequested();
+            return; // Don't let QTabBar finalize the tab reorder
+        }
+    }
+    m_dragging = false;
+    QTabBar::mouseReleaseEvent(event);
+}
+
+void EditorTabBar::setSplitActive(bool active)
+{
+    m_splitActive = active;
 }

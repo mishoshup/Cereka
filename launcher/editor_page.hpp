@@ -31,11 +31,25 @@ struct EditorTab {
     bool modified = false;
 };
 
+// ── EditorPanel ───────────────────────────────────────────────────────────────
+
+/// A single editor panel within the split view.
+struct EditorPanel {
+    QWidget *container = nullptr;  ///< The widget container for this panel
+    EditorTabBar *tabBar = nullptr;
+    QStackedWidget *editorStack = nullptr;
+    QVector<EditorTab> tabs;
+
+    void clear() {
+        tabs.clear();
+        tabBar = nullptr;
+        editorStack = nullptr;
+        container = nullptr;
+    }
+};
+
 // ── EditorPage ────────────────────────────────────────────────────────────────
 
-/// Tab-bar + stacked-editor page for the launcher IDE.
-/// Uses a QTabBar + QStackedWidget (not QTabWidget) so we can install a
-/// custom EditorTabBar with right-click context menu and drag-to-split.
 class EditorPage : public QWidget {
     Q_OBJECT
 public:
@@ -67,38 +81,55 @@ private slots:
 
 private:
     void buildUi();
+
+    // File tree
     void populateFileTree();
     QStringList findCrkaFiles(const fs::path &dir) const;
 
-    // Tab management
-    EditorTab *currentTab();
-    int findTabByPath(const QString &filePath) const;
-    int addTab(const QString &filePath);
-    void closeTab(int index);
-    void updateTabLabel(int index);
+    // Panel management
+    int activePanelIndex() const { return m_activePanel; }
+    EditorPanel &activePanel();
+    EditorPanel &panel(int idx);
+    int panelCount() const { return m_panelCount; }
 
-    // URI helpers
-    QString localPathToUri(const QString &localPath) const;
+    // Create or destroy a panel
+    EditorPanel &createPanel(int index);
+    void removePanel(int index);
+    void installPanelWidgets(EditorPanel &panel);
+    void connectPanelSignals(EditorPanel &panel);
+
+    // Tab management (per-panel)
+    EditorTab *currentTab(EditorPanel &panel);
+    int findTabByPath(EditorPanel &panel, const QString &filePath) const;
+    int addTab(EditorPanel &panel, const QString &filePath);
+    void closeTab(EditorPanel &panel, int index);
+    void updateTabLabel(EditorPanel &panel, int index);
+
+    // URI helpers with pane suffix for LSP isolation in split mode
+    QString localPathToUri(const QString &localPath, int pane = 0) const;
     QString uriToLocalPath(const QString &uri) const;
+    int paneFromUri(const QString &uri) const;
 
-    // LSP lifecycle
+    // LSP lifecycle — shared across all panes
     void startLspClient();
     void stopLspClient();
-    void notifyLspOpen(const EditorTab &tab);
-    void notifyLspChange(EditorTab &tab);
+    void notifyLspOpen(EditorPanel &panel, const EditorTab &tab);
+    void notifyLspChange(EditorPanel &panel, EditorTab &tab);
+
+    // Focus tracking for split-pane
+    void updatePaneReadOnlyState();
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
     // ── Widgets ────────────────────────────────────────────────────────────────
     QSplitter *m_mainSplitter = nullptr;
     QListWidget *m_fileTree = nullptr;
-
-    // Editor area: custom tab bar + stacked widget (replaces QTabWidget)
-    QWidget *m_editorArea = nullptr;
-    EditorTabBar *m_tabBar = nullptr;
-    QStackedWidget *m_editorStack = nullptr;
+    QSplitter *m_editorSplitter = nullptr;
     QLabel *m_statusBar = nullptr;
 
-    // ── Tab data ───────────────────────────────────────────────────────────────
-    QVector<EditorTab> m_tabs;
+    // ── Panels (fixed size array, m_panelCount tracks active) ──────────────────
+    EditorPanel m_panels[2];
+    int m_activePanel = 0;
+    int m_panelCount = 1;
 
     // ── LSP ────────────────────────────────────────────────────────────────────
     LspClient *m_lspClient = nullptr;
