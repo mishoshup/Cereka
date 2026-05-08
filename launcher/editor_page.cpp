@@ -221,8 +221,8 @@ void EditorPage::removePanel(int index)
         closeTab(p, p.tabs.size() - 1);
     }
 
-    // Remove from splitter
-    m_editorSplitter->removeWidget(p.container);
+    // Remove from splitter (hide removes it from the splitter in Qt6)
+    p.container->hide();
     p.container->deleteLater();
     p.clear();
 }
