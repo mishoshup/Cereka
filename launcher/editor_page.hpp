@@ -4,6 +4,7 @@
 #include "editor_tab_bar.hpp"
 #include "find_panel.hpp"
 #include "lsp_client.hpp"
+#include "outline_panel.hpp"
 #include "syntax_highlighter.hpp"
 
 #include <QFileSystemWatcher>
@@ -134,6 +135,9 @@ private:
 
     // ── Find/Replace panel ─────────────────────────────────────────────────────
     FindPanel *m_findPanel = nullptr;
+
+    // ── Document outline panel ─────────────────────────────────────────────────
+    OutlinePanel *m_outlinePanel = nullptr;
 
     // ── LSP ────────────────────────────────────────────────────────────────────
     LspClient *m_lspClient = nullptr;

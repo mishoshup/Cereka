@@ -51,6 +51,7 @@ add_executable(CerekaLauncher WIN32
     editor_tab_bar.cpp
     find_panel.cpp
     lsp_client.cpp
+    outline_panel.cpp
     project_manager.cpp
     project_metadata.cpp
     syntax_highlighter.cpp

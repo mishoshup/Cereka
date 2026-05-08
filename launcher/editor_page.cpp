@@ -89,8 +89,14 @@ void EditorPage::buildUi()
     createPanel(0);
 
     m_mainSplitter->addWidget(m_editorSplitter);
+
+    // ── Outline panel (right side) ──────────────────────────────────────────
+    m_outlinePanel = new OutlinePanel();
+    m_mainSplitter->addWidget(m_outlinePanel);
+
     m_mainSplitter->setStretchFactor(0, 0);
     m_mainSplitter->setStretchFactor(1, 1);
+    m_mainSplitter->setStretchFactor(2, 0);
     layout->addWidget(m_mainSplitter, 1);
 
     // ── Ctrl+\ to split/merge ───────────────────────────────────────────────
@@ -627,6 +633,10 @@ void EditorPage::onTabChanged(int /*index*/)
     if (tab) {
         m_statusBar->setText(QFileInfo(tab->filePath).fileName()
                              + (tab->modified ? " ●" : ""));
+        // Refresh outline panel for the active document
+        m_outlinePanel->setActiveDocument(tab->uri, tab->editor, m_lspClient);
+    } else {
+        m_outlinePanel->refresh();
     }
 }
 
@@ -670,6 +680,9 @@ void EditorPage::onAutosaveTimeout()
     int idx = p.tabBar ? p.tabBar->currentIndex() : -1;
     updateTabLabel(p, idx);
     m_statusBar->setText(QFileInfo(tab->filePath).fileName());
+
+    // Refresh outline panel after saving (document content changed)
+    m_outlinePanel->refresh();
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -725,6 +738,9 @@ void EditorPage::onDiagnosticsReceived(const QString &uri,
             return;
         }
     }
+
+    // Refresh outline (LSP has processed the document)
+    m_outlinePanel->refresh();
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
