@@ -178,6 +178,59 @@ saves/                — auto-created by save system
 ## Launcher
 Qt6 app (`launcher/`). Main pieces: `main.cpp` (window + dialogs), `project_manager.{cpp,hpp}` (project lifecycle + dev-run output piping + packaging), `config.{cpp,hpp}` (game.cfg reader/writer), `theme.hpp` (Qt palette), `templates.hpp` (scaffolded project files: `game.cfg`, `ui.crka`, `main.crka`, `scene_two.crka`).
 
+## LSP Server (tree-sitter-cereka)
+
+The Launcher IDE uses a Language Server Protocol (LSP) server for script editing features
+(auto-complete, diagnostics, go-to-definition, document outline).
+
+**Repository:** `~/personal/dev/tree-sitter-cereka/` (sibling to `cereka/`)
+**LSP source:** `tree-sitter-cereka/lsp/server.js`
+
+### Build standalone binary (Node.js SEA)
+
+```bash
+cd ~/personal/dev/tree-sitter-cereka/lsp
+
+# 1. Generate the SEA config blob
+node --experimental-sea-config -c sea-config.json
+
+# 2. Copy the Node.js binary
+cp $(which node) dist/cereka-lsp
+
+# 3. Inject the SEA blob
+npx postject dist/cereka-lsp NODE_SEA_BLOB dist/cereka-lsp.blob \
+  --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+
+# 4. macOS: codesign the result
+[ "$(uname)" = "Darwin" ] && codesign --sign - dist/cereka-lsp
+```
+
+Where `sea-config.json` is:
+```json
+{ "main": "server.js", "output": "dist/cereka-lsp.blob",
+  "resources": ["../tree-sitter-cereka.wasm"] }
+```
+
+**Binary output:** `tree-sitter-cereka/lsp/dist/cereka-lsp`
+
+### Launcher resolution
+
+The launcher resolves the LSP binary in this order:
+1. `dev/tree-sitter-cereka/lsp/dist/cereka-lsp` (development path)
+2. `../../tree-sitter-cereka/lsp/dist/cereka-lsp` (relative to launcher binary)
+
+If neither path exists, the launcher starts normally and editor features are
+unavailable (graceful degradation).
+
+The LSP server is launched as a child process (stdin/stdout JSON-RPC) when an
+editor tab is opened, and killed when the launcher exits.
+
+### Release
+
+The LSP binary is released independently from the engine (separate repository,
+separate versioning). For convenience it is bundled with complete launcher
+releases.
+
 ## Testing
 Two independent suites:
 
