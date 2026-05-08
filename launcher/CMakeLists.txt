@@ -49,6 +49,7 @@ add_executable(CerekaLauncher WIN32
     config.cpp
     editor_page.cpp
     editor_tab_bar.cpp
+    find_panel.cpp
     lsp_client.cpp
     project_manager.cpp
     project_metadata.cpp

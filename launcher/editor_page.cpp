@@ -102,6 +102,53 @@ void EditorPage::buildUi()
             onSplitRight();
     });
 
+    // ── Find/Replace panel ────────────────────────────────────────────────
+    m_findPanel = new FindPanel();
+    m_findPanel->setVisible(false);
+    layout->addWidget(m_findPanel);
+
+    connect(m_findPanel, &FindPanel::closed, this, [this]() {
+        m_findPanel->setVisible(false);
+        // Return focus to the active editor
+        auto *tab = currentTab(m_panels[m_activePanel]);
+        if (tab && tab->editor)
+            tab->editor->setFocus();
+    });
+
+    // ── Ctrl+F to open find, Ctrl+H to open find+replace ──────────────────
+    auto *findShortcut = new QShortcut(QKeySequence("Ctrl+F"), this);
+    connect(findShortcut, &QShortcut::activated, this, [this]() {
+        m_findPanel->setVisible(true);
+        m_findPanel->showReplace(false);
+        auto *tab = currentTab(m_panels[m_activePanel]);
+        if (tab && tab->editor)
+            m_findPanel->setEditor(tab->editor);
+        m_findPanel->focusSearch();
+    });
+
+    auto *findReplaceShortcut = new QShortcut(QKeySequence("Ctrl+H"), this);
+    connect(findReplaceShortcut, &QShortcut::activated, this, [this]() {
+        m_findPanel->setVisible(true);
+        m_findPanel->showReplace(true);
+        auto *tab = currentTab(m_panels[m_activePanel]);
+        if (tab && tab->editor)
+            m_findPanel->setEditor(tab->editor);
+        m_findPanel->focusSearch();
+    });
+
+    // ── F3/Shift+F3 to navigate matches ───────────────────────────────────
+    auto *nextMatchShortcut = new QShortcut(QKeySequence("F3"), this);
+    connect(nextMatchShortcut, &QShortcut::activated, this, [this]() {
+        if (m_findPanel->isVisible())
+            m_findPanel->onNextMatch();
+    });
+
+    auto *prevMatchShortcut = new QShortcut(QKeySequence("Shift+F3"), this);
+    connect(prevMatchShortcut, &QShortcut::activated, this, [this]() {
+        if (m_findPanel->isVisible())
+            m_findPanel->onPreviousMatch();
+    });
+
     // ── Status bar ──────────────────────────────────────────────────────────
     m_statusBar = new QLabel();
     m_statusBar->setFixedHeight(24);

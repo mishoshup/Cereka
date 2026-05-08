@@ -2,6 +2,7 @@
 
 #include "code_editor.hpp"
 #include "editor_tab_bar.hpp"
+#include "find_panel.hpp"
 #include "lsp_client.hpp"
 #include "syntax_highlighter.hpp"
 
@@ -130,6 +131,9 @@ private:
     EditorPanel m_panels[2];
     int m_activePanel = 0;
     int m_panelCount = 1;
+
+    // ── Find/Replace panel ─────────────────────────────────────────────────────
+    FindPanel *m_findPanel = nullptr;
 
     // ── LSP ────────────────────────────────────────────────────────────────────
     LspClient *m_lspClient = nullptr;

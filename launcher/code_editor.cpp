@@ -392,6 +392,9 @@ void CodeEditor::updateExtraSelections()
         selections.append(sel2);
     }
 
+    // Search highlights from find/replace panel
+    selections.append(m_searchSelections);
+
     setExtraSelections(selections);
 }
 
@@ -400,6 +403,12 @@ void CodeEditor::updateExtraSelections()
 void CodeEditor::setDiagnostics(const QList<LspDiagnostic> &diags)
 {
     m_diagnostics = diags;
+    updateExtraSelections();
+}
+
+void CodeEditor::setSearchHighlights(const QList<QTextEdit::ExtraSelection> &selections)
+{
+    m_searchSelections = selections;
     updateExtraSelections();
 }
 

@@ -28,6 +28,10 @@ public:
     /// Show completion items from LSP.
     void showCompletions(const QStringList &items);
 
+    /// Set extra selections from the find/replace panel for match highlighting.
+    /// These are merged with the editor's own extra selections (diagnostics, bracket matching).
+    void setSearchHighlights(const QList<QTextEdit::ExtraSelection> &selections);
+
 signals:
     /// Emitted when Ctrl+click triggers go-to-definition.
     void goToDefinitionRequested(const QString &uri, int line, int col);
@@ -70,6 +74,9 @@ private:
 
     // Diagnostics
     QList<LspDiagnostic> m_diagnostics;
+
+    // Search highlights (from find/replace panel)
+    QList<QTextEdit::ExtraSelection> m_searchSelections;
 
     // Bracket matching
     QTextCharFormat m_bracketMatchFormat;
