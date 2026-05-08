@@ -82,7 +82,7 @@ Plans:
 
 **Goal:** Create a comprehensive documentation site for the Cereka game engine.
 **Depends on:** None
-**Plans:** 1 plan
+**Plans:** 2/1 plans complete
 
 Plans:
 - [x] 06-01-PLAN.md — mdBook scaffolding + all scripting reference pages + user guides + annotated example
