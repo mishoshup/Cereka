@@ -282,40 +282,63 @@ int LspClient::documentSymbol(const QString &uri, LspCallback cb)
     return sendRequest("textDocument/documentSymbol", params, std::move(cb));
 }
 
+// ── Repo root → find sibling tree-sitter-cereka/ ─────────────────────────────
+
+static QString findSiblingDir(const QString &siblingName)
+{
+    // Use git to find the current repo root, then look for sibling at same level
+    QProcess git;
+    git.start("git", QStringList()
+        << "-C" << QCoreApplication::applicationDirPath()
+        << "rev-parse" << "--show-toplevel");
+    if (git.waitForFinished(3000) && git.exitCode() == 0) {
+        QString repoRoot = QString::fromUtf8(git.readAllStandardOutput()).trimmed();
+        if (!repoRoot.isEmpty()) {
+            QDir parent = QFileInfo(repoRoot).absoluteDir();
+            QString siblingPath = parent.absoluteFilePath(siblingName);
+            if (QFileInfo::exists(siblingPath))
+                return siblingPath;
+        }
+    }
+    return {};
+}
+
 // ── Binary resolution ─────────────────────────────────────────────────────────
 
 QString LspClient::resolveBinary()
 {
-    // 1. Development path: ~/dev/tree-sitter-cereka/lsp/dist/cereka-lsp
-    QString homeDev = QDir::homePath()
-        + "/dev/tree-sitter-cereka/lsp/dist/cereka-lsp";
-#ifdef _WIN32
-    homeDev += ".exe";
-#endif
-    if (QFileInfo::exists(homeDev))
-        return homeDev;
-
-    // 2. Relative to launcher binary: <exeDir>/../../tree-sitter-cereka/lsp/dist/cereka-lsp
-    QString exeDir = QCoreApplication::applicationDirPath();
-    QString relPath = exeDir + "/../../tree-sitter-cereka/lsp/dist/cereka-lsp";
-#ifdef _WIN32
-    relPath += ".exe";
-#endif
-    if (QFileInfo::exists(relPath))
-        return relPath;
-
-    // 3. Fallback: use node directly if the SEA binary isn't built
-    //    This requires Node.js to be installed on the system.
-    QString serverDir = QDir::homePath()
-        + "/dev/tree-sitter-cereka/lsp";
-    QString serverJs = serverDir + "/server.js";
-    if (QFileInfo::exists(serverJs)) {
-#ifdef _WIN32
-        return "node \"" + serverJs + "\"";
-#else
-        return serverJs;
-#endif
+    // Find the tree-sitter-cereka repo via git (works wherever repos are cloned)
+    QString tsDir = findSiblingDir("tree-sitter-cereka");
+    if (tsDir.isEmpty()) {
+        // Fallback: try the old hardcoded dev path
+        tsDir = QDir::homePath() + "/dev/tree-sitter-cereka";
+        if (!QFileInfo::exists(tsDir))
+            return {};
     }
+
+    QString serverDir = tsDir + "/lsp";
+    QString binaryPath = serverDir + "/dist/cereka-lsp";
+#ifdef _WIN32
+    binaryPath += ".exe";
+#endif
+
+    // 1. Standalone SEA binary
+    if (QFileInfo::exists(binaryPath))
+        return binaryPath;
+
+    // 2. Relative to launcher binary
+    QString exeDir = QCoreApplication::applicationDirPath();
+    QString relBinary = exeDir + "/../../tree-sitter-cereka/lsp/dist/cereka-lsp";
+#ifdef _WIN32
+    relBinary += ".exe";
+#endif
+    if (QFileInfo::exists(relBinary))
+        return relBinary;
+
+    // 3. Fallback: run server.js via node
+    QString serverJs = serverDir + "/server.js";
+    if (QFileInfo::exists(serverJs))
+        return serverJs;
 
     return {};
 }
