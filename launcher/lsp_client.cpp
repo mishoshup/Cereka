@@ -577,12 +577,24 @@ void LspClient::scheduleReconnect()
         INITIAL_RECONNECT_DELAY_MS * (1 << (m_reconnectAttempt - 1)),
         MAX_RECONNECT_DELAY_MS);
 
-    QTimer::singleShot(delay, this, [this]() {
+    // If crashed immediately (<1s), try the JS fallback path instead of retrying the same binary
+    bool fastCrash = (m_process && m_process->state() == QProcess::NotRunning
+                      && m_process->processId() == 0 && m_reconnectAttempt > 2);
+
+    QTimer::singleShot(delay, this, [this, fastCrash]() {
         if (m_intentionalStop)
             return;
 
-        // Re-create process
-        if (start(m_binaryPath))
+        QString path = m_binaryPath;
+        if (fastCrash && path.endsWith("cereka-lsp")) {
+            // Swap to server.js fallback
+            QString jsPath = path.left(path.lastIndexOf('/') + 1) + "../server.js";
+            if (QFileInfo::exists(jsPath))
+                path = jsPath;
+            std::cerr << "[LSP] fast crash detected, trying js fallback: " << path.toStdString() << "\n";
+        }
+
+        if (start(path))
             initialize();
     });
 }
