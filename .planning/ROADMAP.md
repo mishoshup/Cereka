@@ -146,6 +146,39 @@ Plans:
 - [x] 04-03-PLAN.md — Audio Fade (timer-based volume ramping, fade curve math, crossfade)
 - [x] 04-04-PLAN.md — Rollback + Dialogue History (ring buffer, HistoryState overlay)
 
+### Phase 10: Launcher IDE Core: script editor, project dashboard, and asset browser
+
+**Goal:** Build a complete script editor (syntax highlighting, tabs, split-pane, find/replace, outline, LSP), project dashboard, template gallery, and asset browser into the Cereka Launcher.
+**Requirements**: TBD
+**Depends on:** Phase 9
+**Plans:** 4 plans
+
+Plans:
+- [x] 10-01-PLAN.md — Script editor foundation (code editor, syntax highlighting, LSP client)
+- [x] 10-02-PLAN.md — Editor UX features (tab bar, split-pane, find/replace)
+- [x] 10-03-PLAN.md — Outline panel + LSP diagnostics integration
+- [x] 10-04-PLAN.md — Project dashboard + asset browser
+
+### Phase 11: Launcher IDE Pro: visual editor, theme designer, debugger, and plugins
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 10
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 11 to break down)
+
+### Phase --raw: Word-wrap fix (TTF_MeasureString)
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase --raw to break down)
+
 ---
 
 ## Backlog
@@ -198,42 +231,6 @@ Plans:
 ### Phase 999.6: Save/load UX improvements (BACKLOG)
 
 **Goal:** Scene metadata in save slots (bg/character name), confirm overwrite dialog, quick save/load ops.
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
-### Phase 999.7: Launcher IDE Tier 1-2: script editor + dashboard (BACKLOG)
-
-**Goal:** Syntax-highlighted .crka editor with line numbers, code folding, auto-complete, go-to-definition, error diagnostics, project dashboard with metadata and template gallery.
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
-### Phase 999.8: Launcher IDE Tier 3-4: visual dialogue editor + asset browser (BACKLOG)
-
-**Goal:** Node graph editor for .crka flow (labels as nodes, buttons as connections), timeline view, asset browser with thumbnails, audio waveform preview, drag-to-insert.
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
-### Phase 999.9: Launcher IDE Tier 5-6: UI theme designer + debugger (BACKLOG)
-
-**Goal:** WYSIWYG theme editor with split code/preview, color picker, font selector. Script debugger with breakpoints, step-over, variable inspector, call stack viewer, profiling.
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
-### Phase 999.10: Launcher IDE Tier 7-9: preview + plugins + git (BACKLOG)
-
-**Goal:** In-editor dialogue preview panel, plugin system with API, template/asset gallery, git integration with diff viewer for .crka files.
 **Requirements:** TBD
 **Plans:** 0 plans
 
