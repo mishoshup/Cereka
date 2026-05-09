@@ -62,6 +62,7 @@ end
 local TWO_CHAR_OPS = {
     ["=="] = true, ["!="] = true, [">="] = true, ["<="] = true,
     ["+="] = true, ["-="] = true, ["*="] = true, ["/="] = true,
+    ["&&"] = true, ["||"] = true,
 }
 
 local function tokenize(line_text, lineno, base_col)
@@ -112,7 +113,7 @@ local function tokenize(line_text, lineno, base_col)
                 col = base_col + start_i - 1,
                 lineno = lineno,
             }
-        elseif c:match("[=!<>+%-*/%%]") then
+        elseif c:match("[=!<>+%-*/%%&|]") then
             local two = line_text:sub(i, i + 1)
             if TWO_CHAR_OPS[two] then
                 tokens[#tokens + 1] = { type = "OP", value = two, col = base_col + i - 1, lineno = lineno }
@@ -321,20 +322,69 @@ local IF_OPS = {
     [">="] = "IF_GE", ["<="] = "IF_LE",
 }
 
-local function parse_if(ctx)
-    -- if <var> <cmp> <value>
-    local kw = take(ctx)
-    local var_t = expect(ctx, "IDENT", nil, "expected variable after 'if'")
+-- Parse a simple comparison: <var> <op> <value>
+-- value may include multiple tokens (e.g., filenames, quoted strings).
+local function parse_simple_condition(ctx)
+    local var_t = expect(ctx, "IDENT", nil, "expected variable in condition")
     local op_t = peek(ctx)
     if not op_t or op_t.type ~= "OP" or not IF_OPS[op_t.value] then
-        die(kw.lineno, (op_t and op_t.col) or kw.col, "expected comparison operator")
+        die(ctx.lineno, (op_t and op_t.col) or ctx.raw_offset, "expected comparison operator")
     end
     take(ctx)
-    local rhs = rest_text(ctx)
-    if rhs == "" then die(kw.lineno, kw.col, "expected value after comparison") end
+    -- Collect remaining tokens until &&, ||, or end-of-line as the RHS value
+    local rhs_parts = {}
+    while not eof(ctx) do
+        local t = peek(ctx)
+        if t.type == "OP" and (t.value == "&&" or t.value == "||") then break end
+        take(ctx)
+        rhs_parts[#rhs_parts + 1] = t.value
+    end
+    local rhs = table.concat(rhs_parts, " ")
+    if rhs == "" then die(ctx.lineno, op_t.col, "expected value after comparison") end
     rhs = maybe_unquote(rhs)
-    return { kind = "If", name = var_t.value, op = IF_OPS[op_t.value], rhs = rhs,
-             line = kw.lineno, col = kw.col }
+    return {
+        kind = "Simple", name = var_t.value, op = IF_OPS[op_t.value], rhs = rhs,
+        line = var_t.lineno, col = var_t.col,
+    }
+end
+
+-- Parse &&-chained conditions (higher precedence than ||).
+local function parse_and_condition(ctx)
+    local lhs = parse_simple_condition(ctx)
+    while not eof(ctx) do
+        local t = peek(ctx)
+        if t.type == "OP" and t.value == "&&" then
+            take(ctx)
+            local rhs = parse_simple_condition(ctx)
+            lhs = { kind = "And", lhs = lhs, rhs = rhs }
+        else
+            break
+        end
+    end
+    return lhs
+end
+
+-- Parse ||-chained conditions (lowest precedence).
+local function parse_or_condition(ctx)
+    local lhs = parse_and_condition(ctx)
+    while not eof(ctx) do
+        local t = peek(ctx)
+        if t.type == "OP" and t.value == "||" then
+            take(ctx)
+            local rhs = parse_and_condition(ctx)
+            lhs = { kind = "Or", lhs = lhs, rhs = rhs }
+        else
+            break
+        end
+    end
+    return lhs
+end
+
+-- Parse a condition with &&/|| support.
+-- Precedence: && binds tighter than || (same as C).
+-- Returns a condition tree: {kind="Simple",...} | {kind="And", lhs, rhs} | {kind="Or", lhs, rhs}
+local function parse_condition(ctx)
+    return parse_or_condition(ctx)
 end
 
 local function parse_single_keyword(kind)
@@ -487,9 +537,6 @@ local STMT_HANDLERS = {
     include   = parse_include,
     call      = parse_call,
     set       = parse_set,
-    ["if"]    = parse_if,
-    ["else"]  = parse_single_keyword("Else"),
-    endif     = parse_single_keyword("Endif"),
     bgm       = parse_bgm,
     stop_bgm  = parse_stop_bgm,
     sfx       = parse_sfx,
@@ -602,6 +649,135 @@ local function parse_ui_block(lines, i, header_indent, header_line, element)
              col = indent_of(header_line.text) + 1 }, i
 end
 
+-- Collect a block of body statements, handling nested block-structured keywords
+-- (like `if`) that consume multiple lines and return a tree AST node.
+local function collect_body_with_blocks(lines, i, header_indent, handlers, block_handlers)
+    local children = {}
+    while i <= #lines do
+        local line = lines[i]
+        if is_blank_or_comment(line.text) then
+            i = i + 1
+        else
+            local body_indent = indent_of(line.text)
+            if body_indent <= header_indent then break end
+            local raw = rtrim(line.text:sub(body_indent + 1))
+            local tokens = tokenize(raw, line.lineno, body_indent + 1)
+            if #tokens > 0 then
+                local first = tokens[1]
+                if first.type == "IDENT" and block_handlers and block_handlers[first.value] then
+                    -- Pass i+1 so the block handler receives the line AFTER the header line
+                    local node, newi = block_handlers[first.value](lines, i + 1, body_indent, line)
+                    children[#children + 1] = node
+                    i = newi
+                else
+                    local node = parse_line_statement(line, handlers)
+                    if node then children[#children + 1] = node end
+                    i = i + 1
+                end
+            else
+                i = i + 1
+            end
+        end
+    end
+    return children, i
+end
+
+-- Forward declaration (set after parse_if_block is defined)
+local IF_BLOCK_HANDLERS = {}
+
+-- Block-aware if-parser: collects body with indentation, handles elseif/else/endif.
+-- Returns (AST node with kind="If", new i).
+local function parse_if_block(lines, i, header_indent, header_line)
+    local raw = rtrim(header_line.text:sub(header_indent + 1))
+    local tokens = tokenize(raw, header_line.lineno, header_indent + 1)
+    local ctx = make_line_ctx(raw, tokens, header_line.lineno, header_indent, header_indent + 1)
+
+    take(ctx)  -- consume "if"
+    local condition = parse_condition(ctx)
+
+    local children, newi = collect_body_with_blocks(lines, i, header_indent, STMT_HANDLERS, IF_BLOCK_HANDLERS)
+    i = newi
+
+    local elseIfs = {}
+    local elseChildren = nil
+    local endifLine = header_line.lineno
+    local endifCol = header_indent + 1
+
+    while i <= #lines do
+        local line = lines[i]
+        if is_blank_or_comment(line.text) then
+            i = i + 1
+        else
+            local line_indent = indent_of(line.text)
+            if line_indent < header_indent then
+                break  -- caller handles dedent
+            end
+            if line_indent > header_indent then
+                break  -- shouldn't happen after collect_body
+            end
+            -- Same indent as `if`
+            local raw = rtrim(line.text:sub(line_indent + 1))
+            local tokens = tokenize(raw, line.lineno, line_indent + 1)
+            if #tokens == 0 then
+                i = i + 1
+            else
+                local first = tokens[1]
+                if first.type == "IDENT" and first.value == "elseif" then
+                    -- Build context for condition after "elseif" (skip first token)
+                    local cond_tokens = {}
+                    for j = 2, #tokens do cond_tokens[#cond_tokens + 1] = tokens[j] end
+                    local cond_col = tokens[2] and tokens[2].col or (line_indent + #raw + 1)
+                    local cond_raw = raw:sub(cond_col - line_indent)
+                    local cond_ctx = make_line_ctx(cond_raw, cond_tokens, line.lineno, line_indent, cond_col)
+                    local cond = parse_condition(cond_ctx)
+                    i = i + 1
+                    local ei_body, newi = collect_body_with_blocks(lines, i, line_indent, STMT_HANDLERS, IF_BLOCK_HANDLERS)
+                    table.insert(elseIfs, { condition = cond, children = ei_body, line = first.lineno, col = first.col })
+                    i = newi
+                elseif first.type == "IDENT" and first.value == "else"
+                       and #tokens >= 2 and tokens[2].type == "IDENT" and tokens[2].value == "if" then
+                    -- "else if" as two keywords — build condition context after "if"
+                    local cond_col = tokens[3] and tokens[3].col or (line_indent + #raw + 1)
+                    local cond_raw = raw:sub(cond_col - line_indent)
+                    local cond_tokens = {}
+                    for j = 3, #tokens do cond_tokens[#cond_tokens + 1] = tokens[j] end
+                    local cond_ctx = make_line_ctx(cond_raw, cond_tokens, line.lineno, line_indent, cond_col)
+                    local cond = parse_condition(cond_ctx)
+                    i = i + 1
+                    local ei_body, newi = collect_body_with_blocks(lines, i, line_indent, STMT_HANDLERS, IF_BLOCK_HANDLERS)
+                    table.insert(elseIfs, { condition = cond, children = ei_body, line = first.lineno, col = first.col })
+                    i = newi
+                elseif first.type == "IDENT" and first.value == "else" then
+                    -- bare else
+                    i = i + 1
+                    elseChildren, i = collect_body_with_blocks(lines, i, line_indent, STMT_HANDLERS, IF_BLOCK_HANDLERS)
+                elseif first.type == "IDENT" and first.value == "endif" then
+                    endifLine = line.lineno
+                    endifCol = line_indent + 1
+                    i = i + 1
+                    break
+                else
+                    die(first.lineno, first.col, "expected 'else', 'elseif', or 'endif'")
+                end
+            end
+        end
+    end
+
+    return {
+        kind = "If",
+        condition = condition,
+        children = children,
+        elseIfs = #elseIfs > 0 and elseIfs or nil,
+        elseChildren = elseChildren,
+        endifLine = endifLine,
+        endifCol = endifCol,
+        line = header_line.lineno,
+        col = header_indent + 1,
+    }, i
+end
+
+IF_BLOCK_HANDLERS["if"] = parse_if_block
+
 local function parse_program(text)
     local lines = split_lines(text)
     local program = { kind = "Program", children = {} }
@@ -618,8 +794,14 @@ local function parse_program(text)
                 i = i + 1
             else
                 local first = tokens[1]
-                -- Block headers: "menu" and "ui <element>"
-                if first.type == "IDENT" and first.value == "menu" and #tokens == 1 then
+                -- Block headers: "if", "menu", and "ui <element>"
+                if first.type == "IDENT" and first.value == "if" then
+                    local header_line = line
+                    i = i + 1
+                    local node, newi = parse_if_block(lines, i, indent, header_line)
+                    program.children[#program.children + 1] = node
+                    i = newi
+                elseif first.type == "IDENT" and first.value == "menu" and #tokens == 1 then
                     local header_line = line
                     i = i + 1
                     local node, newi = parse_menu_block(lines, i, indent, header_line)
@@ -667,7 +849,57 @@ local function emit(out, ins)
     out[#out + 1] = ins
 end
 
+-- Unique temp variable counter for compound condition lowering.
+local tmp_counter = 0
+local function next_tmp()
+    tmp_counter = tmp_counter + 1
+    return "__cnd_" .. tmp_counter
+end
+
+-- Lower a compound condition tree into instructions that set a temp variable.
+-- Used for &&/|| conditions.
+local function lower_compound_condition(cond, tmp_name, out, line, col)
+    if cond.kind == "Simple" then
+        emit(out, { op = cond.op, a = cond.name, b = cond.rhs, line = line, col = col })
+        emit(out, { op = "SET_VAR_NUM", a = tmp_name, b = "=", c = "1", line = line, col = col })
+        emit(out, { op = "ENDIF", line = line, col = col })
+    elseif cond.kind == "And" then
+        -- Flatten the AND chain: collect all simple conditions
+        local chain = {}
+        local function collect_and(c)
+            if c.kind == "Simple" then
+                chain[#chain + 1] = c
+            elseif c.kind == "And" then
+                collect_and(c.lhs)
+                collect_and(c.rhs)
+            end
+        end
+        collect_and(cond)
+        -- Emit nested IFs for each condition
+        for _, c in ipairs(chain) do
+            emit(out, { op = c.op, a = c.name, b = c.rhs, line = line, col = col })
+        end
+        -- SET_VAR at innermost level
+        emit(out, { op = "SET_VAR_NUM", a = tmp_name, b = "=", c = "1", line = line, col = col })
+        -- Emit matching ENDIFs (innermost to outermost)
+        for _ in ipairs(chain) do
+            emit(out, { op = "ENDIF", line = line, col = col })
+        end
+    elseif cond.kind == "Or" then
+        -- Each OR branch independently sets tmp_name = 1
+        lower_compound_condition(cond.lhs, tmp_name, out, line, col)
+        lower_compound_condition(cond.rhs, tmp_name, out, line, col)
+    end
+end
+
 local LOWERERS
+
+local function lower_body(children, out)
+    for _, child in ipairs(children) do
+        local lower = LOWERERS[child.kind]
+        if lower then lower(child, out) end
+    end
+end
 LOWERERS = {
     Bg = function(n, out)
         emit(out, { op = "BG", a = n.file, line = n.line, col = n.col })
@@ -706,14 +938,67 @@ LOWERERS = {
         emit(out, { op = "SET_VAR_NUM", a = n.name, b = n.op, c = n.rhs,
                     line = n.line, col = n.col })
     end,
+    -- If node (tree-structured with optional elseif/else)
     If = function(n, out)
-        emit(out, { op = n.op, a = n.name, b = n.rhs, line = n.line, col = n.col })
-    end,
-    Else = function(n, out)
-        emit(out, { op = "ELSE", line = n.line, col = n.col })
-    end,
-    Endif = function(n, out)
-        emit(out, { op = "ENDIF", line = n.line, col = n.col })
+        local is_compound = n.condition.kind ~= "Simple"
+
+        if is_compound then
+            local tmp = next_tmp()
+            emit(out, { op = "SET_VAR_NUM", a = tmp, b = "=", c = "0", line = n.line, col = n.col })
+            lower_compound_condition(n.condition, tmp, out, n.line, n.col)
+            emit(out, { op = "IF_EQ", a = tmp, b = "1", line = n.line, col = n.col })
+        else
+            emit(out, { op = n.condition.op, a = n.condition.name, b = n.condition.rhs,
+                        line = n.line, col = n.col })
+        end
+
+        -- If-body
+        lower_body(n.children, out)
+
+        -- Handle elseif / else chains
+        if n.elseIfs or n.elseChildren then
+            emit(out, { op = "ELSE", line = n.line, col = n.col })
+
+            -- Emit each elseif
+            if n.elseIfs then
+                for i, ei in ipairs(n.elseIfs) do
+                    local ei_is_compound = ei.condition.kind ~= "Simple"
+                    if ei_is_compound then
+                        local ei_tmp = next_tmp()
+                        emit(out, { op = "SET_VAR_NUM", a = ei_tmp, b = "=", c = "0",
+                                    line = ei.line, col = ei.col })
+                        lower_compound_condition(ei.condition, ei_tmp, out, ei.line, ei.col)
+                        emit(out, { op = "IF_EQ", a = ei_tmp, b = "1",
+                                    line = ei.line, col = ei.col })
+                    else
+                        emit(out, { op = ei.condition.op, a = ei.condition.name, b = ei.condition.rhs,
+                                    line = ei.line, col = ei.col })
+                    end
+                    lower_body(ei.children, out)
+                    -- If there are more elseIfs or a final else, emit ELSE to chain
+                    if i < #n.elseIfs or n.elseChildren then
+                        emit(out, { op = "ELSE", line = ei.line, col = ei.col })
+                    end
+                end
+            end
+
+            -- Final else body
+            if n.elseChildren then
+                lower_body(n.elseChildren, out)
+            end
+
+            -- Close each elseif's IF with ENDIF (innermost to outermost)
+            if n.elseIfs then
+                -- Iterate in reverse so innermost elseif ENDIF gets the deepest line info
+                for idx = #n.elseIfs, 1, -1 do
+                    local ei = n.elseIfs[idx]
+                    emit(out, { op = "ENDIF", line = ei.line, col = ei.col })
+                end
+            end
+        end
+
+        -- ENDIF for the outermost IF
+        emit(out, { op = "ENDIF", line = n.endifLine or n.line, col = n.endifCol or n.col })
     end,
     PlayBgm = function(n, out)
         emit(out, { op = "PLAY_BGM", a = n.file, line = n.line, col = n.col })

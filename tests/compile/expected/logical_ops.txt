@@ -1,0 +1,106 @@
+a=flag b=yes col=1 line=4 op=IF_EQ
+b=Flag is yes col=5 line=5 op=NARRATE
+col=1 line=6 op=ENDIF
+a=score b=50 col=1 line=9 op=IF_GT
+b=Above 50 col=5 line=10 op=NARRATE
+col=1 line=9 op=ELSE
+b=50 or below col=5 line=12 op=NARRATE
+col=1 line=13 op=ENDIF
+a=flag b=a col=1 line=16 op=IF_EQ
+b=A col=5 line=17 op=NARRATE
+col=1 line=16 op=ELSE
+a=flag b=b col=1 line=18 op=IF_EQ
+b=B col=5 line=19 op=NARRATE
+col=1 line=18 op=ENDIF
+col=1 line=20 op=ENDIF
+a=flag b=x col=1 line=23 op=IF_EQ
+b=X col=5 line=24 op=NARRATE
+col=1 line=23 op=ELSE
+a=flag b=y col=1 line=25 op=IF_EQ
+b=Y col=5 line=26 op=NARRATE
+col=1 line=25 op=ENDIF
+col=1 line=27 op=ENDIF
+a=flag b=one col=1 line=30 op=IF_EQ
+b=One col=5 line=31 op=NARRATE
+col=1 line=30 op=ELSE
+a=flag b=two col=1 line=32 op=IF_EQ
+b=Two col=5 line=33 op=NARRATE
+col=1 line=32 op=ELSE
+b=Other col=5 line=35 op=NARRATE
+col=1 line=32 op=ENDIF
+col=1 line=36 op=ENDIF
+a=__cnd_1 b== c=0 col=1 line=39 op=SET_VAR_NUM
+a=a b=1 col=1 line=39 op=IF_EQ
+a=b b=2 col=1 line=39 op=IF_EQ
+a=__cnd_1 b== c=1 col=1 line=39 op=SET_VAR_NUM
+col=1 line=39 op=ENDIF
+col=1 line=39 op=ENDIF
+a=__cnd_1 b=1 col=1 line=39 op=IF_EQ
+b=Both true col=5 line=40 op=NARRATE
+col=1 line=41 op=ENDIF
+a=__cnd_2 b== c=0 col=1 line=44 op=SET_VAR_NUM
+a=a b=1 col=1 line=44 op=IF_EQ
+a=__cnd_2 b== c=1 col=1 line=44 op=SET_VAR_NUM
+col=1 line=44 op=ENDIF
+a=b b=2 col=1 line=44 op=IF_EQ
+a=__cnd_2 b== c=1 col=1 line=44 op=SET_VAR_NUM
+col=1 line=44 op=ENDIF
+a=__cnd_2 b=1 col=1 line=44 op=IF_EQ
+b=At least one true col=5 line=45 op=NARRATE
+col=1 line=46 op=ENDIF
+a=__cnd_3 b== c=0 col=1 line=49 op=SET_VAR_NUM
+a=a b=1 col=1 line=49 op=IF_EQ
+a=b b=2 col=1 line=49 op=IF_EQ
+a=__cnd_3 b== c=1 col=1 line=49 op=SET_VAR_NUM
+col=1 line=49 op=ENDIF
+col=1 line=49 op=ENDIF
+a=c b=3 col=1 line=49 op=IF_EQ
+a=__cnd_3 b== c=1 col=1 line=49 op=SET_VAR_NUM
+col=1 line=49 op=ENDIF
+a=__cnd_3 b=1 col=1 line=49 op=IF_EQ
+b=AND has higher precedence col=5 line=50 op=NARRATE
+col=1 line=51 op=ENDIF
+a=__cnd_4 b== c=0 col=1 line=54 op=SET_VAR_NUM
+a=a b=1 col=1 line=54 op=IF_EQ
+a=b b=2 col=1 line=54 op=IF_EQ
+a=__cnd_4 b== c=1 col=1 line=54 op=SET_VAR_NUM
+col=1 line=54 op=ENDIF
+col=1 line=54 op=ENDIF
+a=__cnd_4 b=1 col=1 line=54 op=IF_EQ
+b=Both true col=5 line=55 op=NARRATE
+col=1 line=54 op=ELSE
+b=Not both true col=5 line=57 op=NARRATE
+col=1 line=58 op=ENDIF
+a=a b=1 col=1 line=61 op=IF_EQ
+b=A is 1 col=5 line=62 op=NARRATE
+col=1 line=61 op=ELSE
+a=__cnd_5 b== c=0 col=1 line=63 op=SET_VAR_NUM
+a=b b=2 col=1 line=63 op=IF_EQ
+a=c b=3 col=1 line=63 op=IF_EQ
+a=__cnd_5 b== c=1 col=1 line=63 op=SET_VAR_NUM
+col=1 line=63 op=ENDIF
+col=1 line=63 op=ENDIF
+a=__cnd_5 b=1 col=1 line=63 op=IF_EQ
+b=B is 2 and C is 3 col=5 line=64 op=NARRATE
+col=1 line=63 op=ENDIF
+col=1 line=65 op=ENDIF
+a=outer b=yes col=1 line=68 op=IF_EQ
+b=Outer col=5 line=69 op=NARRATE
+a=inner b=yes col=5 line=70 op=IF_EQ
+b=Both col=9 line=71 op=NARRATE
+col=5 line=72 op=ENDIF
+col=1 line=73 op=ENDIF
+a=x b=1 col=1 line=76 op=IF_EQ
+b=X=1 col=5 line=77 op=NARRATE
+col=1 line=76 op=ELSE
+a=x b=2 col=1 line=78 op=IF_EQ
+b=X=2 col=5 line=79 op=NARRATE
+col=1 line=78 op=ELSE
+a=x b=3 col=1 line=80 op=IF_EQ
+b=X=3 col=5 line=81 op=NARRATE
+col=1 line=80 op=ELSE
+b=X=other col=5 line=83 op=NARRATE
+col=1 line=80 op=ENDIF
+col=1 line=78 op=ENDIF
+col=1 line=84 op=ENDIF
+col=1 line=86 op=END

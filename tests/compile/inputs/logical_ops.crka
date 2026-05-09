@@ -1,0 +1,86 @@
+; else-if and logical operators test
+
+; 1. Simple if/endif
+if flag == "yes"
+    narrate "Flag is yes"
+endif
+
+; 2. if/else/endif
+if score > 50
+    narrate "Above 50"
+else
+    narrate "50 or below"
+endif
+
+; 3. if/elseif/endif (single keyword)
+if flag == "a"
+    narrate "A"
+elseif flag == "b"
+    narrate "B"
+endif
+
+; 4. if/else if/endif (two keywords)
+if flag == "x"
+    narrate "X"
+else if flag == "y"
+    narrate "Y"
+endif
+
+; 5. if/elseif/else/endif
+if flag == "one"
+    narrate "One"
+elseif flag == "two"
+    narrate "Two"
+else
+    narrate "Other"
+endif
+
+; 6. if with && (AND)
+if a == 1 && b == 2
+    narrate "Both true"
+endif
+
+; 7. if with || (OR)
+if a == 1 || b == 2
+    narrate "At least one true"
+endif
+
+; 8. Mixed && and || with precedence
+if a == 1 && b == 2 || c == 3
+    narrate "AND has higher precedence"
+endif
+
+; 9. if with && and else
+if a == 1 && b == 2
+    narrate "Both true"
+else
+    narrate "Not both true"
+endif
+
+; 10. if/elseif with AND
+if a == 1
+    narrate "A is 1"
+elseif b == 2 && c == 3
+    narrate "B is 2 and C is 3"
+endif
+
+; 11. Nested if inside if-body
+if outer == "yes"
+    narrate "Outer"
+    if inner == "yes"
+        narrate "Both"
+    endif
+endif
+
+; 12. else-if chaining (multiple elseif)
+if x == 1
+    narrate "X=1"
+elseif x == 2
+    narrate "X=2"
+elseif x == 3
+    narrate "X=3"
+else
+    narrate "X=other"
+endif
+
+end

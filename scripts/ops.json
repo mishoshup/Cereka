@@ -9,13 +9,14 @@
   ],
   "block_keywords": ["menu", "ui"],
   "menu_keywords": ["bg", "button"],
-  "flow_keywords": ["if", "else", "endif", "button"],
+  "flow_keywords": ["if", "else", "elseif", "endif", "button"],
   "arithmetic_prefix": "$",
   "ui_elements": ["textbox", "namebox", "button", "font"],
   "comparison_ops": ["==", "!=", ">", "<", ">=", "<="],
   "assignment_ops": ["=", "+=", "-=", "*=", "/="],
   "arithmetic_ops": ["+", "-", "*", "/"],
-  "two_char_ops": ["==", "!=", ">=", "<=", "+=", "-=", "*=", "/="],
+  "logical_ops": ["&&", "||"],
+  "two_char_ops": ["==", "!=", ">=", "<=", "+=", "-=", "*=", "/=", "&&", "||"],
   "positions": ["left", "center", "right"],
   "spec_keywords": ["wait", "click", "assert"]
 }
