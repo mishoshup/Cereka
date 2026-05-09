@@ -581,7 +581,8 @@ private:
         if (ProjectManager::instance().createProject(name.toStdString())) {
             refreshSidebar();
             selectSidebarByName(name);
-            onSidebarProjectClicked(m_sidebarList->currentItem());
+            if (auto *item = m_sidebarList->currentItem())
+                onSidebarProjectClicked(item);
         } else {
             appendLog("[ERROR] Project already exists or creation failed.");
             updateLog();

@@ -84,24 +84,15 @@ void LspClient::stop()
         return;
 
     if (m_process->state() != QProcess::NotRunning) {
-        // Send shutdown request, then exit notification
-        QJsonObject params;
-        int id = sendRequest("shutdown", params, [this](QJsonObject) {
-            // After shutdown response, send exit notification
-            QJsonObject empty;
-            sendNotification("exit", empty);
-            if (m_process) {
-                m_process->closeWriteChannel();
-                if (!m_process->waitForFinished(2000))
-                    m_process->kill();
-            }
-        });
+        // Send exit notification immediately (shutdown handshake omitted for
+        // non-blocking close — the server can handle exit without shutdown)
+        QJsonObject empty;
+        sendNotification("exit", empty);
+        m_process->closeWriteChannel();
 
-        // Give the process time to respond
-        if (!m_process->waitForFinished(3000)) {
+        // Give the process a short grace period, then kill
+        if (!m_process->waitForFinished(2000))
             m_process->kill();
-            m_process->waitForFinished(1000);
-        }
     }
 
     m_pendingRequests.clear();

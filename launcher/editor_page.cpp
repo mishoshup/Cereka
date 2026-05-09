@@ -587,8 +587,10 @@ void EditorPage::closeTab(EditorPanel &panel, int index)
     // Remove from stack
     if (panel.editorStack) {
         QWidget *w = panel.editorStack->widget(index);
-        if (w)
+        if (w) {
             panel.editorStack->removeWidget(w);
+            w->deleteLater();
+        }
     }
 
     panel.tabs.removeAt(index);
