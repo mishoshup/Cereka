@@ -39,16 +39,16 @@ LspClient::~LspClient()
 
 // ── Start / stop / status ─────────────────────────────────────────────────────
 
-bool LspClient::start(const QString &binaryPath)
+bool LspClient::start(const QString &path)
 {
     if (m_process)
         stop();
 
-    m_binaryPath = binaryPath;
+    m_binaryPath = path;
     m_initialized = false;
     m_intentionalStop = false;
 
-    if (!QFileInfo::exists(binaryPath)) {
+    if (!QFileInfo::exists(path)) {
         emit connectionFailed();
         return false;
     }
@@ -64,7 +64,12 @@ bool LspClient::start(const QString &binaryPath)
     connect(m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &LspClient::onProcessFinished);
 
-    m_process->start(binaryPath, QStringList());
+    // If path ends with .js, run via node; otherwise treat as standalone binary
+    if (path.endsWith(".js")) {
+        m_process->start("node", QStringList() << path);
+    } else {
+        m_process->start(path, QStringList());
+    }
 
     if (!m_process->waitForStarted(5000)) {
         delete m_process;
@@ -298,6 +303,19 @@ QString LspClient::resolveBinary()
 #endif
     if (QFileInfo::exists(relPath))
         return relPath;
+
+    // 3. Fallback: use node directly if the SEA binary isn't built
+    //    This requires Node.js to be installed on the system.
+    QString serverDir = QDir::homePath()
+        + "/dev/tree-sitter-cereka/lsp";
+    QString serverJs = serverDir + "/server.js";
+    if (QFileInfo::exists(serverJs)) {
+#ifdef _WIN32
+        return "node \"" + serverJs + "\"";
+#else
+        return serverJs;
+#endif
+    }
 
     return {};
 }
