@@ -77,7 +77,8 @@ std::vector<ProjectManager::ProjectInfo> ProjectManager::listProjects() const
     return projects;
 }
 
-bool ProjectManager::createProject(const std::string &name)
+bool ProjectManager::createProject(const std::string &name,
+                                   const std::string &templateName)
 {
     fs::path projectsDir = Config::instance().projectsDir();
     fs::path projectPath = projectsDir / name;
@@ -113,21 +114,47 @@ entry      = assets/scripts/main.crka
         cfgFile << cfgContent;
     }
 
-    {
-        std::ofstream f2((projectPath / "assets/scripts/ui.crka").string());
-        f2 << kUiScriptTemplate;
-    }
+    // ── Template-specific scaffolding ─────────────────────────────────────────
+    bool isDefault = (templateName == "Default");
 
-    {
-        std::ofstream f3((projectPath / "assets/scripts/scene_two.crka").string());
-        f3 << kSceneTwoTemplate;
+    if (isDefault) {
+        // Full scaffold: ui theme, scene_two, main script with all examples
+        {
+            std::ofstream f2((projectPath / "assets/scripts/ui.crka").string());
+            f2 << kUiScriptTemplate;
+        }
+        {
+            std::ofstream f3((projectPath / "assets/scripts/scene_two.crka").string());
+            f3 << kSceneTwoTemplate;
+        }
     }
 
     {
         std::ofstream f4((projectPath / "assets/scripts/main.crka").string());
-        f4 << kMainScriptTemplate;
+        if (isDefault) {
+            f4 << kMainScriptTemplate;
+        } else {
+            // "Blank Project" — minimal entry script with no examples
+            f4 << R"CRKA(; ================================================================
+; main.crka — entry point
+;
+; Write your story here.  See the Default template for a full
+; command reference and example usage.
+; ================================================================
+
+include ui.crka
+
+bg placeholder_bg.png
+
+narrate "Welcome to your Cereka project!"
+narrate "Open the editor to start writing your story."
+
+end
+)CRKA";
+        }
     }
 
+    // Assets are the same for both templates
     if (!writeAsset(projectPath / "assets/bg/placeholder_bg.png", kBgPng, kBgPng_len))
         return false;
     if (!writeAsset(
@@ -292,6 +319,51 @@ bool ProjectManager::currentHasGameCfg() const
     return fs::exists(m_currentPath / "game.cfg");
 }
 
+std::string ProjectManager::currentEntry() const
+{
+    fs::path cfgPath = m_currentPath / "game.cfg";
+    if (!fs::exists(cfgPath))
+        return {};
+
+    std::ifstream f(cfgPath);
+    std::string line;
+    while (std::getline(f, line)) {
+        if (line.find("entry") == 0 && line.find('=') != std::string::npos) {
+            size_t eq = line.find('=');
+            return trim(line.substr(eq + 1));
+        }
+    }
+    return {};
+}
+
+// ── Play-time tracking ───────────────────────────────────────────────────────
+
+void ProjectManager::startPlaySession()
+{
+    m_playSessionStart = std::chrono::steady_clock::now();
+    m_sessionActive = true;
+}
+
+void ProjectManager::endPlaySession()
+{
+    if (!m_sessionActive)
+        return;
+
+    auto now = std::chrono::steady_clock::now();
+    int elapsed = static_cast<int>(
+        std::chrono::duration_cast<std::chrono::seconds>(now - m_playSessionStart).count());
+    m_metadata.playTimeSeconds += elapsed;
+    m_sessionActive = false;
+    saveMetadata();
+}
+
+void ProjectManager::saveMetadata()
+{
+    if (m_currentPath.empty())
+        return;
+    m_metadata.save(m_currentPath);
+}
+
 void ProjectManager::loadGameCfg(const fs::path &cfgPath)
 {
     std::ifstream f(cfgPath);
@@ -301,7 +373,7 @@ void ProjectManager::loadGameCfg(const fs::path &cfgPath)
         if (line.find("title") == 0 && line.find('=') != std::string::npos) {
             size_t eq = line.find('=');
             m_currentTitle = trim(line.substr(eq + 1));
-            break;
         }
+        // Keep reading to also find entry if present — no early break.
     }
 }
