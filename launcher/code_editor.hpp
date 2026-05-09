@@ -9,6 +9,22 @@
 
 #include <vector>
 
+// ── LineNumberArea (sits in the left margin) ───────────────────────────────────
+
+class CodeEditor;
+
+class LineNumberArea : public QWidget {
+public:
+    explicit LineNumberArea(CodeEditor *editor);
+    QSize sizeHint() const override { return QSize(m_width, 0); }
+    void setWidth(int w) { m_width = w; }
+protected:
+    void paintEvent(QPaintEvent *event) override;
+private:
+    CodeEditor *m_editor;
+    int m_width = 50;
+};
+
 // ── CodeEditor ────────────────────────────────────────────────────────────────
 
 class CodeEditor : public QPlainTextEdit {
@@ -54,6 +70,8 @@ private slots:
     void onTextChanged();
     void onCompleterActivated(const QString &text);
 
+    friend class LineNumberArea;
+
 private:
     void updateLineNumberAreaWidth();
     void updateExtraSelections();
@@ -63,9 +81,10 @@ private:
     int foldAreaWidth() const;
 
     // Gutter painting helpers
-    void paintLineNumbers(QPainter &painter, const QRect &rect);
+    void paintLineNumbers(QPainter &painter, const QRect &rect, int lineNumW = -1);
     void paintFoldMarkers(QPainter &painter, const QRect &rect);
     void paintIndentGuides(QPainter &painter, const QRect &rect);
+    void updateLineNumberArea(const QRect &rect, int dy);
 
     // Find matching bracket
     QTextCursor findMatchingBracket(QTextCursor cursor) const;
@@ -94,6 +113,9 @@ private:
     int m_lastHoverCol = -1;
     bool m_hoverPending = false;
     QTimer *m_hoverTimer = nullptr;
+
+    // Line number area widget
+    LineNumberArea *m_lineNumberArea = nullptr;
 
     // Indent guide color
     QColor m_indentGuideColor;

@@ -29,6 +29,24 @@ static QStringList crkaKeywords()
     };
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// ── LineNumberArea ────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+LineNumberArea::LineNumberArea(CodeEditor *editor)
+    : QWidget(editor), m_editor(editor)
+{
+    setCursor(Qt::ArrowCursor);
+}
+
+void LineNumberArea::paintEvent(QPaintEvent *)
+{
+    QPainter painter(this);
+    painter.fillRect(rect(), m_editor->m_lineNumberBg);
+    m_editor->paintLineNumbers(painter, rect());
+    m_editor->paintFoldMarkers(painter, rect());
+}
+
 // ── Constructor ───────────────────────────────────────────────────────────────
 
 CodeEditor::CodeEditor(QWidget *parent)
@@ -96,7 +114,14 @@ CodeEditor::CodeEditor(QWidget *parent)
         m_hoverPending = false;
     });
 
+    // Line number area widget
+    m_lineNumberArea = new LineNumberArea(this);
     updateLineNumberAreaWidth();
+
+    connect(this, &QPlainTextEdit::blockCountChanged,
+            this, &CodeEditor::updateLineNumberAreaWidth);
+    connect(this, &QPlainTextEdit::updateRequest,
+            this, &CodeEditor::updateLineNumberArea);
 }
 
 // ── Line number / fold areas ──────────────────────────────────────────────────
@@ -119,38 +144,40 @@ int CodeEditor::foldAreaWidth() const
 
 void CodeEditor::updateLineNumberAreaWidth()
 {
-    setViewportMargins(lineNumberAreaWidth() + foldAreaWidth(), 0, 0, 0);
+    int fullW = lineNumberAreaWidth() + foldAreaWidth();
+    setViewportMargins(fullW, 0, 0, 0);
+    if (m_lineNumberArea)
+        m_lineNumberArea->setWidth(fullW);
+}
+
+void CodeEditor::updateLineNumberArea(const QRect &rect, int dy)
+{
+    if (m_lineNumberArea) {
+        if (dy)
+            m_lineNumberArea->scroll(0, dy);
+        else
+            m_lineNumberArea->update(0, rect.y(), m_lineNumberArea->width(), rect.height());
+    }
 }
 
 void CodeEditor::resizeEvent(QResizeEvent *event)
 {
     QPlainTextEdit::resizeEvent(event);
-    updateLineNumberAreaWidth();
+    if (m_lineNumberArea) {
+        QRect cr = contentsRect();
+        int fullW = lineNumberAreaWidth() + foldAreaWidth();
+        m_lineNumberArea->setGeometry(QRect(cr.left(), cr.top(), fullW, cr.height()));
+    }
 }
 
 // ── Paint ─────────────────────────────────────────────────────────────────────
 
 void CodeEditor::paintEvent(QPaintEvent *event)
 {
-    // 1. Gutter background
-    int gutterW = lineNumberAreaWidth() + foldAreaWidth();
-    QRect gutterRect(0, 0, gutterW, viewport()->height());
-
-    QPainter painter(viewport());
-    painter.fillRect(gutterRect, m_lineNumberBg);
-
-    // 2. Paint line numbers
-    paintLineNumbers(painter, gutterRect);
-
-    // 3. Paint fold markers
-    paintFoldMarkers(painter, gutterRect);
-
-    painter.end();
-
-    // 4. Base paint (text + selections)
+    // 1. Base paint (text + selections)
     QPlainTextEdit::paintEvent(event);
 
-    // 5. Indentation guides
+    // 2. Indentation guides
     QPainter p2(viewport());
     paintIndentGuides(p2, viewport()->rect());
     p2.end();
@@ -158,7 +185,7 @@ void CodeEditor::paintEvent(QPaintEvent *event)
 
 // ── Gutter painting ───────────────────────────────────────────────────────────
 
-void CodeEditor::paintLineNumbers(QPainter &painter, const QRect &rect)
+void CodeEditor::paintLineNumbers(QPainter &painter, const QRect &rect, int /*lineNumW*/)
 {
     int lineNumW = lineNumberAreaWidth();
     QFont lineFont = font();
