@@ -15,6 +15,7 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <iostream>
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ── Constructor / destructor ─────────────────────────────────────────────────
@@ -718,15 +719,20 @@ void EditorPage::notifyLspChange(EditorPanel &panel, EditorTab &tab)
 // ══════════════════════════════════════════════════════════════════════════════
 
 void EditorPage::onDiagnosticsReceived(const QString &uri,
-                                       const QList<LspDiagnostic> &diagnostics)
+                                        const QList<LspDiagnostic> &diagnostics)
 {
     QString localPath = uriToLocalPath(uri);
     int pIdx = paneFromUri(uri);
+
+    std::cerr << "[LSP] diagnostics received: uri=" << uri.toStdString()
+              << " localPath=" << localPath.toStdString()
+              << " count=" << diagnostics.size() << "\n";
 
     // Find which tab in which panel this URI belongs to
     if (pIdx >= 0 && pIdx < m_panelCount) {
         int tabIdx = findTabByPath(m_panels[pIdx], localPath);
         if (tabIdx >= 0) {
+            std::cerr << "[LSP] matched tab " << tabIdx << " in panel " << pIdx << "\n";
             m_panels[pIdx].tabs[tabIdx].editor->setDiagnostics(diagnostics);
             return;
         }
@@ -736,10 +742,13 @@ void EditorPage::onDiagnosticsReceived(const QString &uri,
     for (int i = 0; i < m_panelCount; ++i) {
         int tabIdx = findTabByPath(m_panels[i], localPath);
         if (tabIdx >= 0) {
+            std::cerr << "[LSP] matched tab (fallback) " << tabIdx << " in panel " << i << "\n";
             m_panels[i].tabs[tabIdx].editor->setDiagnostics(diagnostics);
             return;
         }
     }
+
+    std::cerr << "[LSP] no matching tab found for: " << localPath.toStdString() << "\n";
 
     // Refresh outline (LSP has processed the document)
     m_outlinePanel->refresh();
