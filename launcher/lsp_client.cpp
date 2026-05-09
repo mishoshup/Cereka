@@ -286,19 +286,27 @@ int LspClient::documentSymbol(const QString &uri, LspCallback cb)
 
 static QString findSiblingDir(const QString &siblingName)
 {
-    // Use git to find the current repo root, then look for sibling at same level
-    QProcess git;
-    git.start("git", QStringList()
-        << "-C" << QCoreApplication::applicationDirPath()
-        << "rev-parse" << "--show-toplevel");
-    if (git.waitForFinished(3000) && git.exitCode() == 0) {
+    // Try multiple starting points to find the git repo root
+    QStringList startingPoints = {
+        QCoreApplication::applicationDirPath(),   // launcher binary dir
+        QDir::currentPath(),                      // cwd when launcher was started
+        QDir::homePath() + "/personal/dev/cereka", // dev workspace root
+    };
+
+    for (const QString &start : startingPoints) {
+        QProcess git;
+        git.start("git", QStringList() << "-C" << start << "rev-parse" << "--show-toplevel");
+        if (!git.waitForFinished(3000) || git.exitCode() != 0)
+            continue;
+
         QString repoRoot = QString::fromUtf8(git.readAllStandardOutput()).trimmed();
-        if (!repoRoot.isEmpty()) {
-            QDir parent = QFileInfo(repoRoot).absoluteDir();
-            QString siblingPath = parent.absoluteFilePath(siblingName);
-            if (QFileInfo::exists(siblingPath))
-                return siblingPath;
-        }
+        if (repoRoot.isEmpty())
+            continue;
+
+        QDir parent = QFileInfo(repoRoot).absoluteDir();
+        QString siblingPath = parent.absoluteFilePath(siblingName);
+        if (QFileInfo::exists(siblingPath))
+            return siblingPath;
     }
     return {};
 }

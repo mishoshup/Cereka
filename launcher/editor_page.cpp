@@ -897,6 +897,8 @@ void EditorPage::startLspClient()
         return;
     }
 
+    m_statusBar->setText("Starting LSP: " + binaryPath);
+
     if (m_lspClient->start(binaryPath)) {
         m_lspClient->initialize();
     } else {
