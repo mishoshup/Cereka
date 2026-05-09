@@ -60,7 +60,7 @@ CrkaHighlighter::CrkaHighlighter(QTextDocument *parent)
         HighlightRule rule;
         rule.pattern = QRegularExpression(
             R"(\b)" + kw + R"(\b)",
-            QRegularExpression::CaseInsensitive);
+            QRegularExpression::PatternOption::CaseInsensitiveOption);
         rule.format = m_keywordFormat;
         m_keywordRules.append(rule);
     }

@@ -15,7 +15,8 @@
     "auto_advance": false,
     "skip_discuss": false,
     "use_worktrees": true,
-    "research_before_questions": true
+    "research_before_questions": true,
+    "plan_review_convergence": true
   },
   "git": {
     "branching_strategy": "phase"

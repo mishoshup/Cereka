@@ -1,0 +1,135 @@
+2026-05-09 06:59:26,894 - aqt.main - INFO - installer 8376249408 aqtinstall(aqt) v3.3.0 on Python 3.9.6 [CPython Clang 17.0.0 (clang-1700.6.3.2)]
+2026-05-09 06:59:26,894 - aqt.helper - DEBUG - helper 8376249408 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/Updates.xml.sha256
+2026-05-09 06:59:28,785 - aqt.helper - DEBUG - helper 8376249408 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/extensions/qtwebengine/6110/clang_64/Updates.xml.sha256
+2026-05-09 06:59:30,607 - aqt.archives - INFO - archives 8376249408 Found extension qtwebengine
+2026-05-09 06:59:30,607 - aqt.helper - DEBUG - helper 8376249408 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/extensions/qtpdf/6110/clang_64/Updates.xml.sha256
+2026-05-09 06:59:32,691 - aqt.archives - INFO - archives 8376249408 Found extension qtpdf
+2026-05-09 06:59:33,049 - aqt.helper - DEBUG - helper 8376249408 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.addons.qtmultimedia.clang_64/6.11.0-0-202603180533qtmultimedia-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z.sha256
+2026-05-09 06:59:33,052 - aqt.helper - DEBUG - helper 8376249408 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.clang_64/6.11.0-0-202603180533qtbase-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z.sha256
+2026-05-09 06:59:33,055 - aqt.helper - DEBUG - helper 8376249408 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.clang_64/6.11.0-0-202603180533qtdeclarative-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z.sha256
+2026-05-09 06:59:33,056 - aqt.helper - DEBUG - helper 8376249408 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.clang_64/6.11.0-0-202603180533qtsvg-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z.sha256
+2026-05-09 06:59:33,923 - aqt.helper - INFO - helper 8376249408 Downloading qtmultimedia...
+2026-05-09 06:59:33,924 - aqt.installer - DEBUG - installer 8376249408 Download URL: https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.addons.qtmultimedia.clang_64/6.11.0-0-202603180533qtmultimedia-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z
+2026-05-09 06:59:34,023 - aqt.helper - INFO - helper 8376249408 Downloading qtsvg...
+2026-05-09 06:59:34,023 - aqt.helper - INFO - helper 8376249408 Downloading qtdeclarative...
+2026-05-09 06:59:34,023 - aqt.helper - INFO - helper 8376249408 Downloading qtbase...
+2026-05-09 06:59:34,024 - aqt.installer - DEBUG - installer 8376249408 Download URL: https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.clang_64/6.11.0-0-202603180533qtsvg-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z
+2026-05-09 06:59:34,024 - aqt.installer - DEBUG - installer 8376249408 Download URL: https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.clang_64/6.11.0-0-202603180533qtdeclarative-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z
+2026-05-09 06:59:34,024 - aqt.installer - DEBUG - installer 8376249408 Download URL: https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.clang_64/6.11.0-0-202603180533qtbase-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z
+2026-05-09 06:59:35,077 - aqt.helper - DEBUG - helper 8376249408 Asked to redirect(302) to: https://ftp.jaist.ac.jp/pub/qtproject/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.addons.qtmultimedia.clang_64/6.11.0-0-202603180533qtmultimedia-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z
+2026-05-09 06:59:35,077 - aqt.helper - DEBUG - helper 8376249408 Asked to redirect(302) to: https://ftp.jaist.ac.jp/pub/qtproject/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.clang_64/6.11.0-0-202603180533qtsvg-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z
+2026-05-09 06:59:35,077 - aqt.helper - INFO - helper 8376249408 Redirected: ftp.jaist.ac.jp
+2026-05-09 06:59:35,077 - aqt.helper - INFO - helper 8376249408 Redirected: ftp.jaist.ac.jp
+2026-05-09 06:59:35,079 - aqt.helper - DEBUG - helper 8376249408 Asked to redirect(302) to: https://ftp.jaist.ac.jp/pub/qtproject/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.clang_64/6.11.0-0-202603180533qtbase-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z
+2026-05-09 06:59:35,079 - aqt.helper - DEBUG - helper 8376249408 Asked to redirect(302) to: https://ftp.jaist.ac.jp/pub/qtproject/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.clang_64/6.11.0-0-202603180533qtdeclarative-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z
+2026-05-09 06:59:35,079 - aqt.helper - INFO - helper 8376249408 Redirected: ftp.jaist.ac.jp
+2026-05-09 06:59:35,079 - aqt.helper - INFO - helper 8376249408 Redirected: ftp.jaist.ac.jp
+2026-05-09 06:59:41,269 - aqt.installer - INFO - installer 8376249408 Finished installation of qtsvg-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z in 8.21470175
+2026-05-09 06:59:41,277 - aqt.helper - DEBUG - helper 8376249408 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.clang_64/6.11.0-0-202603180533qtdoc-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z.sha256
+2026-05-09 06:59:42,419 - aqt.helper - INFO - helper 8376249408 Downloading qtdoc...
+2026-05-09 06:59:42,419 - aqt.installer - DEBUG - installer 8376249408 Download URL: https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.clang_64/6.11.0-0-202603180533qtdoc-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z
+2026-05-09 06:59:43,464 - aqt.helper - DEBUG - helper 8376249408 Asked to redirect(302) to: https://ftp.jaist.ac.jp/pub/qtproject/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.clang_64/6.11.0-0-202603180533qtdoc-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z
+2026-05-09 06:59:43,465 - aqt.helper - INFO - helper 8376249408 Redirected: ftp.jaist.ac.jp
+2026-05-09 07:00:49,639 - aqt.installer - INFO - installer 8376249408 Finished installation of qtdoc-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z in 68.36255163
+2026-05-09 07:00:49,647 - aqt.helper - DEBUG - helper 8376249408 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.clang_64/6.11.0-0-202603180533qttools-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z.sha256
+2026-05-09 07:00:50,570 - aqt.helper - INFO - helper 8376249408 Downloading qttools...
+2026-05-09 07:00:50,571 - aqt.installer - DEBUG - installer 8376249408 Download URL: https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.clang_64/6.11.0-0-202603180533qttools-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z
+2026-05-09 07:00:51,623 - aqt.helper - DEBUG - helper 8376249408 Asked to redirect(302) to: https://ftp.jaist.ac.jp/pub/qtproject/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.clang_64/6.11.0-0-202603180533qttools-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z
+2026-05-09 07:00:51,623 - aqt.helper - INFO - helper 8376249408 Redirected: ftp.jaist.ac.jp
+2026-05-09 07:01:30,438 - aqt.installer - INFO - installer 8376249408 Finished installation of qtbase-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z in 117.38689804
+2026-05-09 07:01:30,446 - aqt.helper - DEBUG - helper 8376249408 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.clang_64/6.11.0-0-202603180533qttranslations-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z.sha256
+2026-05-09 07:01:31,471 - aqt.helper - INFO - helper 8376249408 Downloading qttranslations...
+2026-05-09 07:01:31,471 - aqt.installer - DEBUG - installer 8376249408 Download URL: https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.clang_64/6.11.0-0-202603180533qttranslations-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z
+2026-05-09 07:01:32,744 - aqt.helper - DEBUG - helper 8376249408 Asked to redirect(302) to: https://ftp.jaist.ac.jp/pub/qtproject/online/qtsdkrepository/mac_x64/desktop/qt6_6110/qt6_6110/qt.qt6.6110.clang_64/6.11.0-0-202603180533qttranslations-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z
+2026-05-09 07:01:32,744 - aqt.helper - INFO - helper 8376249408 Redirected: ftp.jaist.ac.jp
+2026-05-09 07:01:34,335 - aqt.installer - INFO - installer 8376249408 Finished installation of qtmultimedia-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z in 121.28720746
+2026-05-09 07:01:36,947 - aqt.installer - INFO - installer 8376249408 Finished installation of qttranslations-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z in 6.50212696
+2026-05-09 07:03:47,795 - aqt.installer - INFO - installer 8376249408 Finished installation of qttools-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z in 178.14812579
+2026-05-09 07:03:57,520 - aqt.installer - INFO - installer 8376249408 Finished installation of qtdeclarative-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z in 264.46613154
+2026-05-09 07:03:57,793 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/bin/qmake
+2026-05-09 07:03:57,804 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickControls2.pc
+2026-05-09 07:03:57,805 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6LabsWavefrontMesh.pc
+2026-05-09 07:03:57,805 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickControls2FusionStyleImpl.pc
+2026-05-09 07:03:57,806 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6Platform.pc
+2026-05-09 07:03:57,807 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6LabsFolderListModel.pc
+2026-05-09 07:03:57,807 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickVectorImageHelpers.pc
+2026-05-09 07:03:57,807 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QmlCore.pc
+2026-05-09 07:03:57,808 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6MultimediaWidgets.pc
+2026-05-09 07:03:57,808 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6Concurrent.pc
+2026-05-09 07:03:57,810 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6LabsQmlModels.pc
+2026-05-09 07:03:57,811 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickEffects.pc
+2026-05-09 07:03:57,812 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QmlWorkerScript.pc
+2026-05-09 07:03:57,813 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickControls2MacOSStyleImpl.pc
+2026-05-09 07:03:57,813 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6Designer.pc
+2026-05-09 07:03:57,814 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickControls2Impl.pc
+2026-05-09 07:03:57,814 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QmlIntegration.pc
+2026-05-09 07:03:57,814 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickControls2IOSStyleImpl.pc
+2026-05-09 07:03:57,815 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6Xml.pc
+2026-05-09 07:03:57,815 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickControls2Universal.pc
+2026-05-09 07:03:57,816 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickDialogs2QuickImpl.pc
+2026-05-09 07:03:57,816 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6SvgWidgets.pc
+2026-05-09 07:03:57,817 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6LabsAnimation.pc
+2026-05-09 07:03:57,817 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6UiTools.pc
+2026-05-09 07:03:57,817 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickDialogs2Utils.pc
+2026-05-09 07:03:57,818 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickTest.pc
+2026-05-09 07:03:57,818 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickDialogs2.pc
+2026-05-09 07:03:57,818 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QmlXmlListModel.pc
+2026-05-09 07:03:57,818 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickControls2FluentWinUI3StyleImpl.pc
+2026-05-09 07:03:57,819 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6Help.pc
+2026-05-09 07:03:57,819 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6OpenGLWidgets.pc
+2026-05-09 07:03:57,820 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6UiPlugin.pc
+2026-05-09 07:03:57,821 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6Quick.pc
+2026-05-09 07:03:57,821 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickControls2Imagine.pc
+2026-05-09 07:03:57,822 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6LabsSharedImage.pc
+2026-05-09 07:03:57,822 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6Linguist.pc
+2026-05-09 07:03:57,823 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6PrintSupport.pc
+2026-05-09 07:03:57,823 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickControls2Fusion.pc
+2026-05-09 07:03:57,825 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickControls2BasicStyleImpl.pc
+2026-05-09 07:03:57,825 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickVectorImage.pc
+2026-05-09 07:03:57,826 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6LabsStyleKit.pc
+2026-05-09 07:03:57,827 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickControls2ImagineStyleImpl.pc
+2026-05-09 07:03:57,828 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6LabsSynchronizer.pc
+2026-05-09 07:03:57,828 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickWidgets.pc
+2026-05-09 07:03:57,829 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6Svg.pc
+2026-05-09 07:03:57,829 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickTemplates2.pc
+2026-05-09 07:03:57,830 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QmlMeta.pc
+2026-05-09 07:03:57,831 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QmlNetwork.pc
+2026-05-09 07:03:57,831 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickShapes.pc
+2026-05-09 07:03:57,832 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickControls2Basic.pc
+2026-05-09 07:03:57,833 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6Core.pc
+2026-05-09 07:03:57,834 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6Gui.pc
+2026-05-09 07:03:57,835 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickControls2MaterialStyleImpl.pc
+2026-05-09 07:03:57,835 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickControls2Material.pc
+2026-05-09 07:03:57,835 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6SpatialAudio.pc
+2026-05-09 07:03:57,836 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6Multimedia.pc
+2026-05-09 07:03:57,836 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6OpenGL.pc
+2026-05-09 07:03:57,837 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QmlLocalStorage.pc
+2026-05-09 07:03:57,838 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6LabsSettings.pc
+2026-05-09 07:03:57,838 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6Test.pc
+2026-05-09 07:03:57,838 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6Network.pc
+2026-05-09 07:03:57,839 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6Sql.pc
+2026-05-09 07:03:57,839 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6LabsPlatform.pc
+2026-05-09 07:03:57,839 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickLayouts.pc
+2026-05-09 07:03:57,840 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6DBus.pc
+2026-05-09 07:03:57,840 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QmlCompiler.pc
+2026-05-09 07:03:57,840 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6Widgets.pc
+2026-05-09 07:03:57,841 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6Qml.pc
+2026-05-09 07:03:57,841 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6LabsStyleKitImpl.pc
+2026-05-09 07:03:57,842 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QuickControls2UniversalStyleImpl.pc
+2026-05-09 07:03:57,842 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/pkgconfig/Qt6QmlModels.pc
+2026-05-09 07:03:57,843 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/libQt6QmlLS.prl
+2026-05-09 07:03:57,844 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/libQt6FbSupport.prl
+2026-05-09 07:03:57,844 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/libQt6FFmpegMediaPluginImpl.prl
+2026-05-09 07:03:57,845 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/libQt6QmlDebug.prl
+2026-05-09 07:03:57,845 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/libQt6QmlTypeRegistrar.prl
+2026-05-09 07:03:57,845 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/libQt6QuickTestUtils.prl
+2026-05-09 07:03:57,845 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/libQt6QuickControlsTestUtils.prl
+2026-05-09 07:03:57,846 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/libQt6DeviceDiscoverySupport.prl
+2026-05-09 07:03:57,846 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/libQt6MultimediaTestLib.prl
+2026-05-09 07:03:57,846 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/libQt6QmlDom.prl
+2026-05-09 07:03:57,847 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/libQt6QmlAssetDownloader.prl
+2026-05-09 07:03:57,848 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/libQt6PacketProtocol.prl
+2026-05-09 07:03:57,849 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/libQt6QmlFormat.prl
+2026-05-09 07:03:57,849 - aqt.updater - INFO - updater 8376249408 Patching /Users/danialhaikal/personal/dev/cereka/6.11.0/macos/lib/libQt6QmlToolingSettings.prl
+2026-05-09 07:03:57,851 - aqt.main - INFO - installer 8376249408 Finished installation
+2026-05-09 07:03:57,851 - aqt.main - INFO - installer 8376249408 Time elapsed: 270.95601771 second

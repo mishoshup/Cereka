@@ -746,12 +746,12 @@ void SettingsMenuState::cycleSetting(int row, CerekaImpl &impl)
             break;
         }
         case 1: { // BGM Volume
-            s.bgmVolume = std::min(1.0f, s.bgmVolume + 0.25f);
+            s.bgmVolume += 0.25f;
             if (s.bgmVolume > 1.0f + 0.01f) s.bgmVolume = 0.0f;
             break;
         }
         case 2: { // SFX Volume
-            s.sfxVolume = std::min(1.0f, s.sfxVolume + 0.25f);
+            s.sfxVolume += 0.25f;
             if (s.sfxVolume > 1.0f + 0.01f) s.sfxVolume = 0.0f;
             break;
         }
