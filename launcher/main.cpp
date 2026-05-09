@@ -23,10 +23,13 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+#include "asset_browser_page.hpp"
 #include "config.hpp"
+#include "dashboard_page.hpp"
 #include "editor_page.hpp"
 #include "embedded_assets.h"
 #include "project_manager.hpp"
+#include "template_model.hpp"
 #include "theme.hpp"
 
 #ifdef _WIN32
@@ -159,11 +162,33 @@ public:
         m_contentStack->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
         m_contentStack->addWidget(buildWelcomeScreen());           // PageWelcome
         m_contentStack->addWidget(buildEmptyState());              // PageEmpty
-        m_contentStack->addWidget(buildProjectDetail());           // PageProject
+        m_dashboardPage = new DashboardPage();                     // PageProject
+        m_contentStack->addWidget(m_dashboardPage);
         m_editorPage = new EditorPage();
         m_contentStack->addWidget(m_editorPage);                   // PageEditor
-        m_contentStack->addWidget(buildAssetBrowserPlaceholder()); // PageAssetBrowser
+        m_assetBrowserPage = new AssetBrowserPage();               // PageAssetBrowser
+        m_contentStack->addWidget(m_assetBrowserPage);
         root->addWidget(m_contentStack, 1);
+
+        // ── Wire DashboardPage signals ──────────────────────────────────────
+        connect(m_dashboardPage, &DashboardPage::quickRunRequested,
+                this, [this](const QString &proj, const QString &entry) {
+                    doQuickRun(proj.toStdString(), entry.toStdString());
+                });
+        connect(m_dashboardPage, &DashboardPage::specRunRequested,
+                this, [this](const QString &proj, const QString &spec) {
+                    doSpecRun(proj.toStdString(), spec.toStdString());
+                });
+        connect(m_dashboardPage, &DashboardPage::openInEditorRequested,
+                this, [this](const QString &proj, const QString &file) {
+                    doOpenInEditor(proj.toStdString(), file.toStdString());
+                });
+        connect(m_dashboardPage, &DashboardPage::renameRequested,
+                this, &LauncherWindow::doRenameProject);
+        connect(m_dashboardPage, &DashboardPage::initRequested,
+                this, &LauncherWindow::doInitProject);
+        connect(m_dashboardPage, &DashboardPage::createFromTemplate,
+                this, &LauncherWindow::doCreateFromTemplate);
 
         m_contentOpacity = new QGraphicsOpacityEffect(m_contentStack);
         m_contentStack->setGraphicsEffect(m_contentOpacity);
@@ -438,146 +463,9 @@ private:
         m_changeFolderBtn->setText("Change Folder");
     }
 
-    // ── Project detail ────────────────────────────────────────────────────────
+    // ── Project detail (replaced by DashboardPage) ───────────────────────────
 
-    QWidget *buildProjectDetail()
-    {
-        QWidget *proj = new QWidget();
-        proj->setStyleSheet(QString("background-color: %1;").arg(Theme::BgBase));
-        QVBoxLayout *v = new QVBoxLayout(proj);
-        v->setContentsMargins(28, 24, 28, 24);
-        v->setSpacing(0);
-
-        // Header: title + rename
-        QHBoxLayout *header = new QHBoxLayout();
-        header->setSpacing(12);
-
-        m_projTitleLabel = new QLabel();
-        m_projTitleLabel->setFont(boldFont(Theme::FontTitle));
-        m_projTitleLabel->setStyleSheet(QString("color: %1;").arg(Theme::TextPrimary));
-        m_projTitleLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        header->addWidget(m_projTitleLabel);
-
-        QPushButton *renameBtn = new QPushButton("Rename");
-        renameBtn->setMinimumHeight(Theme::BtnHeightMicro);
-        renameBtn->setStyleSheet(Theme::ghostBtn(Theme::RadiusSmall)
-                                 + "QPushButton { font-size: 11px; padding: 0 12px; }");
-        connect(renameBtn, &QPushButton::clicked, this, &LauncherWindow::doRenameProject);
-        header->addWidget(renameBtn);
-        v->addLayout(header);
-
-        v->addSpacing(16);
-        v->addWidget(makeHRule(Theme::BgSurface));
-        v->addSpacing(22);
-
-        // Game actions (launch + package) — hidden when no game.cfg
-        m_gameActionsWidget = new QWidget();
-        m_gameActionsWidget->setStyleSheet("background: transparent;");
-        QVBoxLayout *actionsV = new QVBoxLayout(m_gameActionsWidget);
-        actionsV->setContentsMargins(0, 0, 0, 0);
-        actionsV->setSpacing(10);
-
-        QHBoxLayout *actions = new QHBoxLayout();
-        actions->setSpacing(10);
-
-        m_launchBtn = new QPushButton("▶  Launch Game");
-        m_launchBtn->setMinimumHeight(Theme::BtnHeightAction);
-        m_launchBtn->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-        m_launchBtn->setStyleSheet(Theme::primaryBtn()
-                                   + "QPushButton { padding: 0 26px; font-size: 14px; }");
-        connect(m_launchBtn, &QPushButton::clicked, this, &LauncherWindow::doLaunch);
-        actions->addWidget(m_launchBtn);
-
-        QPushButton *packageBtn = new QPushButton("Package  ▾");
-        packageBtn->setMinimumHeight(Theme::BtnHeightAction);
-        packageBtn->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-        packageBtn->setStyleSheet(Theme::secondaryBtn()
-                                  + "QPushButton { padding: 0 20px; font-size: 13px; }");
-
-        QMenu *pkgMenu = new QMenu(packageBtn);
-        pkgMenu->setStyleSheet(Theme::menuStyle());
-        pkgMenu->addAction("Package for Linux",   [this]() { doPackage("linux"); });
-        pkgMenu->addAction("Package for Windows", [this]() { doPackage("windows"); });
-        pkgMenu->addSeparator();
-        pkgMenu->addAction("Package All", [this]() { doPackage(); });
-        packageBtn->setMenu(pkgMenu);
-        actions->addWidget(packageBtn);
-        actions->addStretch();
-        actionsV->addLayout(actions);
-
-        m_statusLabel = new QLabel();
-        m_statusLabel->setStyleSheet(QString("color: %1; font-size: 12px;").arg(Theme::Gold));
-        actionsV->addWidget(m_statusLabel);
-        v->addWidget(m_gameActionsWidget);
-
-        // Init prompt — shown when no game.cfg
-        m_initWidget = new QWidget();
-        m_initWidget->setStyleSheet("background: transparent;");
-        QVBoxLayout *initV = new QVBoxLayout(m_initWidget);
-        initV->setContentsMargins(0, 0, 0, 0);
-        initV->setSpacing(10);
-
-        QLabel *initDesc = new QLabel("This folder is not a Cereka project.");
-        initDesc->setStyleSheet(
-            QString("color: %1; font-size: 13px;").arg(Theme::TextFaint));
-        initV->addWidget(initDesc);
-
-        m_initBtn = new QPushButton("Initialize as Cereka Project");
-        m_initBtn->setMinimumHeight(Theme::BtnHeightAction);
-        m_initBtn->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-        m_initBtn->setStyleSheet(Theme::outlineBtn()
-                                 + "QPushButton { padding: 0 24px; font-size: 13px; }");
-        connect(m_initBtn, &QPushButton::clicked, this, &LauncherWindow::doInitProject);
-        initV->addWidget(m_initBtn, 0, Qt::AlignLeft);
-        v->addWidget(m_initWidget);
-
-        v->addSpacing(20);
-        v->addWidget(makeSectionLabel("OUTPUT"));
-        v->addSpacing(8);
-
-        m_log = new QTextEdit();
-        m_log->setReadOnly(true);
-        m_log->setPlaceholderText("Output will appear here...");
-        m_log->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        m_log->setStyleSheet(QString(R"(
-            QTextEdit {
-                background-color: %1; border: 1px solid %2;
-                border-radius: %3px; padding: 14px; font-size: 12px; color: %4;
-            }
-        )").arg(Theme::BgDeep).arg(Theme::BorderLog).arg(Theme::RadiusStd).arg(Theme::TextLog));
-        v->addWidget(m_log, 1);
-
-        return proj;
-    }
-
-    // ── Placeholder pages ────────────────────────────────────────────────────
-
-    QWidget *buildAssetBrowserPlaceholder()
-    {
-        QWidget *w = new QWidget();
-        w->setStyleSheet(QString("background-color: %1;").arg(Theme::BgBase));
-        QVBoxLayout *v = new QVBoxLayout(w);
-        v->setAlignment(Qt::AlignCenter);
-        v->setSpacing(12);
-
-        QLabel *icon = new QLabel("◈");
-        icon->setStyleSheet(QString("color: %1; font-size: 48px;").arg(Theme::TextGlyph));
-        icon->setAlignment(Qt::AlignCenter);
-        v->addWidget(icon);
-
-        QLabel *title = new QLabel("Asset Browser");
-        title->setFont(boldFont(Theme::FontTitle));
-        title->setStyleSheet(QString("color: %1;").arg(Theme::TextDim));
-        title->setAlignment(Qt::AlignCenter);
-        v->addWidget(title);
-
-        QLabel *desc = new QLabel("coming soon");
-        desc->setStyleSheet(QString("color: %1; font-size: 13px;").arg(Theme::TextFaint));
-        desc->setAlignment(Qt::AlignCenter);
-        v->addWidget(desc);
-
-        return w;
-    }
+    // ── Asset browser placeholder (replaced by AssetBrowserPage) ────────────
 
     // ── Sidebar helpers ─────────────────────────────────────────────────────
 
@@ -609,18 +497,17 @@ private:
         if (!ProjectManager::instance().loadProject(path))
             return;
 
-        m_projTitleLabel->setText(
-            QString::fromStdString(ProjectManager::instance().currentTitle()));
-        clearLog();
-        updateLog();
-
-        bool hasGame = ProjectManager::instance().currentHasGameCfg();
-        m_gameActionsWidget->setVisible(hasGame);
-        m_initWidget->setVisible(!hasGame);
+        // Load dashboard with project data
+        if (m_dashboardPage)
+            m_dashboardPage->loadProject(path);
 
         // Update editor page with project scripts
         if (m_editorPage)
             m_editorPage->setProjectPath(path);
+
+        // Point asset browser at project assets
+        if (m_assetBrowserPage)
+            m_assetBrowserPage->setProjectPath(path);
 
         fadeToPage(PageProject);
     }
@@ -705,10 +592,9 @@ private:
     {
         fs::path path = ProjectManager::instance().currentPath();
         if (ProjectManager::instance().initProject(path)) {
-            m_projTitleLabel->setText(
-                QString::fromStdString(ProjectManager::instance().currentTitle()));
-            m_gameActionsWidget->setVisible(true);
-            m_initWidget->setVisible(false);
+            if (m_dashboardPage) {
+                m_dashboardPage->loadProject(path);
+            }
             refreshSidebar();
             selectSidebarByPath(path);
         }
@@ -747,7 +633,8 @@ private:
         if (ProjectManager::instance().renameProject(oldPath, newName.toStdString())) {
             refreshSidebar();
             selectSidebarByName(newName);
-            m_projTitleLabel->setText(newName);
+            if (m_dashboardPage)
+                m_dashboardPage->loadProject(ProjectManager::instance().currentPath());
         } else {
             appendLog("[ERROR] Rename failed. Project may already exist.");
             updateLog();
@@ -761,12 +648,11 @@ private:
         clearLog();
         updateLog();
         setProjectUiEnabled(false);
-        m_statusLabel->setText("Running...");
 
         std::thread([this]() {
             std::string runner = findGameRunner();
             fs::path path = ProjectManager::instance().currentPath();
-            appendLog("$ " + runner + " " + path.string());
+            appendLog("$ " + runner + " --headless --entry " + ProjectManager::instance().currentEntry());
             QMetaObject::invokeMethod(this, [this]() { updateLog(); }, Qt::QueuedConnection);
 
             auto drainPipe = [this](auto readFn) {
@@ -857,7 +743,6 @@ private:
 #endif
             s_busy = false;
             QMetaObject::invokeMethod(this, [this]() {
-                m_statusLabel->setText("");
                 setProjectUiEnabled(true);
                 updateLog();
             }, Qt::QueuedConnection);
@@ -871,7 +756,6 @@ private:
         clearLog();
         updateLog();
         setProjectUiEnabled(false);
-        m_statusLabel->setText("Packaging...");
 
         std::thread([this, filter]() {
             fs::path projectDir = ProjectManager::instance().currentPath();
@@ -1055,23 +939,325 @@ private:
 
             s_busy = false;
             QMetaObject::invokeMethod(this, [this]() {
-                m_statusLabel->setText("");
                 setProjectUiEnabled(true);
                 updateLog();
             }, Qt::QueuedConnection);
         }).detach();
     }
 
+    // ── Dashboard actions ─────────────────────────────────────────────────────
+
+    void doQuickRun(const std::string &projectPath, const std::string &entry)
+    {
+        if (s_busy.exchange(true))
+            return;
+        clearLog();
+        updateLog();
+        setProjectUiEnabled(false);
+
+        std::thread([this, projectPath, entry]() {
+            std::string runner = findGameRunner();
+            appendLog("$ " + runner + " --headless --entry \"" + entry + "\"");
+            QMetaObject::invokeMethod(this, [this]() { updateLog(); }, Qt::QueuedConnection);
+
+#ifdef _WIN32
+            // Windows pipe-based subprocess (same pattern as doLaunch)
+            SECURITY_ATTRIBUTES sa{sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};
+            HANDLE hRead, hWrite;
+            CreatePipe(&hRead, &hWrite, &sa, 0);
+            SetHandleInformation(hRead, HANDLE_FLAG_INHERIT, 0);
+
+            STARTUPINFOA si{};
+            PROCESS_INFORMATION pi{};
+            si.cb        = sizeof(si);
+            si.hStdOutput = hWrite;
+            si.hStdError  = hWrite;
+            si.dwFlags    = STARTF_USESTDHANDLES;
+
+            std::string cmd = "\"" + runner + "\" --headless --entry \"" + entry + "\"";
+            BOOL ok = CreateProcessA(NULL, (char *)cmd.c_str(), NULL, NULL, TRUE, 0,
+                                     NULL, projectPath.c_str(), &si, &pi);
+            CloseHandle(hWrite);
+            if (ok) {
+                auto drainPipe = [this](auto readFn) {
+                    char buf[512];
+                    std::string partial;
+                    while (true) {
+                        DWORD n = 0;
+                        int r = readFn(buf, sizeof(buf) - 1);
+                        if (r <= 0) break;
+                        buf[r] = '\0';
+                        for (int i = 0; i < r; ++i) {
+                            char c = buf[i];
+                            if (c == '\r') continue;
+                            if (c == '\n') {
+                                appendLog(partial);
+                                partial.clear();
+                                QMetaObject::invokeMethod(this, [this]() { updateLog(); },
+                                                         Qt::QueuedConnection);
+                            } else {
+                                partial += c;
+                            }
+                        }
+                    }
+                    if (!partial.empty()) {
+                        appendLog(partial);
+                        QMetaObject::invokeMethod(this, [this]() { updateLog(); },
+                                                 Qt::QueuedConnection);
+                    }
+                };
+                drainPipe([&](char *b, int sz) -> int {
+                    DWORD n = 0;
+                    return ReadFile(hRead, b, sz, &n, NULL) ? (int)n : -1;
+                });
+                WaitForSingleObject(pi.hProcess, INFINITE);
+                CloseHandle(pi.hProcess);
+                CloseHandle(pi.hThread);
+            } else {
+                appendLog("[ERROR] CreateProcess failed");
+            }
+            CloseHandle(hRead);
+#else
+            int pipefd[2];
+            if (pipe(pipefd) != 0) {
+                appendLog("[ERROR] pipe() failed");
+            } else {
+                pid_t pid = fork();
+                if (pid == 0) {
+                    ::close(pipefd[0]);
+                    dup2(pipefd[1], STDOUT_FILENO);
+                    dup2(pipefd[1], STDERR_FILENO);
+                    ::close(pipefd[1]);
+                    chdir(projectPath.c_str());
+                    execlp(runner.c_str(), runner.c_str(),
+                           "--headless", "--entry", entry.c_str(), nullptr);
+                    _exit(127);
+                } else if (pid > 0) {
+                    ::close(pipefd[1]);
+                    auto drainPipe = [this](auto readFn) {
+                        char buf[512];
+                        std::string partial;
+                        while (true) {
+                            int n = readFn(buf, sizeof(buf) - 1);
+                            if (n <= 0) break;
+                            buf[n] = '\0';
+                            for (int i = 0; i < n; ++i) {
+                                char c = buf[i];
+                                if (c == '\r') continue;
+                                if (c == '\n') {
+                                    appendLog(partial);
+                                    partial.clear();
+                                    QMetaObject::invokeMethod(this, [this]() { updateLog();},
+                                                             Qt::QueuedConnection);
+                                } else {
+                                    partial += c;
+                                }
+                            }
+                        }
+                        if (!partial.empty()) {
+                            appendLog(partial);
+                            QMetaObject::invokeMethod(this, [this]() { updateLog();},
+                                                     Qt::QueuedConnection);
+                        }
+                    };
+                    drainPipe([&](char *b, int sz) -> int {
+                        return (int)read(pipefd[0], b, sz);
+                    });
+                    ::close(pipefd[0]);
+                    waitpid(pid, nullptr, 0);
+                } else {
+                    appendLog("[ERROR] fork() failed");
+                    ::close(pipefd[0]);
+                    ::close(pipefd[1]);
+                }
+            }
+#endif
+            // End play session
+            QMetaObject::invokeMethod(this, [this]() {
+                ProjectManager::instance().endPlaySession();
+            }, Qt::QueuedConnection);
+
+            s_busy = false;
+            QMetaObject::invokeMethod(this, [this]() {
+                setProjectUiEnabled(true);
+                updateLog();
+            }, Qt::QueuedConnection);
+        }).detach();
+    }
+
+    void doSpecRun(const std::string &projectPath, const std::string &specFile)
+    {
+        if (s_busy.exchange(true))
+            return;
+        clearLog();
+        updateLog();
+        setProjectUiEnabled(false);
+        appendLog("[SPEC] Running " + specFile + "...");
+        updateLog();
+
+        std::thread([this, projectPath, specFile]() {
+            std::string runner = findGameRunner();
+            std::string specPath = projectPath + "/assets/scripts/" + specFile;
+            appendLog("$ " + runner + " --script \"" + specPath + "\"");
+            QMetaObject::invokeMethod(this, [this]() { updateLog(); }, Qt::QueuedConnection);
+
+            std::string fullOutput;
+
+            auto drainPipe = [&](auto readFn) {
+                char buf[512];
+                std::string partial;
+                while (true) {
+                    int n = readFn(buf, sizeof(buf) - 1);
+                    if (n <= 0) break;
+                    buf[n] = '\0';
+                    fullOutput += buf;
+                    for (int i = 0; i < n; ++i) {
+                        char c = buf[i];
+                        if (c == '\r') continue;
+                        if (c == '\n') {
+                            appendLog(partial);
+                            partial.clear();
+                            QMetaObject::invokeMethod(this, [this]() { updateLog();},
+                                                     Qt::QueuedConnection);
+                        } else {
+                            partial += c;
+                        }
+                    }
+                }
+                if (!partial.empty()) {
+                    appendLog(partial);
+                    QMetaObject::invokeMethod(this, [this]() { updateLog();},
+                                             Qt::QueuedConnection);
+                }
+            };
+
+            int exitCode = 0;
+
+#ifdef _WIN32
+            SECURITY_ATTRIBUTES sa{sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};
+            HANDLE hRead, hWrite;
+            CreatePipe(&hRead, &hWrite, &sa, 0);
+            SetHandleInformation(hRead, HANDLE_FLAG_INHERIT, 0);
+
+            STARTUPINFOA si{};
+            PROCESS_INFORMATION pi{};
+            si.cb        = sizeof(si);
+            si.hStdOutput = hWrite;
+            si.hStdError  = hWrite;
+            si.dwFlags    = STARTF_USESTDHANDLES;
+
+            std::string cmd = "\"" + runner + "\" --script \"" + specPath + "\"";
+            BOOL ok = CreateProcessA(NULL, (char *)cmd.c_str(), NULL, NULL, TRUE, 0,
+                                     NULL, projectPath.c_str(), &si, &pi);
+            CloseHandle(hWrite);
+            if (ok) {
+                drainPipe([&](char *b, int sz) -> int {
+                    DWORD n = 0;
+                    return ReadFile(hRead, b, sz, &n, NULL) ? (int)n : -1;
+                });
+                WaitForSingleObject(pi.hProcess, INFINITE);
+                DWORD ec = 0;
+                GetExitCodeProcess(pi.hProcess, &ec);
+                exitCode = (int)ec;
+                CloseHandle(pi.hProcess);
+                CloseHandle(pi.hThread);
+            } else {
+                appendLog("[ERROR] CreateProcess failed");
+            }
+            CloseHandle(hRead);
+#else
+            int pipefd[2];
+            if (pipe(pipefd) != 0) {
+                appendLog("[ERROR] pipe() failed");
+            } else {
+                pid_t pid = fork();
+                if (pid == 0) {
+                    ::close(pipefd[0]);
+                    dup2(pipefd[1], STDOUT_FILENO);
+                    dup2(pipefd[1], STDERR_FILENO);
+                    ::close(pipefd[1]);
+                    chdir(projectPath.c_str());
+                    execlp(runner.c_str(), runner.c_str(),
+                           "--script", specPath.c_str(), nullptr);
+                    _exit(127);
+                } else if (pid > 0) {
+                    ::close(pipefd[1]);
+                    drainPipe([&](char *b, int sz) -> int {
+                        return (int)read(pipefd[0], b, sz);
+                    });
+                    ::close(pipefd[0]);
+                    waitpid(pid, &exitCode, 0);
+                    exitCode = WEXITSTATUS(exitCode);
+                } else {
+                    appendLog("[ERROR] fork() failed");
+                    ::close(pipefd[0]);
+                    ::close(pipefd[1]);
+                }
+            }
+#endif
+
+            // Spec run summary
+            appendLog("");
+            if (exitCode == 0) {
+                appendLog("[SPEC] PASS — All assertions in " + specFile + " passed.");
+            } else {
+                appendLog("[SPEC] FAIL — " + specFile + " exited with code " +
+                          std::to_string(exitCode) + ".");
+            }
+            QMetaObject::invokeMethod(this, [this]() { updateLog(); }, Qt::QueuedConnection);
+
+            s_busy = false;
+            QMetaObject::invokeMethod(this, [this]() {
+                setProjectUiEnabled(true);
+                updateLog();
+            }, Qt::QueuedConnection);
+        }).detach();
+    }
+
+    void doOpenInEditor(const std::string &projectPath, const std::string &filePath)
+    {
+        Q_UNUSED(projectPath);
+        if (m_editorPage) {
+            m_editorPage->openFile(QString::fromStdString(filePath));
+            fadeToPage(PageEditor);
+        }
+    }
+
+    void doCreateFromTemplate(const QString &templateName, const QString &entryScriptName)
+    {
+        Q_UNUSED(entryScriptName);
+        QString name = QInputDialog::getText(this, "New Project from Template",
+                                              "Enter project name:");
+        if (name.isEmpty())
+            return;
+
+        if (ProjectManager::instance().createProject(
+                name.toStdString(), templateName.toStdString())) {
+            refreshSidebar();
+            selectSidebarByName(name);
+            onSidebarProjectClicked(m_sidebarList->currentItem());
+        } else {
+            appendLog("[ERROR] Project already exists or creation failed.");
+            updateLog();
+        }
+    }
+
+    // ── Log helpers ───────────────────────────────────────────────────────────
+
     void updateLog()
     {
         QString text = QString::fromStdString(s_log);
-        if (m_log->toPlainText() != text)
-            m_log->setPlainText(text);
+        if (m_dashboardPage) {
+            auto *log = m_dashboardPage->logWidget();
+            if (log->toPlainText() != text)
+                log->setPlainText(text);
+        }
     }
 
     void setProjectUiEnabled(bool enabled)
     {
-        m_launchBtn->setEnabled(enabled);
+        if (m_dashboardPage)
+            m_dashboardPage->setRunning(!enabled);
     }
 
     // ── Members ───────────────────────────────────────────────────────────────
@@ -1083,15 +1269,9 @@ private:
     QLabel         *m_emptyTitle       = nullptr;
     QLabel         *m_emptyDesc        = nullptr;
 
-    QLabel        *m_projTitleLabel    = nullptr;
-    QWidget       *m_gameActionsWidget = nullptr;
-    QPushButton   *m_launchBtn         = nullptr;
-    QLabel        *m_statusLabel       = nullptr;
-    QWidget       *m_initWidget        = nullptr;
-    QPushButton   *m_initBtn           = nullptr;
-    QTextEdit     *m_log               = nullptr;
-
-    EditorPage *m_editorPage = nullptr;
+    DashboardPage   *m_dashboardPage   = nullptr;
+    EditorPage      *m_editorPage      = nullptr;
+    AssetBrowserPage *m_assetBrowserPage = nullptr;
 
     QGraphicsOpacityEffect *m_contentOpacity = nullptr;
     QPropertyAnimation     *m_fadeAnim       = nullptr;
