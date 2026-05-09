@@ -2,273 +2,110 @@
 
 ## Project Goal
 A Ren'Py rival game engine where game authors write only `.crka` scripts — no C++ needed.
-Game devs package their game via CerekaLauncher into a self-contained ZIP for Linux and Windows.
-Players download the ZIP, unzip, run the binary. Zero external dependencies.
 
 ---
 
-## Phase 1 — Distribution & Packaging
-**Goal:** Ship a game built with Cereka that "just works" on a fresh Linux or Windows machine, and a CerekaLauncher that devs can run without installing anything.
+## Shipped Phases
 
-**Scope:**
-- Windows CerekaGame: static-link SDL3* → single self-contained `.exe`
-- Linux CerekaGame: `$ORIGIN` RPATH → binary finds bundled `.so` files in same dir, no wrapper script
-- Launcher packager (`project_manager.cpp`): produce a correct ZIP per platform (exe only on Windows, binary + SDL .so on Linux)
-- Windows Launcher: ensure `windeployqt` captures UCRT/MinGW runtime DLLs in addition to Qt6 DLLs
-- Linux Launcher: AppImage so devs can run CerekaLauncher on any distro without Qt6 installed
-
+### Phase 1 — Distribution & Packaging
+**Goal:** Ship a game that "just works" on Linux/Windows, and a CerekaLauncher devs run without installing anything.
 **Status:** completed
 
-**Plans:** 4 plans
-
-Plans:
-- [x] 01-01-PLAN.md — SDL3 static gate (Windows) + $ORIGIN RPATH + SDL .so routing (Linux)
-- [x] 01-02-PLAN.md — windeployqt --compiler-runtime flag + WIN32 guard for launcher
-- [x] 01-03-PLAN.md — AppImage packaging script + .desktop file + icon
-- [x] 01-04-PLAN.md — doPackage() Linux branch: copy SDL .so files into game archive
-
----
-
-## Phase 2 — Engine Correctness (HIGH severity bugs)
-**Goal:** Fix all HIGH severity correctness bugs before building more features.
-- Save format unification (`.sav` vs `.json` split)
-- Nested if/else VM bug (`skipDepth` reset at depth > 1)
-- Text word-wrap (long lines compress instead of wrapping)
-- Wire `CerekaStateMachine` into `CerekaImpl` (dead state machine)
-
-**Status:** in-progress
-
-**Plans:** 5 plans
-
-Plans:
-- [x] 02-01-PLAN.md — CI Infrastructure (Linux/macOS/Windows) + Local verification scripts
-- [x] 02-02-PLAN.md — Fix nested if/else VM bug + Implement themeable word-wrap
-- [x] 02-03-PLAN.md — State Machine "Big Bang" migration (CerekaImpl decoupling)
-- [x] 02-04-PLAN.md — Modern Save System (Glaze JSON + versioning)
-- [x] 02-05-PLAN.md — Branding & Naming Conventions (SDL-style cereka_ prefix, type/namespace renames, docs rebrand)
-
----
-
-## Phase 3 — Architectural Cleanup
-**Goal:** Complete the CerekaImpl god-object split and add renderer abstraction.
-- Wire `CerekaStateMachine` overlay push/pop as the single source of truth
-- Extract UIManager from CerekaImpl
-- Renderer abstraction (stop leaking SDL types into engine logic)
-- Fix crash/safety risks (unguarded stoi, unbounded CALL stack, and adjacent)
-
+### Phase 2 — Engine Correctness
+**Goal:** Fix HIGH severity bugs (save format, nested if/else, word-wrap, state machine wiring)
 **Status:** completed
 
-**Plans:** 4 plans
+### Phase 3 — Architectural Cleanup
+**Goal:** God-object split, renderer abstraction, safety fixes
+**Status:** completed
 
-Plans:
-- [x] 03-01-PLAN.md — CI Fix + Crash Safety (D-01, D-05)
-- [x] 03-02-PLAN.md — IRenderContext Abstraction (D-04)
-- [x] 03-03-PLAN.md — UIManager Extraction (D-03)
-- [x] 03-04-PLAN.md — State Machine Unification (D-02)
+### Phase 4 — Engine Features
+**Goal:** Scene graph, text markup, audio fade, rollback + dialogue history
+**Status:** completed
 
-### Phase 5: to make it work cross platform across mac windows and linux, bcs windows and linux is good now. just macos since the resolution is weird. and unconvencitonal. somehow even if window resolution ok, the game inside the window is distorted
+### Phase 5 — macOS Cross-Platform Fix
+**Goal:** Fix resolution/game window distortion on macOS
+**Status:** completed
 
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 4
-**Plans:** 0 plans
+### Phase 6 — Documentation Site
+**Goal:** Complete mdBook documentation site for Cereka v1.0
+**Status:** completed
 
-Plans:
-- [ ] TBD (run /gsd-plan-phase 5 to break down)
+### Phase 7 — Critical Bug Fixes
+**Goal:** Var substitution in menus, checkpoint store/load, save/load variable restoration
+**Status:** completed
 
-### Phase 6: the complete documentation and a proper documentation site. like how all engine have documentation
+### Phase 8 — Type Coercion
+**Goal:** Fix inconsistent type coercion in if comparisons (string var vs literal int)
+**Status:** completed
 
-**Goal:** Create a complete game-author documentation site for Cereka v1.0 using mdBook, deployed on Cloudflare Pages with a custom domain. Author docs cover the full .crka scripting language, UI theming, project structure, build/packaging, and an annotated example game.
-
-**Requirements**: D-03 (7 sections), D-04 (annotated example game)
-**Depends on:** Phase 5
-**Plans:** 2 plans
-
-Plans:
-- [ ] 06-01-PLAN.md — mdBook scaffolding + complete Scripting Reference (38 ops across 10 category pages)
-- [ ] 06-02-PLAN.md — User guide sections (Getting Started, Project Structure, Build & Package) + UI Theming + Variables & Expressions + Annotated Example Game + Deploy config
-
-### Phase 7: Fix critical bugs: var substitution in menus + save/load variable restoration
-
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 6
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (run /gsd-plan-phase 7 to break down)
-
-### Phase 8: Fix inconsistent type coercion: string var vs literal int in comparison
-
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 7
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (run /gsd-plan-phase 8 to break down)
-
-### Phase 9: headless mode
-
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 8
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (run /gsd-plan-phase 9 to break down)
+### Phase 9 — Headless Mode
+**Goal:** Headless mode, CerekaTest, .spec.crka test runner
+**Status:** completed
 
 ---
 
-## Phase 6 — Documentation Site
+## In Progress
 
-**Goal:** Create a comprehensive documentation site for the Cereka game engine.
-**Depends on:** None
-**Plans:** 2/1 plans complete
-
-Plans:
-- [x] 06-01-PLAN.md — mdBook scaffolding + all scripting reference pages + user guides + annotated example
-
-## Phase 4 — Engine Features
-**Goal:** Feature parity with Ren'Py baseline.
-- Scene graph + transform tree (prerequisite for ATL: dissolve/zoom/rotate)
-- Text markup (`<b>`, color spans)
-- Audio fade in/out
-- Rollback + dialogue history
-
-**Status:** in-progress
-
-**Plans:** 4 plans
-
-Plans:
-- [x] 04-01-PLAN.md — Scene Graph (SceneNode tree, compiler ops, UIManager draw)
-- [x] 04-02-PLAN.md — Text Markup (tag parser, rich text renderer, IRenderContext integration)
-- [x] 04-03-PLAN.md — Audio Fade (timer-based volume ramping, fade curve math, crossfade)
-- [x] 04-04-PLAN.md — Rollback + Dialogue History (ring buffer, HistoryState overlay)
-
-### Phase 10: Launcher IDE Core: script editor, project dashboard, and asset browser
-
-**Goal:** Build a complete script editor (syntax highlighting, tabs, split-pane, find/replace, outline, LSP), project dashboard, template gallery, and asset browser into the Cereka Launcher.
-**Requirements**: TBD
+### Phase 10 — Launcher IDE Core
+**Goal:** Script editor (syntax highlighting, tabs, split-pane, find/replace, outline, LSP), project dashboard, template gallery, asset browser
 **Depends on:** Phase 9
 **Plans:** 4 plans
+- [x] 10-01 — Infrastructure + Project Metadata
+- [x] 10-02 — CodeEditor Widget + LSP Client
+- [x] 10-03 — Editor UX (tabs, split, find, outline)
+- [x] 10-04 — Dashboard + Asset Browser
+**Status:** executing (other terminal)
 
-Plans:
-- [x] 10-01-PLAN.md — Script editor foundation (code editor, syntax highlighting, LSP client)
-- [x] 10-02-PLAN.md — Editor UX features (tab bar, split-pane, find/replace)
-- [x] 10-03-PLAN.md — Outline panel + LSP diagnostics integration
-- [x] 10-04-PLAN.md — Project dashboard + asset browser
+---
 
-### Phase 11: Launcher IDE Pro: visual editor, theme designer, debugger, and plugins
+## Engine Bugfix Sprint (completed ad-hoc 2026-05-09)
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+The following were identified via deep code review and fixed in a parallel agent sprint:
+
+- ELSE skip handler — `else` branches now execute correctly
+- C++ bridge — 5 dropped ops (PLAY_BGM_FADE, STOP_BGM_FADE, BGM_CROSSFADE, SG_SET, SG_REMOVE) now map correctly
+- LOAD/JUMP infinite loops — labelMap.find() instead of operator[], LoadGame return check
+- Scene graph — children now accumulate parent position
+- DrawRichText infinite loop — guard at line start with no fitting glyph
+- CTest integration — gtest_discover_tests re-enabled
+- Word-wrap — word-boundary aware wrapping (CJK/long-word fallback)
+- Menu overhaul — hover states, keyboard nav, pagination, configurable spacing
+- Scripting — else-if, &&, || operators with short-circuit evaluation
+- Settings — persistent settings (text speed, volume, auto-advance, fullscreen)
+- Pause menu — ESC overlay with Continue/Save/Load/Settings/Quit
+- Save/load UX — scene metadata, confirm overwrite
+- Volume wrap — fixed dead-code in settings menu cycling
+- Tree-sitter sync — ops.json manifest + gen_tree_sitter_grammar.js
+
+---
+
+## Upcoming
+
+### Phase 11 — Launcher IDE Pro
+**Goal:** Visual editor, theme designer, debugger, plugins
 **Depends on:** Phase 10
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (run /gsd-plan-phase 11 to break down)
-
-### Phase --raw: Word-wrap fix (TTF_MeasureString)
-
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase TBD
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (run /gsd-plan-phase --raw to break down)
+**Status:** discussed, ready to plan
 
 ---
 
 ## Backlog
 
-### Phase 999.1: Scripting language enhancements (BACKLOG)
+### Engine polish (available for promotion)
 
-**Goal:** Add else-if, &&, ||, switch/case, while loops, random(), wait N, and array support to .crka.
-**Requirements:** TBD
-**Plans:** 0 plans
+| # | Item | Goal |
+|---|------|------|
+| 999.11 | ATL animation system | Dissolve, zoom, rotate, move with easing curves |
+| 999.12 | Accessibility & input | Controller support, font scaling, key remapping |
+| 999.13 | Dialogue UX | Configurable typewriter speed, auto-advance, skip-read |
+| 999.14 | Whiteout game | Content pipeline, UI theme, packaging |
 
-Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
+### Tech debt & infrastructure
 
-### Phase 999.2: Button/menu overhaul (BACKLOG)
-
-**Goal:** Auto-pagination for overflow buttons, hover state rendering, configurable Y start position and spacing via ui button block.
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
-### Phase 999.3: Word-wrap fix (BACKLOG)
-
-**Goal:** Fix TTF_MeasureString wrapping at glyph boundaries — scan back for word boundary before wrapping.
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
-### Phase 999.4: Settings & persistent data system (BACKLOG)
-
-**Goal:** settings.json + persistent.json with .crka API (set_setting, get_setting, persistent set/get). Auto-wire volume to AudioManager, text speed to DialogueSystem, fullscreen toggle.
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
-### Phase 999.5: Pause menu & settings overlay (BACKLOG)
-
-**Goal:** ESC overlay with Continue/Save/Load/Settings/Quit. Settings overlay with sliders (text speed, volume) and toggles (auto-advance, fullscreen).
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
-### Phase 999.6: Save/load UX improvements (BACKLOG)
-
-**Goal:** Scene metadata in save slots (bg/character name), confirm overwrite dialog, quick save/load ops.
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
-### Phase 999.11: Animation system — ATL language (BACKLOG)
-
-**Goal:** Declarative animation language for character/bg transitions: dissolve, zoom, rotate, move. Timing curves, chained animations, parallel animations.
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
-### Phase 999.12: Accessibility & input (BACKLOG)
-
-**Goal:** Controller/gamepad support, font size scaling, subtitle background, colorblind mode, full key remapping.
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
-### Phase 999.13: Dialogue UX enhancements (BACKLOG)
-
-**Goal:** Configurable typewriter speed (per-game/per-player), auto-advance mode (configurable delay), text speed per instruction, skip-read (already-read vs all).
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
-### Phase 999.14: Whiteout game completion (BACKLOG)
-
-**Goal:** Clean up nested if hell with else-if, refine UI theme, complete prologue content pipeline, full spike test coverage, packaging flow.
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
+| # | Item | Goal |
+|---|------|------|
+| — | Launcher refactor | Extract PackageManager, ProjectLifecycle from main.cpp |
+| — | CMake hygiene | Replace GLOB_RECURSE with explicit source lists |
+| — | CI/CD | GitHub Actions on every push |
+| — | Versioned save format | Add version field + migration hook |
+| — | Compiler error surfacing | Thread srcLine/srcCol through to runtime errors |
