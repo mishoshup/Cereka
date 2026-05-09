@@ -66,7 +66,23 @@ bool LspClient::start(const QString &path)
 
     // If path ends with .js, run via node; otherwise treat as standalone binary
     if (path.endsWith(".js")) {
-        m_process->start("node", QStringList() << path);
+        // Find node binary — on macOS, GUI apps don't inherit shell PATH
+        static const char *nodeCandidates[] = {
+            "/opt/homebrew/bin/node",
+            "/usr/local/bin/node",
+            "/usr/bin/node",
+            "/opt/local/bin/node",
+        };
+        QString nodeBin;
+        for (const char *candidate : nodeCandidates) {
+            if (QFileInfo::exists(candidate)) {
+                nodeBin = candidate;
+                break;
+            }
+        }
+        if (nodeBin.isEmpty())
+            nodeBin = "node"; // fallback — will work if PATH has it
+        m_process->start(nodeBin, QStringList() << path);
     } else {
         m_process->start(path, QStringList());
     }
