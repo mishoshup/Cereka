@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+#include <iostream>
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -48,7 +49,10 @@ bool LspClient::start(const QString &path)
     m_initialized = false;
     m_intentionalStop = false;
 
+    std::cerr << "[LSP] start() called with path = " << path.toStdString() << "\n";
+
     if (!QFileInfo::exists(path)) {
+        std::cerr << "[LSP] path does not exist: " << path.toStdString() << "\n";
         emit connectionFailed();
         return false;
     }
@@ -77,23 +81,30 @@ bool LspClient::start(const QString &path)
         for (const char *candidate : nodeCandidates) {
             if (QFileInfo::exists(candidate)) {
                 nodeBin = candidate;
+                std::cerr << "[LSP] found node at " << candidate << "\n";
                 break;
             }
         }
-        if (nodeBin.isEmpty())
-            nodeBin = "node"; // fallback — will work if PATH has it
+        if (nodeBin.isEmpty()) {
+            std::cerr << "[LSP] node not found in known paths, trying PATH\n";
+            nodeBin = "node";
+        }
+        std::cerr << "[LSP] starting: " << nodeBin.toStdString() << " " << path.toStdString() << "\n";
         m_process->start(nodeBin, QStringList() << path);
     } else {
+        std::cerr << "[LSP] starting standalone binary\n";
         m_process->start(path, QStringList());
     }
 
     if (!m_process->waitForStarted(5000)) {
+        std::cerr << "[LSP] waitForStarted FAILED (timeout or error)\n";
         delete m_process;
         m_process = nullptr;
         emit connectionFailed();
         return false;
     }
 
+    std::cerr << "[LSP] process started OK, pid=" << m_process->processId() << "\n";
     return true;
 }
 
@@ -331,14 +342,19 @@ static QString findSiblingDir(const QString &siblingName)
 
 QString LspClient::resolveBinary()
 {
+    std::cerr << "[LSP] resolveBinary called\n";
+
     // Find the tree-sitter-cereka repo via git (works wherever repos are cloned)
     QString tsDir = findSiblingDir("tree-sitter-cereka");
     if (tsDir.isEmpty()) {
-        // Fallback: try the old hardcoded dev path
+        std::cerr << "[LSP] git did not find sibling, trying hardcoded path\n";
         tsDir = QDir::homePath() + "/dev/tree-sitter-cereka";
-        if (!QFileInfo::exists(tsDir))
+        if (!QFileInfo::exists(tsDir)) {
+            std::cerr << "[LSP] hardcoded path also not found: " << tsDir.toStdString() << "\n";
             return {};
+        }
     }
+    std::cerr << "[LSP] tsDir = " << tsDir.toStdString() << "\n";
 
     QString serverDir = tsDir + "/lsp";
     QString binaryPath = serverDir + "/dist/cereka-lsp";
@@ -347,8 +363,10 @@ QString LspClient::resolveBinary()
 #endif
 
     // 1. Standalone SEA binary
-    if (QFileInfo::exists(binaryPath))
+    if (QFileInfo::exists(binaryPath)) {
+        std::cerr << "[LSP] found SEA binary: " << binaryPath.toStdString() << "\n";
         return binaryPath;
+    }
 
     // 2. Relative to launcher binary
     QString exeDir = QCoreApplication::applicationDirPath();
@@ -356,14 +374,19 @@ QString LspClient::resolveBinary()
 #ifdef _WIN32
     relBinary += ".exe";
 #endif
-    if (QFileInfo::exists(relBinary))
+    if (QFileInfo::exists(relBinary)) {
+        std::cerr << "[LSP] found relative binary: " << relBinary.toStdString() << "\n";
         return relBinary;
+    }
 
     // 3. Fallback: run server.js via node
     QString serverJs = serverDir + "/server.js";
-    if (QFileInfo::exists(serverJs))
+    if (QFileInfo::exists(serverJs)) {
+        std::cerr << "[LSP] found server.js, will run via node\n";
         return serverJs;
+    }
 
+    std::cerr << "[LSP] no LSP binary found anywhere\n";
     return {};
 }
 
@@ -377,7 +400,9 @@ void LspClient::onReadyRead()
 
 void LspClient::onProcessError(QProcess::ProcessError error)
 {
+    std::cerr << "[LSP] process error: " << error << "\n";
     if (error == QProcess::FailedToStart) {
+        std::cerr << "[LSP] FailedToStart: " << (m_process ? m_process->errorString().toStdString() : "null") << "\n";
         emit connectionFailed();
     }
 }
