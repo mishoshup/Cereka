@@ -63,6 +63,11 @@ bool LspClient::start(const QString &path)
 
     connect(m_process, &QProcess::readyReadStandardOutput,
             this, &LspClient::onReadyRead);
+    connect(m_process, &QProcess::readyReadStandardError, this, [this]() {
+        QByteArray err = m_process->readAllStandardError();
+        if (!err.isEmpty())
+            std::cerr << "[LSP-SRV] " << err.constData();
+    });
     connect(m_process, &QProcess::errorOccurred,
             this, &LspClient::onProcessError);
     connect(m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
